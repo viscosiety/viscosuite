@@ -12,9 +12,14 @@ services:
       dtap.stage: LOC
       # ViscoStore (HAPI FHIR) Spring Boot datasource — overrides application.yaml inside the WAR
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/viscostore
+      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
       SPRING_DATASOURCE_USERNAME: visco
       SPRING_DATASOURCE_PASSWORD: visco
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
       SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # Tester backend makes server-side HTTP calls to this address; must be reachable from within
+      # the container (port 8080, not the host-mapped 8180)
+      HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
     depends_on:
       postgres:
         condition: service_healthy

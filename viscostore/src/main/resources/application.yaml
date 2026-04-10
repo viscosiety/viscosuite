@@ -37,6 +37,10 @@ management:
         enabled: true
 
 spring:
+  mvc:
+    servlet:
+      path: /tester    # DispatcherServlet handles /tester/*; FHIR server at /fhir/* is unaffected
+
   # -------------------------------------------------------------------------------
   # A. Spring AI — Model Context Protocol (MCP)
   # -------------------------------------------------------------------------------
@@ -145,6 +149,21 @@ spring:
 # -------------------------------------------------------------------------------------
 hapi:
   fhir:
+
+    # -------------------------------------------------------------------------------
+    # Tester UI — served at /tester/ within the WAR (i.e. /viscostore/tester/)
+    # FhirTesterConfigCondition activates FhirTesterConfig only when this section is present.
+    # server_address is used for server-side HTTP calls from the tester backend to the FHIR server.
+    # For Docker: override HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS to the internal container address
+    # (e.g. http://localhost:8080/viscostore/fhir) because the host-mapped port is not reachable
+    # from within the container.
+    # -------------------------------------------------------------------------------
+    tester:
+      home:
+        name: ViscoStore
+        server_address: "http://localhost:8180/viscostore/fhir"
+        refuse_to_fetch_third_party_urls: false
+        fhir_version: R4
 
     # -------------------------------------------------------------------------------
     # A. Core Server & API
