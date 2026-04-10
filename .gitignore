@@ -8,3 +8,11 @@ node_modules/
 
 # Never commit real credentials
 viscorunner/secrets/credentials.properties
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
