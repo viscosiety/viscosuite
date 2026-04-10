@@ -6,7 +6,7 @@
 
 	<parent>
 		<groupId>com.visco</groupId>
-		<artifactId>visco-parent</artifactId>
+		<artifactId>viscosuite-parent</artifactId>
 		<version>1.0.0-SNAPSHOT</version>
 	</parent>
 
