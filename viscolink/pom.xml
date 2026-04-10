@@ -22,6 +22,7 @@
 
 	<properties>
 		<frankframework.version>9.4.1</frankframework.version>
+		<hapi.version>7.4.0</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
 		<h2.version>2.4.240</h2.version>
@@ -96,6 +97,25 @@
 			<groupId>org.jboss.logging</groupId>
 			<artifactId>jboss-logging</artifactId>
 			<version>${jboss-logging.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
+		<!-- HAPI FHIR — server runtime and R4 structures -->
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-server</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-r4</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+
+		<!-- jakarta.activation-api is marked 'provided' in the F!F BOM but Tomcat does not supply it -->
+		<dependency>
+			<groupId>jakarta.activation</groupId>
+			<artifactId>jakarta.activation-api</artifactId>
 			<scope>runtime</scope>
 		</dependency>
 
