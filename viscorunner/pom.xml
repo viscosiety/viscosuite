@@ -30,11 +30,17 @@
 			<type>war</type>
 		</dependency>
 
-		<!-- PostgreSQL driver placed in /opt/frank/drivers — shared between both WARs via Tomcat common.loader -->
+		<!-- JDBC drivers placed in /opt/frank/drivers — loaded by Tomcat's common.loader, shared between both WARs -->
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
 			<version>${postgresql.version}</version>
+		</dependency>
+		<!-- H2 must also be at Tomcat level because context.xml JNDI resources are initialised by Tomcat, not the WAR -->
+		<dependency>
+			<groupId>com.h2database</groupId>
+			<artifactId>h2</artifactId>
+			<version>2.4.240</version>
 		</dependency>
 	</dependencies>
 
@@ -69,7 +75,7 @@
 						</goals>
 						<configuration>
 							<outputDirectory>${project.build.directory}/drivers</outputDirectory>
-							<includeArtifactIds>postgresql</includeArtifactIds>
+							<includeArtifactIds>postgresql,h2</includeArtifactIds>
 							<stripVersion>true</stripVersion>
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>

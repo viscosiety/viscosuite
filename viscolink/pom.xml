@@ -4,18 +4,6 @@
 		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
 	<modelVersion>4.0.0</modelVersion>
 
-	<!--
-		frankframework-bundle-minimal provides all F!F modules (core, console, larva, ladybug,
-		filesystem) plus managed versions for all their transitive dependencies.
-		<relativePath/> tells Maven not to look for it locally — resolve from Maven Central.
-	-->
-	<parent>
-		<groupId>org.frankframework</groupId>
-		<artifactId>frankframework-bundle-minimal</artifactId>
-		<version>9.3.0</version>
-		<relativePath/>
-	</parent>
-
 	<groupId>com.visco</groupId>
 	<artifactId>viscolink</artifactId>
 	<version>1.0.0-SNAPSHOT</version>
@@ -23,28 +11,126 @@
 
 	<name>ViscoLink</name>
 
+	<!--
+		Note: frankframework-bundle-minimal cannot be used as a Maven parent for external
+		projects because its published pom contains unresolved ${project.version} placeholders
+		in dependencyManagement (the bundle is designed for use inside the F!F reactor only).
+		Instead, we import frankframework-parent as a BOM — BOM imports evaluate properties
+		in the BOM's own context, so ${project.version} correctly resolves to 9.4.1.
+		All F!F module dependencies are then declared explicitly with ${frankframework.version}.
+	-->
+
 	<properties>
+		<frankframework.version>9.4.1</frankframework.version>
+		<log4j2.version>2.25.3</log4j2.version>
+		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
+		<h2.version>2.4.240</h2.version>
+		<junit.version>5.14.1</junit.version>
 		<maven.compiler.source>17</maven.compiler.source>
 		<maven.compiler.target>17</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
-		<m2eclipse.wtp.contextRoot>viscolink</m2eclipse.wtp.contextRoot>
 		<failOnMissingWebXml>false</failOnMissingWebXml>
 	</properties>
 
+	<dependencyManagement>
+		<dependencies>
+			<!--
+				Importing frankframework-parent as a BOM gives us correct version management
+				for all F!F transitive dependencies (Spring, Jackson, CXF, Jakarta APIs, etc.).
+			-->
+			<dependency>
+				<groupId>org.frankframework</groupId>
+				<artifactId>frankframework-parent</artifactId>
+				<version>${frankframework.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
+		<!-- Equivalent to frankframework-bundle-minimal, with explicit versions -->
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-core</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-filesystem</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-larva</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-ladybug-debugger</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-console-frontend</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-console-backend</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.logging.log4j</groupId>
+			<artifactId>log4j-web</artifactId>
+			<version>${log4j2.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.jboss.logging</groupId>
+			<artifactId>jboss-logging</artifactId>
+			<version>${jboss-logging.version}</version>
+			<scope>runtime</scope>
+		</dependency>
+
 		<!-- H2 for local development; PostgreSQL driver is provided at Tomcat level in production -->
 		<dependency>
 			<groupId>com.h2database</groupId>
 			<artifactId>h2</artifactId>
-			<version>${h2.driver.version}</version>
+			<version>${h2.version}</version>
 			<scope>runtime</scope>
 		</dependency>
 
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
+
+	<build>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.14.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-war-plugin</artifactId>
+				<version>3.5.1</version>
+				<configuration>
+					<failOnMissingWebXml>false</failOnMissingWebXml>
+				</configuration>
+			</plugin>
+		</plugins>
+	</build>
 
 </project>

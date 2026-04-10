@@ -28,6 +28,9 @@ COPY --chown=tomcat src/scripts/catalinaAdditional.properties /tmp/catalinaAddit
 RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.properties && \
 	rm /tmp/catalinaAdditional.properties
 
+# JNDI datasource definitions (H2 for local dev; override in production via mounted context.xml)
+COPY --chown=tomcat src/conf/context.xml /usr/local/tomcat/conf/context.xml
+
 # JDBC drivers — shared between both WARs via common.loader in catalina.properties
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 
