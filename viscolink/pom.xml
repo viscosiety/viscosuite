@@ -58,6 +58,11 @@
 		</dependency>
 		<dependency>
 			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-kubernetes</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>org.frankframework</groupId>
 			<artifactId>frankframework-filesystem</artifactId>
 			<version>${frankframework.version}</version>
 		</dependency>

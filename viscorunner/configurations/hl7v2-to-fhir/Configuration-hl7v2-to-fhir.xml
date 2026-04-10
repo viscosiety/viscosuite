@@ -1,0 +1,40 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <Adapter name="HL7v2ToFHIR"
+             description="Received HL7v2 messages through a Java listener and converts these messages to persisted FHIR resources">
+
+        <Receiver name="HL7v2ToFHIRReceiver">
+            <JavaListener name="HL7v2ToFHIRListener" />
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" />
+                <Exit name="Exception" state="ERROR" />
+                <Exit name="BadRequest" state="ERROR" code="400" />
+                <Exit name="NotAuthorized" state="ERROR" code="401" />
+                <Exit name="Forbidden" state="ERROR" code="403" />
+                <Exit name="NotFound" state="ERROR" code="404" />
+                <Exit name="NotAcceptable" state="ERROR" code="406" />
+                <Exit name="UnsupportedMediaType" state="ERROR" code="415" />
+                <Exit name="TooManyRequest" state="ERROR" code="429" />
+                <Exit name="ServerError" state="ERROR" code="500" />
+                <Exit name="ServiceUnavailable" state="ERROR" code="503" />
+            </Exits>
+
+            <PutInSessionPipe name="putGlobalsInSession">
+                <Param type="STRING" name="patientId" xpathExpression="/h:ADT_A01/h:PID/h:PID.3/h:CX.1" namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="messageSender" xpathExpression="/h:ADT_A01/h:MSH/h:MSH.3/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="messageReceiver" xpathExpression="/h:ADT_A01/h:MSH/h:MSH.5/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="hl7MessageType" xpathExpression="/h:ADT_A01/h:MSH/h:MSH.9/h:MSG.3" namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/',/h:ADT_A01/h:MSH/h:MSH.9/h:MSG.3, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
+            </PutInSessionPipe>
+
+            <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet">
+                <Param name="patientId" sessionKey="patient.identifier" />
+            </XsltPipe>
+
+            <EchoPipe name="test"></EchoPipe>
+        </Pipeline>
+    </Adapter>
+</Module>

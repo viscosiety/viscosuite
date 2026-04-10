@@ -1,0 +1,9 @@
+<!DOCTYPE Configuration [
+        <!ENTITY hl7v2-to-fhir SYSTEM "Configuration-hl7v2-to-fhir.xml">
+        <!ENTITY hl7v2-over-http-to-fhir SYSTEM "Configuration-hl7v2-over-http-to-fhir.xml">
+        ]>
+
+<Configuration name="hl7v2-to-fhir">
+    &hl7v2-to-fhir;
+    &hl7v2-over-http-to-fhir;
+</Configuration>

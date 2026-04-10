@@ -1,29 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Context>
 
-	<!--
-		JNDI datasource used by Frank!Framework (looks up "jdbc/viscolink" by default).
-		In production, replace the H2 resource below with a PostgreSQL resource:
-
 		<Resource name="jdbc/viscolink"
 			auth="Container"
 			type="javax.sql.DataSource"
 			driverClassName="org.postgresql.Driver"
-			url="jdbc:postgresql://postgres:5432/viscolink"
-			username="${viscolink.datasource/username}"
-			password="${viscolink.datasource/password}"
+			url="jdbc:postgresql://postgres:5432/viscostore"
+			username="visco"
+			password="visco"
 			maxTotal="20" maxIdle="5" maxWaitMillis="10000"/>
-	-->
-	<Resource
-		name="jdbc/viscolink"
-		auth="Container"
-		type="javax.sql.DataSource"
-		driverClassName="org.h2.Driver"
-		url="jdbc:h2:mem:viscolink;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE"
-		username="sa"
-		password=""
-		maxTotal="20"
-		maxIdle="5"
-		maxWaitMillis="10000"/>
+
 
 </Context>

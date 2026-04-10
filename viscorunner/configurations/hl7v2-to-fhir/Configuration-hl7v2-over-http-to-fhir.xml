@@ -1,0 +1,30 @@
+<Module
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <Adapter name="HL7v2-over-http-to-FHIR" description="Received HL7v2 messages transported over HTTP and then forwards them to the HL7-to-FHIR Java Listener.">
+        <Receiver name="HL7V2HTTPReceiver">
+            <ApiListener
+                    name="HL7V2RestListener"
+                    uriPattern="hl7v2"
+                    method="POST"
+                    headerParams="Accept,Content-Type"
+                    produces="XML"
+                    allowAllParams="true"
+            />
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS"/>
+                <Exit name="Error" state="ERROR"/>
+            </Exits>
+            <SenderPipe getInputFromSessionKey="originalMessage" name="requestProxyPipe">
+                <IbisLocalSender javaListener="HL7v2ToFHIRListener">
+                    <Param name="headerAccept" sessionKey="headers" xpathExpression="/headers/header[@name = 'Accept']/text()"/>
+                    <Param name="headerContent-Type" sessionKey="headers" xpathExpression="/headers/header[@name = 'Content-Type']/text()"/>
+                </IbisLocalSender>
+                <Forward name="success" path="Exit"/>
+                <Forward name="exception" path="Error"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+</Module>

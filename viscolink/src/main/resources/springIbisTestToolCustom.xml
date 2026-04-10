@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans
+    xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd"
+    >
+
+    <import resource="springIbisTestTool.xml" />
+
+    <bean name="metadataExtractor" class="org.wearefrank.ladybug.MetadataExtractor">
+        <property name="extraMetadataFieldExtractors">
+            <list>
+                <bean class="org.wearefrank.ladybug.metadata.StatusMetadataFieldExtractor" />
+                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
+                    <property name="name" value="sender"/>
+                    <property name="label" value="Sender"/>
+                    <property name="sessionKey" value="messageSender" />
+                </bean>
+                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
+                    <property name="name" value="receiver"/>
+                    <property name="label" value="Receiver"/>
+                    <property name="sessionKey" value="messageReceiver" />
+                </bean>
+                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
+                    <property name="name" value="patientId"/>
+                    <property name="label" value="PatientId"/>
+                    <property name="sessionKey" value="patientId" />
+                </bean>
+            </list>
+        </property>
+    </bean>
+
+    <bean name="metadataNames" class="java.util.ArrayList">
+        <constructor-arg>
+            <list>
+                <value>storageId</value>
+                <value>endTime</value>
+                <value>duration</value>
+                <value>name</value>
+                <value>sender</value>
+                <value>receiver</value>
+                <value>patientId</value>
+                <value>correlationId</value>
+                <value>status</value>
+                <value>numberOfCheckpoints</value>
+                <value>estimatedMemoryUsage</value>
+                <value>storageSize</value>
+            </list>
+        </constructor-arg>
+    </bean>
+</beans>
