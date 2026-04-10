@@ -1,0 +1,10 @@
+target/
+.classpath
+.project
+.settings/
+*.iml
+.idea/
+node_modules/
+
+# Never commit real credentials
+viscorunner/secrets/credentials.properties

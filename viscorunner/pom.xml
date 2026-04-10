@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<parent>
+		<groupId>com.visco</groupId>
+		<artifactId>visco-parent</artifactId>
+		<version>1.0.0-SNAPSHOT</version>
+	</parent>
+
+	<artifactId>viscorunner</artifactId>
+	<packaging>pom</packaging>
+
+	<name>ViscoRunner</name>
+
+	<dependencies>
+		<!-- Both WARs are collected and placed in target/ by maven-dependency-plugin -->
+		<dependency>
+			<groupId>com.visco</groupId>
+			<artifactId>viscolink</artifactId>
+			<version>${project.version}</version>
+			<type>war</type>
+		</dependency>
+		<dependency>
+			<groupId>com.visco</groupId>
+			<artifactId>viscostore</artifactId>
+			<version>${project.version}</version>
+			<type>war</type>
+		</dependency>
+
+		<!-- PostgreSQL driver placed in /opt/frank/drivers — shared between both WARs via Tomcat common.loader -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+			<version>${postgresql.version}</version>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<defaultGoal>package</defaultGoal>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.8.0</version>
+				<executions>
+					<!-- Copy both WARs to target/ (stripped of version suffix for predictable Dockerfile COPY paths) -->
+					<execution>
+						<id>copy-wars</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}</outputDirectory>
+							<includeTypes>war</includeTypes>
+							<stripVersion>true</stripVersion>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+					<!-- Copy JDBC drivers to target/drivers/ — will be placed in /opt/frank/drivers inside the image -->
+					<execution>
+						<id>copy-drivers</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/drivers</outputDirectory>
+							<includeArtifactIds>postgresql</includeArtifactIds>
+							<stripVersion>true</stripVersion>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+
+</project>

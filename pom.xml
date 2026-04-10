@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.visco</groupId>
+	<artifactId>visco-parent</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>pom</packaging>
+
+	<name>Visco parent</name>
+
+	<properties>
+		<!-- Check https://central.sonatype.com/namespace/org.frankframework for the latest release -->
+		<frankframework.version>9.3.0</frankframework.version>
+		<!-- Check https://central.sonatype.com/namespace/ca.uhn.hapi.fhir for the latest release -->
+		<hapi.version>7.4.0</hapi.version>
+		<postgresql.version>42.7.4</postgresql.version>
+	</properties>
+
+	<!--
+		Pure aggregator: each sub-module declares its own <parent> because viscolink
+		inherits from frankframework-bundle-minimal and viscostore from its HAPI parent.
+		This pom only drives the reactor build order.
+	-->
+	<modules>
+		<module>viscolink</module>
+		<module>viscostore</module>
+		<module>viscorunner</module>
+	</modules>
+
+</project>

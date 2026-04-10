@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<!--
+		ViscoStore is a fork of https://github.com/hapifhir/hapi-fhir-jpaserver-starter.
+		Steps to initialise this module:
+		  1. Fork hapi-fhir-jpaserver-starter on GitHub.
+		  2. Copy (or subtree-merge) the fork's contents into this directory.
+		  3. Replace the original <groupId>, <artifactId> and <version> with the values
+		     below; keep the original HAPI <parent> block as-is with <relativePath/>.
+		  4. Run `mvn install -DskipTests` from the repo root to verify the reactor build.
+	-->
+
+	<!-- Retain the parent from the hapi-fhir-jpaserver-starter fork; do not change it -->
+	<!-- Example (verify against your fork's actual parent):
+	<parent>
+		<groupId>ca.uhn.hapi.fhir</groupId>
+		<artifactId>hapi-deployable-pom</artifactId>
+		<version>7.4.0</version>
+		<relativePath/>
+	</parent>
+	-->
+
+	<groupId>com.visco</groupId>
+	<artifactId>viscostore</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>war</packaging>
+
+	<name>ViscoStore</name>
+
+	<!--
+		All other content (dependencies, plugins, profiles) comes from the forked
+		hapi-fhir-jpaserver-starter pom. Do not duplicate it here.
+	-->
+
+</project>

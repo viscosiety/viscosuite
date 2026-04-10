@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:noNamespaceSchemaLocation="../FrankConfig.xsd"
+		name="ViscoLink">
+
+	<!--
+		Entry point for the ViscoLink configuration.
+		Add adapters here or split them across included files using <Include ref="..."/>.
+	-->
+
+	<Adapter name="HealthCheck">
+		<Receiver name="HealthCheckReceiver">
+			<ApiListener
+					name="HealthCheckListener"
+					uriPattern="/health"
+					methods="GET"/>
+		</Receiver>
+		<Pipeline>
+			<Exits>
+				<Exit name="success" state="SUCCESS"/>
+			</Exits>
+			<FixedResultPipe name="HealthCheckPipe" returnString="OK"/>
+		</Pipeline>
+	</Adapter>
+
+</Configuration>

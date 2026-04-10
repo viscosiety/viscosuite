@@ -1,0 +1,42 @@
+services:
+
+  viscorunner:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: viscorunner:local
+    ports:
+      - "8080:8080"
+    environment:
+      # Frank!Framework — override dtap.stage so it doesn't default to LOC
+      dtap.stage: LOC
+      # ViscoStore (HAPI FHIR) Spring Boot datasource — overrides application.yaml inside the WAR
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/viscostore
+      SPRING_DATASOURCE_USERNAME: visco
+      SPRING_DATASOURCE_PASSWORD: visco
+      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      # Mount credentials file for local development (create from credentials.properties.example)
+      - ./secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: viscostore
+      POSTGRES_USER: visco
+      POSTGRES_PASSWORD: visco
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visco -d viscostore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:
