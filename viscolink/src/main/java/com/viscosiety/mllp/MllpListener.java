@@ -236,7 +236,7 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
         String[] segs = hl7.split("\r");
         if (segs.length == 0) return UUID.randomUUID().toString();
         String[] fields = segs[0].split("\\|", -1);
-        return fields.length > 10 ? fields[10] : UUID.randomUUID().toString();
+        return fields.length > 9 ? fields[9] : UUID.randomUUID().toString();
     }
 
 }
