@@ -1,0 +1,464 @@
+/*
+ * Palette
+ *   Header bg:      #063B3E
+ *   Brand teal:     #0F8A96
+ *   Hover teal:     #0B707A
+ *   Accent lime:    #C2C86B
+ *   Text dark:      #1F2A2C
+ *   Border gray:    #C9D1D3
+ *   Panel gray:     #F3F5F6
+ *   Page bg:        #FAFBFB
+ */
+
+/* ---- Bootstrap token overrides (must come first) ---- */
+:root {
+   --bs-primary:             #0F8A96;
+   --bs-primary-rgb:         15, 138, 150;
+   --bs-link-color:          #0F8A96;
+   --bs-link-color-rgb:      15, 138, 150;
+   --bs-link-hover-color:    #0B707A;
+   --bs-link-hover-color-rgb: 11, 112, 122;
+   --bs-body-color:          #1F2A2C;
+   --bs-body-bg:             #FAFBFB;
+   --bs-border-color:        #C9D1D3;
+}
+
+/*
+ * Base structure
+ */
+
+.btn.disabled,
+.btn[disabled],
+fieldset[disabled].btn {
+   opacity: .45;
+   filter: alpha(opacity=45);
+}
+
+.badge {
+   padding: 0.4em 0.6em;
+   border-radius: 0.5rem;
+}
+
+.bg-secondary,
+.text-bg-secondary {
+   color: #1F2A2C !important;
+   background-color: #C9D1D3 !important;
+}
+
+/* Move down content because we have a fixed navbar that is 50px tall */
+body {
+   padding-top: 50px;
+   overflow-x: hidden;
+   font-family: sans-serif;
+   background-color: #FAFBFB;
+   color: #1F2A2C;
+}
+
+H1 { font-size: 1.3em; }
+H2 { font-size: 1.2em; }
+H3 { font-size: 1.1em; }
+H4 { font-size: 1.1em; }
+.sidebar > H4 {
+    margin-top: 1.0em;
+}
+
+.clientCodeBox {
+   font-family: monospace;
+   font-size: 0.8em;
+   line-height: 0.85em;
+}
+
+.clientCodeComment {
+   color: #4A4;
+   font-style: italic;
+}
+
+.clientCodePreamble {
+   color: #888;
+   font-style: italic;
+}
+
+.clientCodeIndent {
+   margin-left: 15px;
+}
+
+label {
+   font-size: 1.0em;
+   color: #808080;
+   font-weight: 400;
+   line-height: 0.8em;
+}
+
+TD.resultControlButtons {
+   font-size: 0;
+}
+
+TD.resultControlButtons BUTTON {
+   margin: 2px;
+}
+
+TD.headerBox {
+   line-height: 0.8em !important;
+}
+
+SPAN.headerName {
+   color: #1F2A2C;
+   font-family: monospace;
+   font-size: 0.8em;
+}
+
+.hlQuot   { color: #C2C86B; }
+.hlAttr   { color: #888; }
+.hlTagName { color: #0F8A96; }
+.hlControl { color: #1F2A2C; }
+.hlText   { color: #1F2A2C; }
+.hlUrlBase {}
+
+SPAN.headerValue {
+   color: #0F8A96;
+   font-family: monospace;
+   font-size: 0.8em;
+}
+
+SPAN.suppressed {
+   color: #C9D1D3;
+   font-style: italic;
+}
+
+SPAN.includeCheckContainer {
+   margin-top: 0;
+   margin-bottom: 12px;
+   margin-right: 10px;
+   margin-left: 0;
+   white-space: nowrap;
+   line-height: 35px;
+   display: inline-block;
+}
+
+SPAN.includeCheckCheck {
+   border: 1px solid #C9D1D3;
+   border-right-width: 0px;
+   border-top-left-radius: 5px;
+   border-bottom-left-radius: 5px;
+   padding: 6px;
+   background: #F3F5F6;
+   background-image: linear-gradient(to top, #C9D1D3 0%, #F3F5F6 60%);
+}
+
+SPAN.includeCheckName {
+   border: 1px solid #C9D1D3;
+   border-top-right-radius: 5px;
+   border-bottom-right-radius: 5px;
+   padding: 6px;
+   background: #FFF;
+}
+
+SPAN.loadingStar {
+   color: #C66;
+   display: inline-block !important;
+   margin: 0px !important;
+   padding: 0px !important;
+   width: 3px !important;
+   font-weight: bold;
+}
+
+DIV.navbarBreadcrumb, A.navbarBreadcrumb {
+   color: #999;
+   padding: 15px;
+   padding-left: 0px;
+   font-size: 16px;
+   line-height: 20px;
+   height: 50px;
+}
+
+DIV.navbarBreadcrumb:HOVER, A.navbarBreadcrumb:HOVER {
+   color: #FAFBFB;
+   text-decoration: none;
+}
+
+DIV.resultBodyActual {
+   padding: 5px;
+}
+
+DIV.panel-title-text {
+   font-weight: bold;
+   margin: 12px;
+}
+
+PRE.resultBodyPre {
+   line-height: 0.9em;
+   font-size: 0.8em;
+   border: none;
+   background-color: transparent;
+   overflow: visible;
+   white-space: pre-wrap;
+}
+
+/*
+ * Global add-ons
+ */
+
+.sub-header {
+   padding-bottom: 10px;
+   border-bottom: 1px solid #C9D1D3;
+}
+
+body .syntaxhighlighter .line {
+   white-space: pre-wrap !important;
+}
+
+.syntaxhighlight {
+   white-space: pre-wrap;
+}
+
+/*
+ * Sidebar
+ */
+
+.sidebar {
+   display: none;
+}
+
+@media (min-width: 768px) {
+   .sidebar {
+      display: block;
+   }
+}
+
+/*
+ * Main content
+ */
+
+.main {
+   padding: 20px;
+}
+
+@media (min-width: 768px) {
+   .main {
+      padding-top: 10px;
+      padding-right: 10px;
+      padding-left: 10px;
+   }
+}
+
+.main .page-header {
+   margin-top: 0;
+}
+
+.navBarButtonLabel {
+   width: 80px;
+}
+
+.placeholders {
+   margin-bottom: 30px;
+   text-align: center;
+}
+
+.placeholders h4 {
+   margin-bottom: 0;
+}
+
+.placeholder {
+   margin-bottom: 20px;
+}
+
+.placeholder img {
+   display: inline-block;
+   border-radius: 50%;
+}
+
+DIV.queryParameter {
+   padding-top: 3px;
+   padding-bottom: 3px;
+   border-radius: 6px;
+   margin-left: 5px;
+   margin-right: 5px;
+}
+
+DIV.queryParameterOdd {
+   background: #F3F5F6;
+}
+
+TABLE.resultTable TR TD:FIRST-CHILD,
+TABLE.requestTable TR TD:FIRST-CHILD {
+   font-weight: bold;
+}
+
+PRE.resultBodyPlaceholder {
+   width: 100%;
+   padding: 0px;
+}
+
+DIV.searchParamDescription {
+   font-size: 0.8em;
+   text-align: right;
+   color: #0F8A96;
+   min-height: 34px;
+   display: table;
+   width: 100%;
+}
+
+DIV.searchParamDescription DIV {
+   display: table-cell;
+   vertical-align: middle;
+}
+
+DIV.searchParamSeparator {
+   height: 1px;
+   border-top: 1px solid #C9D1D3;
+   margin: 3px;
+}
+
+.select2-container {
+   width: 100% !important;
+}
+
+.select2-selection__rendered {
+   line-height: 42px !important;
+}
+.select2-container .select2-selection--single {
+   height: 42px !important;
+}
+.select2-selection__arrow {
+   height: 42px !important;
+}
+
+.syntaxhighlighter,
+.syntaxhighlighter .line.alt1,
+.syntaxhighlighter .line.alt2 {
+   background-color: transparent !important;
+}
+
+.syntaxhighlighter {
+   overflow: visible !important;
+}
+
+.syntaxhighlighter div {
+   font-size: 0.9em !important;
+}
+
+DIV.tab-pane DIV.container-fluid {
+   padding-top: 15px;
+}
+
+.svg-inline--fa {
+   margin-left: 8px;
+}
+
+.svg-inline--fa.fa-check {
+   color: #0F8A96;
+}
+
+/* Topbar icons sit on the dark header — off-white */
+.topbarIcon {
+   color: #F3F5F6;
+}
+
+DIV.top-buffer {
+   margin-top: 2px;
+}
+
+/* ---- Top navbar ---- */
+.navbar.bg-dark {
+   background-color: #063B3E !important;
+}
+.navbar.bg-dark .nav-link,
+.navbar.bg-dark .navbar-brand,
+.navbar.bg-dark .dropdown-toggle {
+   color: #F3F5F6 !important;
+}
+.navbar.bg-dark .nav-link:hover,
+.navbar.bg-dark .nav-link:focus,
+.navbar.bg-dark .navbar-brand:hover {
+   color: #C2C86B !important;
+}
+
+/* ---- Sidebar nav-link ---- */
+.nav-link {
+   color: #0F8A96;
+}
+.nav-link:hover,
+.nav-link:focus {
+   color: #0B707A;
+}
+
+/* ---- Sidebar nav pills (resource list) ---- */
+.nav-pills .nav-link.active,
+.nav-pills .show > .nav-link {
+   background-color: #0F8A96;
+   color: #FAFBFB;
+}
+.nav-pills .nav-link:hover:not(.active) {
+   color: #0B707A;
+}
+
+
+/* ---- btn-primary ---- */
+.btn-primary {
+   --bs-btn-color:                #FAFBFB;
+   --bs-btn-bg:                   #0F8A96;
+   --bs-btn-border-color:         #0F8A96;
+   --bs-btn-hover-color:          #FAFBFB;
+   --bs-btn-hover-bg:             #0B707A;
+   --bs-btn-hover-border-color:   #0B707A;
+   --bs-btn-focus-shadow-rgb:     15, 138, 150;
+   --bs-btn-active-color:         #FAFBFB;
+   --bs-btn-active-bg:            #063B3E;
+   --bs-btn-active-border-color:  #063B3E;
+   --bs-btn-disabled-color:       #FAFBFB;
+   --bs-btn-disabled-bg:          #0F8A96;
+   --bs-btn-disabled-border-color: #0F8A96;
+}
+
+/* ---- btn-outline-primary ---- */
+.btn-outline-primary {
+   --bs-btn-color:                #0F8A96;
+   --bs-btn-border-color:         #0F8A96;
+   --bs-btn-hover-color:          #FAFBFB;
+   --bs-btn-hover-bg:             #0B707A;
+   --bs-btn-hover-border-color:   #0B707A;
+   --bs-btn-focus-shadow-rgb:     15, 138, 150;
+   --bs-btn-active-color:         #FAFBFB;
+   --bs-btn-active-bg:            #063B3E;
+   --bs-btn-active-border-color:  #063B3E;
+   --bs-btn-disabled-color:       #0F8A96;
+   --bs-btn-disabled-border-color: #0F8A96;
+}
+
+/* ---- btn-success ---- */
+.btn-success {
+   --bs-btn-color:                #FAFBFB;
+   --bs-btn-bg:                   #0F8A96;
+   --bs-btn-border-color:         #0F8A96;
+   --bs-btn-hover-color:          #FAFBFB;
+   --bs-btn-hover-bg:             #0B707A;
+   --bs-btn-hover-border-color:   #0B707A;
+   --bs-btn-focus-shadow-rgb:     15, 138, 150;
+   --bs-btn-active-color:         #FAFBFB;
+   --bs-btn-active-bg:            #063B3E;
+   --bs-btn-active-border-color:  #063B3E;
+   --bs-btn-disabled-color:       #FAFBFB;
+   --bs-btn-disabled-bg:          #0F8A96;
+   --bs-btn-disabled-border-color: #0F8A96;
+}
+
+/* ---- Encoding / Pretty / Summary radio toggles (btn-outline-info) ---- */
+.btn-outline-info {
+   --bs-btn-color:                #0F8A96;
+   --bs-btn-border-color:         #0F8A96;
+   --bs-btn-hover-color:          #FAFBFB;
+   --bs-btn-hover-bg:             #0B707A;
+   --bs-btn-hover-border-color:   #0B707A;
+   --bs-btn-focus-shadow-rgb:     15, 138, 150;
+   --bs-btn-active-color:         #FAFBFB;
+   --bs-btn-active-bg:            #0F8A96;
+   --bs-btn-active-border-color:  #0F8A96;
+   --bs-btn-disabled-color:       #0F8A96;
+   --bs-btn-disabled-border-color: #0F8A96;
+}
+.btn-check:checked + .btn-outline-info,
+.btn-check:active  + .btn-outline-info {
+   color:            #FAFBFB;
+   background-color: #0F8A96;
+   border-color:     #0F8A96;
+}

@@ -1,0 +1,47 @@
+.trajectory-box {
+    border: 2px solid #C9D1D3;
+    background-color: #F3F5F6;
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 6px;
+}
+
+.trajectory-note {
+    font-style: italic;
+    font-size: 0.9em;
+    color: #1F2A2C;
+    margin-bottom: 6px;
+}
+
+.trajectory-title {
+    font-size: 1.3em;
+    font-weight: bold;
+    color: #0F8A96;
+    margin-bottom: 8px;
+}
+
+.hapiPropertyTable td.label {
+    padding-right: 1em;
+    white-space: nowrap;
+    vertical-align: top;
+    font-weight: bold;
+}
+
+.action-list {
+    padding-left: 1.2em;
+    margin: 0;
+}
+
+.action-list li {
+    margin-bottom: 10px;
+}
+
+.action-title {
+    font-weight: bold;
+    display: block;
+}
+
+.action-description {
+    color: #1F2A2C;
+    font-size: 0.95em;
+}

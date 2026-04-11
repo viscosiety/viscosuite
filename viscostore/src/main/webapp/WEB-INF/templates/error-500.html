@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Error - ViscoStore Application</title>
+</head>
+<body>
+<h1>An error occurred</h1>
+<p>Status code: <span th:text="${status}">status</span></p>
+<p>Message: <span th:text="${message}">message</span></p>
+<a href="/" th:href="@{/}">Go back to home</a>
+</body>
+</html>

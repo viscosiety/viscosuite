@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title th:replace="~{window-title :: viscostore}" />
+    <th:block th:insert="~{tmpl-head :: head}" />
+    <th:block th:insert="~{tmpl-buttonclick-handler :: handler}" />
+
+    <style type="text/css" media="screen">
+        #editor {
+            width: 100%;
+            height: 150px;
+            border-top: 1px solid #AAAAAA;
+        }
+        #resultsTableCard {
+            padding: 0;
+        }
+        .resultsTable {
+            margin-bottom: 0;
+            width: auto;
+        }
+        .card {
+            margin-bottom: 10px;
+        }
+    </style>
+
+</head>
+
+<body>
+<form action="" method="get" id="outerForm">
+    <input type="hidden" id="serverId" name="serverId" th:value="${serverId}"></input>
+    <input th:if="${_csrf} != null" type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+
+    <div th:replace="~{tmpl-navbar-top :: top}" ></div>
+
+    <div class="container-fluid">
+        <div class="row">
+
+            <div th:replace="~{tmpl-navbar-left :: left}" ></div>
+
+            <div class="col-sm-9 col-sm-offset-3 col-md-9 col-md-offset-3 main" style="height: calc(100% - 200px);">
+
+                <div th:replace="~{tmpl-banner :: banner}"></div>
+
+                <div th:replace="~{tmpl-viscostore-banner-card :: banner}"></div>
+
+                <!-- ************************************************ -->
+                <!-- ** SQL Editor                                 ** -->
+                <!-- ************************************************ -->
+
+                <div class="card">
+                    <h3 class="card-header">Query</h3>
+                    <div class="card-body" style="padding: 0;">
+                        <button type="button" id="execute-custom-operation-1-btn" class="btn btn-primary" style="margin: 5px;">
+                            <i class="fas fa-play"></i> $custom-operation-1
+                        </button>
+
+                        <script>
+                            $('#execute-custom-operation-1-btn').click(
+                                function() {
+                                    let btn = $(this);
+                                    document.getElementById('execute-custom-operation-1-btn').innerHTML = '<i class="fas fa-spinner fa-spin"></i> $custom-operation-1';
+                                    $('#outerForm input[type="hidden"]').remove();
+                                    handleActionButtonClick(btn);
+                                    btn.append($('<input />', { type: 'hidden', name: 'viscostore-operation', value: '$custom-operation-1' }));
+                                    $("#outerForm").attr("method", "post");
+                                    $("#outerForm").attr("action", "/viscostore/tester/viscostore").submit();
+                                }
+                            );
+
+                        </script>
+
+                    </div>
+                </div>
+                <!-- *************************************************** -->
+                <!-- ** Response                                      ** -->
+                <!-- *************************************************** -->
+                <div class="card" id="resultWell">
+                    <div class="card-header">
+                        Executed request against FHIR RESTful server in
+                        <th:block th:text="${latencyMs} + 'ms'"/>
+                    </div>
+                </div>
+
+                <div th:if="${clientCodeJson} != null" class="card" style="margin-top: 20px;">
+                    <div class="card-header">
+                        Client Code -
+                        <small style="color: #888;">
+                            Use the following code snippet to execute this action in your
+                            own client.
+                        </small>
+                    </div>
+                    <div class="card-body clientCodeBox" id="clientCodeBody">
+                    </div>
+                    <script type="text/javascript" src="js/ClientCodeGeneratorHapi.js"></script>
+                    <script type="text/javascript" th:utext="'var jsonClientCode = ' + ${clientCodeJson} + ';'">
+                    </script>
+                    <script type="text/javascript" th:inline="javascript">
+                        generateHapi(jsonClientCode, $('#clientCodeBody'));
+                    </script>
+                </div>
+
+                <div th:if="${requestUrl} != null" style="margin-top: 20px;">
+
+                    <table class="table table-bordered table-striped requestTable" id="requestTable">
+                        <colgroup>
+                            <col class="col-xs-1" />
+                            <col class="col-xs-7" />
+                        </colgroup>
+                        <tbody>
+                        <tr>
+                            <td style="white-space: nowrap;">
+                                <i class="fas fa-chevron-right"></i>
+                                Request
+                            </td>
+                            <td>
+                                <th:block th:text="${action}"/>
+                                <a th:href="${requestUrl}" th:utext="${requestUrlText}" id="requestUrlAnchor"/>
+                            </td>
+                        </tr>
+                        <tr th:if="${requestHeaders != null and requestHeaders.length > 0}">
+                            <td>Request Headers</td>
+                            <td class="headerBox">
+                                <div th:each="header : ${requestHeaders}">
+                                    <span class="headerName" th:text="${header.name} + ': '"/>
+                                    <span class="headerValue" th:text="${header.value}"/>
+
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${#strings.isEmpty(requestBody)} == false">
+                            <td>Request Body</td>
+                            <td valign="top" style="margin: 0px; padding: 0px;">
+                                <pre class="requestBodyPre resultBodyPlaceholder" id="requestBodyPlaceholder">...loading...</pre>
+                                <pre th:utext="${requestBody}" class="resultBodyPre pre" id="requestBodyActual" style="display: none;">{}</pre>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <table class="table table-bordered table-striped resultTable" id="resultTable" th:if="${resultStatus} != null">
+                        <colgroup>
+                            <col class="col-xs-1" />
+                            <col class="col-xs-7" />
+                        </colgroup>
+                        <tbody>
+                        <tr>
+                            <td style="white-space: nowrap;">
+                                <i class="fas fa-chevron-left"></i>
+                                Response
+                            </td>
+                            <td>
+                                <i th:if="${resultStatus.contains(' 2')}" class="fa fa-check" style="color:#0F8A96;"></i>
+                                <i th:if="${!resultStatus.contains(' 2')}" class="fa fa-warning" style="color:#E44;"></i>
+                                <th:block th:text="${resultStatus}"/>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Response Headers</td>
+                            <td class="headerBox">
+                                <div th:each="header : ${responseHeaders}">
+                                    <span class="headerName" th:text="${header.name} + ': '"/>
+                                    <span class="headerValue" th:text="${header.value}"/>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${!#strings.isEmpty(narrative)}">
+                            <td class="propertyKeyCell">Result Narrative</td>
+                            <td th:utext="${narrative}"></td>
+                        </tr>
+                        <tr th:if="${!#strings.isEmpty(resultBody)}">
+                            <td rowspan="2">
+                                Result Body
+                                <small th:text="${resultDescription}" style="font-weight: normal;"/>
+                            </td>
+                            <td style="border-width: 0px; padding: 0px;">
+
+                                <th:block th:if="${bundle} != null">
+                                    <th:block th:replace="~{tmpl-result-controltable-hapi :: controltable}"></th:block>
+                                </th:block>
+                                <th:block th:if="${riBundle} != null AND ( ${riBundle.type.name()} == 'SEARCHSET' OR ${riBundle.type.name()} == 'HISTORY' )">
+                                    <th:block th:replace="~{tmpl-result-controltable-ri :: controltable}"></th:block>
+                                </th:block>
+
+                                <div class="panel-heading">
+                                    <div class="panel-title-text">
+                                        Payload
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
+                        <tr th:if="${!#strings.isEmpty(resultBody)}">
+                            <td valign="top" style="margin: 0px; padding: 0px; font-weight: normal;">
+                                <pre class="resultBodyPre resultBodyPlaceholder" id="resultBodyPlaceholder">...loading...</pre>
+                                <div id="resultBodyActual" class="resultBodyActual" style="display: none;">
+                                    <pre id="resultBodyActualPre" th:utext="${resultBody}" class="resultBodyPre pre">{}</pre>
+                                </div>
+                            </td>
+                        </tr>
+                        </tbody>
+                    </table>
+
+                    <script type="text/javascript"><!--
+                    $( document ).ready(function() {
+                        var reswidth = $('#resultBodyPlaceholder').outerWidth(true);
+                        var reqwidth = 0;
+                        if ($('#requestBodyPlaceholder') != null) {
+                            reqwidth = $('#requestBodyPlaceholder').outerWidth(true);
+                        }
+
+                        $('#resultBodyPlaceholder').hide();
+                        $('#resultBodyActual').width(reswidth);
+                        $('#resultBodyActual').show();
+
+                        if ($('#requestBodyPlaceholder') != null) {
+                            $('#requestBodyPlaceholder').hide();
+                            $('#requestBodyActual').width(reqwidth);
+                            $('#requestBodyActual').show();
+                        }
+                    });
+
+                    function lineWrap(){
+                        var wrap = function () {
+                            var elems = document.getElementsByClassName('syntaxhighlighter');
+                            for (var j = 0; j < elems.length; ++j) {
+                                var sh = elems[j];
+                                var gLines = sh.getElementsByClassName('gutter')[0].getElementsByClassName('line');
+                                var cLines = sh.getElementsByClassName('code')[0].getElementsByClassName('line');
+                                var stand = 15;
+                                for (var i = 0; i < gLines.length; ++i) {
+                                    var h = $(cLines[i]).height();
+                                    if (h != stand) {
+                                        console.log(i);
+                                        gLines[i].setAttribute('style', 'height: ' + h + 'px !important;');
+                                    }
+                                }
+                            }
+                        };
+                        var whenReady = function () {
+                            if ($('.syntaxhighlighter').length === 0) {
+                                setTimeout(whenReady, 800);
+                            } else {
+                                wrap();
+                            }
+                        };
+                        whenReady();
+                    };
+                    lineWrap();
+                    $(window).resize(function(){lineWrap()});
+                    --></script>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+</form>
+
+<div th:replace="~{tmpl-footer :: footer}" ></div>
+</body>
+</html>

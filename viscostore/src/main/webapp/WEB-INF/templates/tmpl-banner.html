@@ -2,34 +2,150 @@
 <html lang="en">
 <div th:fragment="banner">
     <div class="row">
-        <div class="col-md-8">
-            <img id="logo" src="img/sample-logo.jpg" width="383" alt="Sample Logo"/>
-        </div>
         <div class="col-md-4">
-            <img src="img/hapi_fhir_banner_right.png" align="right"/>
+
+            <div style="float: right; margin-right: 10px; margin-top: 5px">
+                <div th:if="${oidcUsername != null}">Logged in as: <b th:text="${oidcUsername}">username</b></div>
+                <a th:if="${oidcEnabled}" href="/logout">Logout</a>
+            </div>
         </div>
+
+
     </div>
 
     <script>
-        const customlogoImageUrl = "content/custom/logo.jpg"; // Custom logo
-        const defaultLogoImageUrl = "img/sample-logo.jpg"; // Default logo
-        const logoImageElement = document.getElementById("logo");
+        document.addEventListener('DOMContentLoaded', function() {
+            // Select all spans with the class 'hlTagName'
+            var spans = document.querySelectorAll('span.hlTagName');
 
-        // Check if the logo image is available
-        const logoImg = new Image();
-        logoImg.src = customlogoImageUrl;
+            // Loop through all selected spans
+            spans.forEach(function(span) {
+                // Check if the text content matches '"attachment"'
+                if (span.textContent === '"attachment"') {
+                    // Create a new anchor element
+                    var link = document.createElement('a');
+                    // Set the href attribute to '#' to make it clickable
+                    link.href = "#";
+                    // Copy the text content from the span to the link
+                    link.textContent = span.textContent;
+                    // Add an event listener to the link
+                    link.addEventListener('click', function(e) {
+                        e.preventDefault(); // Prevent the default link behavior
 
-        logoImg.onload = function() {
-            // Logo image is available
-            logoImageElement.src = customlogoImageUrl;
-        };
+                        var nextContentType = getNextContentType(link);
+                        if (!nextContentType) {
+                            alert("No nextContentType found.");
+                        } else {
 
-        logoImg.onerror = function() {
-            // Logo image is not available, use the default logo image
-            logoImageElement.src = defaultLogoImageUrl;
-        };
+                            var contentTypeEl = getNextHlQuot(nextContentType);
+                                if (contentTypeEl && (contentTypeEl.textContent.indexOf("json") != -1 || contentTypeEl.textContent.indexOf("xml") != -1)) {
+                                // Find the next 'span.hlTagName' with textContent '"data"' from the current location
+                                var nextData = getNextData(link);
+                                if (!nextData) {
+                                    alert("No nextData found.");
+                                } else {
+                                    // From the found span, find the first 'span.hlQuot'
+                                    var base64Payload = getNextHlQuot(nextData);
 
+                                    if (base64Payload) {
+                                        processAndDisplay(base64Payload.textContent, contentTypeEl.textContent);
+                                    }
+                                }
+                            }
+                        }
+                    });
+                    // Replace the span with the new link in the DOM
+                    span.parentNode.replaceChild(link, span);
+                }
+            });
 
+            // Function to find the next 'span.hlTagName' with text '"attachment"'
+            function getNextData(startEl) {
+                var current = startEl.nextElementSibling;
+                while (current) {
+                    if (current.tagName === 'SPAN' && current.classList.contains('hlTagName') && current.textContent === '"data"') {
+                        return current;
+                    }
+                    current = current.nextElementSibling;
+                }
+                return null;
+            }
+
+            function getNextContentType(startEl) {
+                var current = startEl.nextElementSibling;
+                while (current) {
+                    if (current.tagName === 'SPAN' && current.classList.contains('hlTagName') && current.textContent === '"contentType"') {
+                        return current;
+                    }
+                    current = current.nextElementSibling;
+                }
+                return null;
+            }
+
+            // Function to find the first 'span.hlQuot' following a given span
+            function getNextHlQuot(startSpan) {
+                var current = startSpan ? startSpan.nextElementSibling : null;
+                while (current) {
+                    if (current.tagName === 'SPAN' && current.classList.contains('hlQuot')) {
+                        return current;
+                    }
+                    current = current.nextElementSibling;
+                }
+                return null;
+            }
+
+            // Function to process text content, decode from base64, and display in an overlay
+            function processAndDisplay(text, contentType) {
+                if (text.startsWith('"') && text.endsWith('"')) {
+                    text = text.substring(1, text.length - 1); // Remove the first and last character
+                }
+                try {
+                    var decodedText = atob(text); // Decode from base64
+                    if (contentType.indexOf("json") != -1) {
+                        var jsonData = JSON.parse(decodedText); // Parse the JSON data
+                        displayOverlay(JSON.stringify(jsonData, null, 2));
+                    } else {
+                        displayOverlay(decodedText);
+                    }
+                } catch (e) {
+                    console.error("Failed to decode and parse Base64 text", e);
+                    alert("Failed to decode and parse Base64 text.");
+                }
+            }
+
+            // Function to display data in a nicely formatted overlay
+            function displayOverlay(data) {
+                var overlay = document.createElement('div');
+                overlay.style.position = 'fixed';
+                overlay.style.top = '10%';
+                overlay.style.left = '10%';
+                overlay.style.width = '80%';
+                overlay.style.height = '80%';
+                overlay.style.backgroundColor = 'white';
+                overlay.style.border = '1px solid black';
+                overlay.style.borderRadius = '10px';
+                overlay.style.padding = '20px';
+                overlay.style.overflow = 'auto';
+                overlay.style.zIndex = '1000';
+
+                var closeButton = document.createElement('button');
+                closeButton.textContent = 'Close';
+                closeButton.style.position = 'absolute';
+                closeButton.style.top = '10px';
+                closeButton.style.right = '10px';
+                closeButton.addEventListener('click', function() {
+                    document.body.removeChild(overlay);
+                });
+
+                var pre = document.createElement('pre');
+                pre.textContent = data;
+                pre.style.whiteSpace = 'pre-wrap'; // keeps formatted JSON
+
+                overlay.appendChild(closeButton);
+                overlay.appendChild(pre);
+                document.body.appendChild(overlay);
+            }
+        });
     </script>
     <!-- Error banner in case anything went wrong -->
     <div class="alert  alert-danger alert-dismissable" th:if="${errorMsg} != null">

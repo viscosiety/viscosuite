@@ -1,8 +1,8 @@
 package ca.uhn.fhir.jpa.starter.common;
 
 import ca.uhn.fhir.jpa.starter.AppProperties;
-import ca.uhn.fhir.to.FhirTesterMvcConfig;
-import ca.uhn.fhir.to.TesterConfig;
+import com.viscosiety.contrib.tester.FhirTesterMvcConfig;
+import com.viscosiety.contrib.tester.TesterConfig;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Conditional;
 import org.springframework.context.annotation.Configuration;

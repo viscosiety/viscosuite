@@ -1,0 +1,40 @@
+
+BODY {
+    font-family: sans-serif;
+}
+
+DIV.hapiHeaderText {
+    font-size: 1.3em;
+}
+
+TABLE.hapiTableOfValues THEAD TR TD {
+    background: #0F8A96;
+    color: #FAFBFB;
+    font-size: 1.2em;
+    font-weight: bold;
+    padding: 5px;
+}
+
+TABLE.hapiTableOfValues TBODY TR TD {
+    padding-left: 5px;
+    padding-right: 5px;
+}
+
+TR.hapiTableOfValuesRowOdd TD {
+    background: #F3F5F6;
+}
+TR.hapiTableOfValuesRowEven TD {
+    background: #FAFBFB;
+}
+
+TABLE.hapiPropertyTable TBODY TR TD:FIRST-CHILD {
+    text-align: right;
+    background: #F3F5F6;
+    border-top: 1px solid #C9D1D3;
+}
+
+TABLE.hapiPropertyTable TBODY TR TD {
+    vertical-align: top;
+    padding: 4px;
+    margin: 1px;
+}
