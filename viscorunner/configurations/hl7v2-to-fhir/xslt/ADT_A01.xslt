@@ -27,9 +27,9 @@
          ============================================================ -->
     <xsl:template match="/hl7:ADT_A01">
 
-        <xsl:variable name="messageId" select="hl7:MSH/hl7:MSH.10"/>
-        <xsl:variable name="patientId" select="hl7:PID/hl7:PID.3/hl7:CX.1"/>
-        <xsl:variable name="visitId"   select="hl7:PV1/hl7:PV1.19/hl7:CX.1"/>
+        <xsl:variable name="messageId" select="(hl7:MSH/hl7:MSH.10, '')[1]"/>
+        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
         <Bundle xmlns="http://hl7.org/fhir">
             <id value="{$messageId}"/>
@@ -81,8 +81,8 @@
            A08 → no Encounter at all
          ============================================================ -->
     <xsl:template match="hl7:PV1" mode="Encounter">
-        <xsl:param name="visitId"   as="xs:string"/>
-        <xsl:param name="patientId" as="xs:string"/>
+        <xsl:param name="visitId"   as="xs:string?"/>
+        <xsl:param name="patientId" as="xs:string?"/>
 
         <Encounter xmlns="http://hl7.org/fhir">
             <id value="encounter-{$visitId}"/>

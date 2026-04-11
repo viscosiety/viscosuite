@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       default-autowire="byType"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans
+                           http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <!--
+        Registers MllpConnectionFactoryFactory as a Spring bean.
+        Frank!Framework's byType auto-wiring injects it into MllpFacade subclasses
+        (MllpListener and MllpSender) via the setMllpConnectionFactoryFactory() setter.
+
+        Resource entries are defined in resources.yml, e.g.:
+          mllp:
+            - name: "inbound-2575"
+              url: "mllp://0.0.0.0:2575"
+              properties:
+                socketTimeout: "60000"
+                backlog: "10"
+            - name: "outbound-ris"
+              url: "mllp://ris.hospital.local:2575"
+              properties:
+                connectTimeout: "5000"
+                socketTimeout: "30000"
+    -->
+    <bean id="mllpConnectionFactoryFactory"
+          class="com.viscosiety.mllp.MllpConnectionFactoryFactory" />
+
+</beans>

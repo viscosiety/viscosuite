@@ -8,6 +8,7 @@ services:
     ports:
       - "8180:8080"
       - "5005:5005"
+      - "2575:2575"
     environment:
       # Frank!Framework — override dtap.stage so it doesn't default to LOC
       dtap.stage: LOC

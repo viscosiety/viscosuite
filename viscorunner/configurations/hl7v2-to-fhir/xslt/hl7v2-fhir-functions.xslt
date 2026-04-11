@@ -26,53 +26,62 @@
 
     <!-- HL7 date (YYYYMMDD) → FHIR date (YYYY-MM-DD) -->
     <xsl:function name="fn:toFhirDate" as="xs:string">
-        <xsl:param name="hl7date" as="xs:string"/>
-        <xsl:value-of select="concat(
-      substring($hl7date,1,4), '-',
-      substring($hl7date,5,2), '-',
-      substring($hl7date,7,2))"/>
+        <xsl:param name="hl7date" as="xs:string?"/>
+        <xsl:variable name="d" select="($hl7date, '')[1]"/>
+        <xsl:value-of select="if (string-length($d) >= 8)
+                              then concat(substring($d,1,4), '-', substring($d,5,2), '-', substring($d,7,2))
+                              else $d"/>
     </xsl:function>
 
     <!-- HL7 datetime (YYYYMMDD[HHMMSS]) → FHIR dateTime -->
     <xsl:function name="fn:toFhirDateTime" as="xs:string">
-        <xsl:param name="hl7datetime" as="xs:string"/>
+        <xsl:param name="hl7datetime" as="xs:string?"/>
+        <xsl:variable name="dt" select="($hl7datetime, '')[1]"/>
         <xsl:choose>
-            <xsl:when test="string-length($hl7datetime) >= 14">
+            <xsl:when test="string-length($dt) >= 14">
                 <xsl:value-of select="concat(
-          substring($hl7datetime,1,4),  '-',
-          substring($hl7datetime,5,2),  '-',
-          substring($hl7datetime,7,2),  'T',
-          substring($hl7datetime,9,2),  ':',
-          substring($hl7datetime,11,2), ':',
-          substring($hl7datetime,13,2), '+00:00')"/>
+          substring($dt,1,4),  '-',
+          substring($dt,5,2),  '-',
+          substring($dt,7,2),  'T',
+          substring($dt,9,2),  ':',
+          substring($dt,11,2), ':',
+          substring($dt,13,2), '+00:00')"/>
+            </xsl:when>
+            <xsl:when test="string-length($dt) >= 8">
+                <xsl:value-of select="concat(fn:toFhirDate($dt), 'T00:00:00+00:00')"/>
             </xsl:when>
             <xsl:otherwise>
-                <xsl:value-of select="concat(fn:toFhirDate($hl7datetime), 'T00:00:00+00:00')"/>
+                <xsl:value-of select="$dt"/>
             </xsl:otherwise>
         </xsl:choose>
     </xsl:function>
 
     <!-- ============================================================
          CODE TRANSLATION FUNCTIONS
+         All parameters are xs:string? (optional) — absent HL7v2 fields
+         yield an empty sequence which is coerced to '' via ($param,'')[1],
+         causing the map lookup to miss and return the documented default.
          ============================================================ -->
 
     <!-- HL7 gender code (PID.8) → FHIR gender -->
     <xsl:function name="fn:toFhirGender" as="xs:string">
-        <xsl:param name="hl7gender" as="xs:string"/>
+        <xsl:param name="hl7gender" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7gender, '')[1]"/>
         <xsl:variable name="map" select="map{
       'M': 'male',
       'F': 'female',
       'O': 'other',
       'U': 'unknown'
     }"/>
-        <xsl:value-of select="if (map:contains($map, $hl7gender))
-                          then map:get($map, $hl7gender)
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
                           else 'unknown'"/>
     </xsl:function>
 
     <!-- HL7 patient class (PV1.2) → FHIR encounter class code -->
     <xsl:function name="fn:toFhirEncounterClass" as="xs:string">
-        <xsl:param name="hl7class" as="xs:string"/>
+        <xsl:param name="hl7class" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7class, '')[1]"/>
         <xsl:variable name="map" select="map{
       'I': 'IMP',
       'O': 'AMB',
@@ -81,14 +90,15 @@
       'R': 'AMB',
       'B': 'EMER'
     }"/>
-        <xsl:value-of select="if (map:contains($map, $hl7class))
-                          then map:get($map, $hl7class)
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
                           else 'UNKNOWN'"/>
     </xsl:function>
 
     <!-- HL7 telecom type (XTN.2 / XTN.3) → FHIR telecom use -->
     <xsl:function name="fn:toFhirTelecomUse" as="xs:string">
-        <xsl:param name="hl7use" as="xs:string"/>
+        <xsl:param name="hl7use" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7use, '')[1]"/>
         <xsl:variable name="map" select="map{
       'PRN': 'home',
       'WPN': 'work',
@@ -96,14 +106,15 @@
       'ORN': 'old',
       'EMR': 'home'
     }"/>
-        <xsl:value-of select="if (map:contains($map, $hl7use))
-                          then map:get($map, $hl7use)
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
                           else 'home'"/>
     </xsl:function>
 
     <!-- HL7 telecom equipment type (XTN.3) → FHIR telecom system -->
     <xsl:function name="fn:toFhirTelecomSystem" as="xs:string">
-        <xsl:param name="hl7equipment" as="xs:string"/>
+        <xsl:param name="hl7equipment" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7equipment, '')[1]"/>
         <xsl:variable name="map" select="map{
       'PH':    'phone',
       'CP':    'phone',
@@ -113,14 +124,15 @@
       'BP':    'pager',
       'SAT':   'phone'
     }"/>
-        <xsl:value-of select="if (map:contains($map, $hl7equipment))
-                          then map:get($map, $hl7equipment)
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
                           else 'phone'"/>
     </xsl:function>
 
     <!-- HL7 name type code (XPN.7) → FHIR name use -->
     <xsl:function name="fn:toFhirNameUse" as="xs:string">
-        <xsl:param name="hl7nameType" as="xs:string"/>
+        <xsl:param name="hl7nameType" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7nameType, '')[1]"/>
         <xsl:variable name="map" select="map{
       'L': 'official',
       'D': 'usual',
@@ -129,8 +141,8 @@
       'T': 'temp',
       'S': 'anonymous'
     }"/>
-        <xsl:value-of select="if (map:contains($map, $hl7nameType))
-                          then map:get($map, $hl7nameType)
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
                           else 'usual'"/>
     </xsl:function>
 
@@ -142,9 +154,9 @@
 
     <!-- MessageHeader — driven by MSH segment -->
     <xsl:template match="hl7:MSH" mode="MessageHeader">
-        <xsl:param name="eventCode"    as="xs:string"/>
-        <xsl:param name="eventDisplay" as="xs:string"/>
-        <xsl:param name="focusRef"     as="xs:string"/>
+        <xsl:param name="eventCode"    as="xs:string?"/>
+        <xsl:param name="eventDisplay" as="xs:string?"/>
+        <xsl:param name="focusRef"     as="xs:string?"/>
 
         <MessageHeader xmlns="http://hl7.org/fhir">
             <id value="messageheader-{hl7:MSH.10}"/>
@@ -167,7 +179,7 @@
 
     <!-- Patient — driven by PID segment -->
     <xsl:template match="hl7:PID" mode="Patient">
-        <xsl:param name="patientId" as="xs:string"/>
+        <xsl:param name="patientId" as="xs:string?"/>
 
         <Patient xmlns="http://hl7.org/fhir">
             <id value="patient-{$patientId}"/>

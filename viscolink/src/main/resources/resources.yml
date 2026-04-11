@@ -1,0 +1,15 @@
+mllp:
+  - name: "inbound-2575"
+    url: "mllp://0.0.0.0:2575"
+    properties:
+      charset: "UTF-8"
+      backlog: "10"
+      socketTimeout: "60000"
+
+# Uncomment and adjust to enable outbound MLLP connections:
+#  - name: "outbound-ris"
+#    url: "mllp://ris.hospital.local:2575"
+#    properties:
+#      charset: "UTF-8"
+#      connectTimeout: "5000"
+#      socketTimeout: "30000"

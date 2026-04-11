@@ -1,0 +1,50 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        Outbound MLLP adapter — sends HL7v2 XML to a remote system via a persistent MLLP connection.
+
+        Flow:
+          1. An upstream adapter calls this via IbisLocalSender, passing an HL7v2 XML body
+          2. XmlToHl7v2Pipe converts the XML to pipe-delimited format
+          3. MllpSender frames and sends the payload; reads and returns the pipe-delimited MLLP ACK
+          4. Hl7v2ToXmlPipe converts the pipe-delimited ACK back to XML for the caller
+
+        Custom elements use elementRole + className because they are not in FrankConfig.xsd.
+
+        The MLLP resource "outbound-ris" must be defined in resources.yml.
+        Callers use: <IbisLocalSender javaListener="SendHL7v2MLLPListener" />
+    -->
+    <Adapter name="SendHL7v2OverMLLP"
+             description="Sends HL7v2 XML to a remote system over a persistent MLLP connection and returns the XML ACK">
+        <Receiver name="SendHL7V2MLLPReceiver">
+            <JavaListener name="SendHL7v2MLLPListener" />
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"  state="SUCCESS"/>
+                <Exit name="Error" state="ERROR"/>
+            </Exits>
+
+            <!-- Step 1: XML input → pipe-delimited HL7v2 -->
+            <XmlToHl7v2Pipe elementRole="pipe" className="com.viscosiety.pipes.XmlToHl7v2Pipe"
+                            name="encodeHl7" hl7Version="2.5" />
+
+            <!-- Step 2: send over MLLP; result is a pipe-delimited ACK -->
+            <SenderPipe name="sendMllpPipe">
+                <MllpSender elementRole="sender" className="com.viscosiety.mllp.MllpSender"
+                            name="MLLPSender" resourceName="outbound-ris" />
+                <Forward name="success"   path="parseAck"/>
+                <Forward name="exception" path="Error"/>
+            </SenderPipe>
+
+            <!-- Step 3: pipe-delimited ACK → XML (returned to caller) -->
+            <Hl7v2ToXmlPipe elementRole="pipe" className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
+                            name="parseAck" hl7Version="2.5">
+                <Forward name="success" path="Exit"/>
+            </Hl7v2ToXmlPipe>
+
+        </Pipeline>
+    </Adapter>
+
+</Module>

@@ -1,9 +1,13 @@
 <!DOCTYPE Configuration [
         <!ENTITY hl7v2-to-fhir SYSTEM "Configuration-hl7v2-to-fhir.xml">
         <!ENTITY hl7v2-over-http-to-fhir SYSTEM "Configuration-hl7v2-over-http-to-fhir.xml">
+        <!ENTITY hl7v2-over-mllp SYSTEM "Configuration-hl7v2-over-mllp.xml">
+        <!ENTITY send-hl7v2-over-mllp SYSTEM "Configuration-send-hl7v2-over-mllp.xml">
         ]>
 
 <Configuration name="hl7v2-to-fhir">
     &hl7v2-to-fhir;
     &hl7v2-over-http-to-fhir;
+    &hl7v2-over-mllp;
+    &send-hl7v2-over-mllp;
 </Configuration>

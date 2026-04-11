@@ -1,0 +1,50 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        Inbound MLLP adapter — receives HL7v2 over persistent TCP connections.
+
+        Flow:
+          1. MllpListener accepts an MLLP-framed message on port 2575
+          2. Hl7v2ToXmlPipe converts the pipe-delimited payload to HL7v2 XML (urn:hl7-org:v2xml)
+          3. IbisLocalSender forwards the XML to the HL7v2ToFHIR pipeline
+          4. MllpListener sends an auto-generated AA ACK back to the sender
+
+        Custom elements use elementRole + className because they are not in FrankConfig.xsd.
+        The ElementRoleFilter reads elementRole to map the element to the correct digester rule,
+        and the factory uses className to instantiate the correct class.
+
+        The MLLP resource "inbound-2575" must be defined in resources.yml.
+    -->
+    <Adapter name="HL7v2-over-MLLP"
+             description="Receives HL7v2 over persistent MLLP connections, converts to XML and forwards to the HL7v2ToFHIR pipeline">
+        <Receiver name="HL7V2MLLPReceiver">
+            <MllpListener elementRole="listener" className="com.viscosiety.mllp.MllpListener"
+                          name="HL7V2MLLPListener" resourceName="inbound-2575" />
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"  state="SUCCESS"/>
+                <Exit name="Error" state="ERROR"/>
+            </Exits>
+
+            <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
+            <Hl7v2ToXmlPipe elementRole="pipe" className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
+                            name="parseHl7" hl7Version="2.5" />
+
+            <!-- Step 2: forward XML to the shared HL7v2ToFHIR pipeline -->
+            <SenderPipe name="forwardToFhirPipeline">
+                <IbisLocalSender javaListener="HL7v2ToFHIRListener" />
+                <Forward name="success"   path="returnEmpty"/>
+                <Forward name="exception" path="Error"/>
+            </SenderPipe>
+
+            <!-- Step 3: return empty so MllpListener generates the default AA ACK -->
+            <FixedResultPipe name="returnEmpty" returnString="">
+                <Forward name="success" path="Exit"/>
+            </FixedResultPipe>
+
+        </Pipeline>
+    </Adapter>
+
+</Module>
