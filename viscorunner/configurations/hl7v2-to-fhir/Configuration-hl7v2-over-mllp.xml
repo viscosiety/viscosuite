@@ -7,8 +7,13 @@
         Flow:
           1. MllpListener accepts an MLLP-framed message on port 2575
           2. Hl7v2ToXmlPipe converts the pipe-delimited payload to HL7v2 XML (urn:hl7-org:v2xml)
-          3. IbisLocalSender forwards the XML to the HL7v2ToFHIR pipeline
-          4. MllpListener sends an auto-generated AA ACK back to the sender
+          3. PutInSessionPipe saves the HL7v2 XML (the FHIR forward will replace the pipeline message)
+          4. XsltPipe extracts PV1.3/PL.1 (department) as plain text (current message)
+          5. IfPipe compares the current message (department text) to "CARDIO"
+             → rejected: restore XML from session; XsltPipe builds AR NACK; XmlToHl7v2Pipe encodes it
+             → allowed:  restore XML from session; IbisLocalSender forwards to HL7v2ToFHIR;
+                         restore XML again; XsltPipe builds AA ACK; XmlToHl7v2Pipe encodes it
+          Both paths converge at encodeResponse and the result is returned by MllpListener.
 
         Custom elements use the generic XSD escape hatches:
           <Listener className="...">  — elementRole fixed="listener" in XSD, anyAttribute for the rest
@@ -18,10 +23,9 @@
         The MLLP resource "inbound-2575" must be defined in resources.yml.
     -->
     <Adapter name="HL7v2-over-MLLP"
-             description="Receives HL7v2 over persistent MLLP connections, converts to XML and forwards to the HL7v2ToFHIR pipeline">
+             description="Receives HL7v2 over persistent MLLP connections, filters by department, ingests to FHIR, and returns an explicit HL7v2 ACK/NACK">
         <Receiver name="HL7V2MLLPReceiver">
-            <Listener className="com.viscosiety.mllp.MllpListener"
-                      name="HL7V2MLLPListener" resourceName="inbound-2575" />
+            <Listener className="com.viscosiety.mllp.MllpListener" name="HL7V2MLLPListener" resourceName="inbound-2575" />
         </Receiver>
         <Pipeline>
             <Exits>
@@ -30,20 +34,60 @@
             </Exits>
 
             <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
-                  name="parseHl7" hl7Version="2.5" />
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.5" />
 
-            <!-- Step 2: forward XML to the shared HL7v2ToFHIR pipeline -->
+            <!-- Step 2: save HL7v2 XML — both the FHIR forward and ACK build will need it from session -->
+            <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml" />
+
+            <!-- Step 3: extract department code (PV1.3/PL.1) as plain text for IfPipe -->
+            <XsltPipe name="extractDept" styleSheetName="xslt/extract-department.xslt" />
+
+            <!-- Step 4: route on department — only CARDIO is accepted.
+                 IfPipe compares the current message (department text) to expressionValue. -->
+            <IfPipe name="filterDepartment" expressionValue="CARDIO">
+                <Forward name="then" path="restoreForFhir"/>
+                <Forward name="else" path="restoreForReject"/>
+            </IfPipe>
+
+            <!-- Allowed path -->
+            <GetFromSessionPipe name="restoreForFhir" sessionKey="hl7Xml">
+                <Forward name="success" path="forwardToFhirPipeline"/>
+            </GetFromSessionPipe>
+
             <SenderPipe name="forwardToFhirPipeline">
                 <IbisLocalSender javaListener="HL7v2ToFHIRListener" />
-                <Forward name="success"   path="returnEmpty"/>
+                <Forward name="success"   path="restoreForAck"/>
                 <Forward name="exception" path="Error"/>
             </SenderPipe>
 
-            <!-- Step 3: return empty so MllpListener generates the default AA ACK -->
-            <EchoPipe name="returnEmpty" getInputFromFixedValue="">
+            <GetFromSessionPipe name="restoreForAck" sessionKey="hl7Xml">
+                <Forward name="success" path="buildAckXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildAckXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AA"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Rejected path -->
+            <GetFromSessionPipe name="restoreForReject" sessionKey="hl7Xml">
+                <Forward name="success" path="buildRejectXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildRejectXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AR"/>
+                <Param name="errorMessage"       value="Department not supported by this integration"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Shared: ACK/NACK XML → pipe-delimited HL7v2 (returned to MllpListener) -->
+            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
                 <Forward name="success" path="Exit"/>
-            </EchoPipe>
+            </Pipe>
 
         </Pipeline>
     </Adapter>

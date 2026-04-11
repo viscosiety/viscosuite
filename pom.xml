@@ -28,6 +28,7 @@
 		<module>viscolink</module>
 		<module>viscostore</module>
 		<module>viscorunner</module>
+		<module>util/hl7util</module>
 	</modules>
 
 </project>

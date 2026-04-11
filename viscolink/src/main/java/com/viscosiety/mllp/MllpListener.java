@@ -6,8 +6,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
@@ -55,8 +53,6 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
     static final byte START_BLOCK     = 0x0B;
     static final byte END_BLOCK       = 0x1C;
     static final byte CARRIAGE_RETURN = 0x0D;
-
-    private static final DateTimeFormatter ACK_DATE_FMT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
     private IMessageHandler<String> handler;
     private IbisExceptionListener   exceptionListener;
@@ -160,14 +156,7 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
 
                 try (PipeLineSession session = new PipeLineSession()) {
                     MessageWrapper<String> wrapper = new MessageWrapper<>(new Message(rawHl7), messageId, null);
-                    Message result = handler.processRequest(this, wrapper, session);
-
-                    String ack;
-                    if (result != null && !result.isEmpty()) {
-                        ack = result.asString();
-                    } else {
-                        ack = buildAck(rawHl7, "AA", null);
-                    }
+                    String ack = handler.processRequest(this, wrapper, session).asString();
                     writeMllpMessage(out, ack, charset);
 
                 } catch (ListenerException e) {
@@ -175,12 +164,8 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
                     if (exceptionListener != null) {
                         exceptionListener.exceptionThrown(this, e);
                     }
-                    try {
-                        writeMllpMessage(out, buildAck(rawHl7, "AE", e.getMessage()), charset);
-                    } catch (IOException writeEx) {
-                        log.warn("{} Failed to write NACK: {}", getLogPrefix(), writeEx.getMessage());
-                        break;
-                    }
+                    break; // close connection — pipeline could not produce a response
+
                 } catch (IOException e) {
                     log.warn("{} IO error processing message: {}", getLogPrefix(), e.getMessage());
                     break;
@@ -247,8 +232,6 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
         // ACK is sent synchronously inside handleConnection(); nothing to do here.
     }
 
-    // ---- ACK helpers ----
-
     private String extractControlId(String hl7) {
         String[] segs = hl7.split("\r");
         if (segs.length == 0) return UUID.randomUUID().toString();
@@ -256,39 +239,4 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
         return fields.length > 10 ? fields[10] : UUID.randomUUID().toString();
     }
 
-    String buildAck(String hl7, String ackCode, String errorText) {
-        String[] segs = hl7.split("\r");
-        String[] f    = segs.length > 0 ? segs[0].split("\\|", -1) : new String[0];
-
-        String sendingApp   = field(f, 3);
-        String sendingFac   = field(f, 4);
-        String msgTypeField = field(f, 9);
-        String controlId    = field(f, 10);
-        String procId       = field(f, 11);
-        String version      = field(f, 12);
-
-        String triggerEvent = "";
-        String[] typeParts = msgTypeField.split("\\^", -1);
-        if (typeParts.length > 1) triggerEvent = typeParts[1];
-
-        String now          = LocalDateTime.now().format(ACK_DATE_FMT);
-        String ackControlId = UUID.randomUUID().toString().replace("-", "").substring(0, 20);
-
-        StringBuilder sb = new StringBuilder();
-        sb.append("MSH|^~\\&|viscolink|viscosiety|")
-          .append(sendingApp).append("|").append(sendingFac).append("|")
-          .append(now).append("||")
-          .append("ACK^").append(triggerEvent).append("^ACK|")
-          .append(ackControlId).append("|").append(procId).append("|").append(version).append("\r");
-        sb.append("MSA|").append(ackCode).append("|").append(controlId);
-        if (errorText != null && !errorText.isBlank()) {
-            sb.append("|").append(errorText.replace("|", "\\F\\").replace("\r", " ").replace("\n", " "));
-        }
-        sb.append("\r");
-        return sb.toString();
-    }
-
-    private String field(String[] fields, int index) {
-        return (fields != null && index < fields.length) ? fields[index] : "";
-    }
 }
