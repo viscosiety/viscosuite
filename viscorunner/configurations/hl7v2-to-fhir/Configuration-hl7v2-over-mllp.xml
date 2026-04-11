@@ -10,17 +10,18 @@
           3. IbisLocalSender forwards the XML to the HL7v2ToFHIR pipeline
           4. MllpListener sends an auto-generated AA ACK back to the sender
 
-        Custom elements use elementRole + className because they are not in FrankConfig.xsd.
-        The ElementRoleFilter reads elementRole to map the element to the correct digester rule,
-        and the factory uses className to instantiate the correct class.
+        Custom elements use the generic XSD escape hatches:
+          <Listener className="...">  — elementRole fixed="listener" in XSD, anyAttribute for the rest
+          <Pipe className="...">      — elementRole fixed="pipe"     in XSD, anyAttribute for the rest
+        elementRole must NOT be set explicitly (it is prohibited on these generic elements).
 
         The MLLP resource "inbound-2575" must be defined in resources.yml.
     -->
     <Adapter name="HL7v2-over-MLLP"
              description="Receives HL7v2 over persistent MLLP connections, converts to XML and forwards to the HL7v2ToFHIR pipeline">
         <Receiver name="HL7V2MLLPReceiver">
-            <MllpListener elementRole="listener" className="com.viscosiety.mllp.MllpListener"
-                          name="HL7V2MLLPListener" resourceName="inbound-2575" />
+            <Listener className="com.viscosiety.mllp.MllpListener"
+                      name="HL7V2MLLPListener" resourceName="inbound-2575" />
         </Receiver>
         <Pipeline>
             <Exits>
@@ -29,8 +30,8 @@
             </Exits>
 
             <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
-            <Hl7v2ToXmlPipe elementRole="pipe" className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
-                            name="parseHl7" hl7Version="2.5" />
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
+                  name="parseHl7" hl7Version="2.5" />
 
             <!-- Step 2: forward XML to the shared HL7v2ToFHIR pipeline -->
             <SenderPipe name="forwardToFhirPipeline">
@@ -40,9 +41,9 @@
             </SenderPipe>
 
             <!-- Step 3: return empty so MllpListener generates the default AA ACK -->
-            <FixedResultPipe name="returnEmpty" returnString="">
+            <EchoPipe name="returnEmpty" getInputFromFixedValue="">
                 <Forward name="success" path="Exit"/>
-            </FixedResultPipe>
+            </EchoPipe>
 
         </Pipeline>
     </Adapter>

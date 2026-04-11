@@ -10,7 +10,10 @@
           3. MllpSender frames and sends the payload; reads and returns the pipe-delimited MLLP ACK
           4. Hl7v2ToXmlPipe converts the pipe-delimited ACK back to XML for the caller
 
-        Custom elements use elementRole + className because they are not in FrankConfig.xsd.
+        Custom elements use the generic XSD escape hatches:
+          <Pipe className="...">    — elementRole fixed="pipe"   in XSD, anyAttribute for the rest
+          <Sender className="...">  — elementRole fixed="sender" in XSD, anyAttribute for the rest
+        elementRole must NOT be set explicitly (it is prohibited on these generic elements).
 
         The MLLP resource "outbound-ris" must be defined in resources.yml.
         Callers use: <IbisLocalSender javaListener="SendHL7v2MLLPListener" />
@@ -27,22 +30,22 @@
             </Exits>
 
             <!-- Step 1: XML input → pipe-delimited HL7v2 -->
-            <XmlToHl7v2Pipe elementRole="pipe" className="com.viscosiety.pipes.XmlToHl7v2Pipe"
-                            name="encodeHl7" hl7Version="2.5" />
+            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe"
+                  name="encodeHl7" hl7Version="2.5" />
 
             <!-- Step 2: send over MLLP; result is a pipe-delimited ACK -->
             <SenderPipe name="sendMllpPipe">
-                <MllpSender elementRole="sender" className="com.viscosiety.mllp.MllpSender"
-                            name="MLLPSender" resourceName="outbound-ris" />
+                <Sender className="com.viscosiety.mllp.MllpSender"
+                        name="MLLPSender" resourceName="outbound-ris" />
                 <Forward name="success"   path="parseAck"/>
                 <Forward name="exception" path="Error"/>
             </SenderPipe>
 
             <!-- Step 3: pipe-delimited ACK → XML (returned to caller) -->
-            <Hl7v2ToXmlPipe elementRole="pipe" className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
-                            name="parseAck" hl7Version="2.5">
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
+                  name="parseAck" hl7Version="2.5">
                 <Forward name="success" path="Exit"/>
-            </Hl7v2ToXmlPipe>
+            </Pipe>
 
         </Pipeline>
     </Adapter>
