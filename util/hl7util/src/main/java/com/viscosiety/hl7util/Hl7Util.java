@@ -111,10 +111,13 @@ public class Hl7Util {
         try (MllpClient client = new MllpClient(host, port, connectTimeout, socketTimeout, charset)) {
             log("Connecting to " + host + ":" + port + " ...");
             client.connect();
-            log("Sending ...");
+            log("Sending: " + "\n" + message.replace("\r", "\n") + "\n");
             String ack = client.send(message);
 
-            String ackCode = extractAckCode(ack);
+            String response = ack.replace("\r", "\n");;
+            log("Response: " + "\n" + response + "\n");
+            String ackCode = extractAckCode(ack).replace("\r", "\n");
+
             log("ACK: " + ackCode);
 
             if (verbose) {

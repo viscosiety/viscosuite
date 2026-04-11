@@ -38,17 +38,19 @@ The application is available at `http://localhost:8180`.
 
 ## Build Commands
 
+A Maven wrapper is included so you don't need Maven installed locally — `./mvnw` downloads and uses the correct version automatically.
+
 ```bash
 # Build all modules
-mvn package
+./mvnw package
 
 # Build a single module
-mvn package -pl viscolink
-mvn package -pl viscostore
+./mvnw package -pl viscolink
+./mvnw package -pl viscostore
 
 # Run tests
-mvn test -pl viscostore          # unit tests
-mvn verify -pl viscostore        # unit + integration tests
+./mvnw test -pl viscostore          # unit tests
+./mvnw verify -pl viscostore        # unit + integration tests
 ```
 
 ## HL7v2 → FHIR Flow

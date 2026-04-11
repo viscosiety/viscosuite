@@ -22,7 +22,7 @@ done
 TS=$(date +"%Y%m%d%H%M%S")
 # Message control ID: script-basename + timestamp, e.g. ADT-A01-20260308143022
 SCRIPT_BASE=$(basename "${BASH_SOURCE[1]}" .sh)
-MSG_ID="${SCRIPT_BASE}-${TS}"
+MSG_ID="${SCRIPT_BASE}-${TS}-$$"
 
 # --- JAR path (relative to this script's location) ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
