@@ -13,6 +13,12 @@ services:
       # Frank!Framework — override dtap.stage so it doesn't default to LOC
       dtap.stage: LOC
       configurations.names: hl7v2-to-fhir
+
+      # Ladybug JDBC connection — shared PostgreSQL instance, separate schema via Liquibase
+      ladybug.jdbc.driver: org.postgresql.Driver
+      ladybug.jdbc.url: jdbc:postgresql://postgres:5432/viscostore
+      ladybug.jdbc.username: visco
+      ladybug.jdbc.password: visco
       
       # ViscoStore (HAPI FHIR) Spring Boot datasource — overrides application.yaml inside the WAR
       SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/viscostore
@@ -25,7 +31,7 @@ services:
       # the container (port 8080, not the host-mapped 8180)
       HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
       # Pass JPDA debug flag; entrypoint.sh appends $JAVA_OPTS to the F!F JVM flags
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database"
     depends_on:
       postgres:
         condition: service_healthy

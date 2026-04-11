@@ -3,4 +3,23 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd"
 >
+
+    <changeSet id="LadybugCustom:1" author="Tom Peeters">
+        <comment>Add column sender</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="sender" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="LadybugCustom:2" author="Tom Peeters">
+        <comment>Add column receiver</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="receiver" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
+    <changeSet id="LadybugCustom:3" author="Tom Peeters">
+        <comment>Add column patientid (lowercase to avoid PostgreSQL quoted-identifier mismatch)</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="patientid" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
 </databaseChangeLog>

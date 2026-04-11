@@ -10,10 +10,12 @@
       ADT_A01.xslt
       ============
       Maps an HL7v2 ADT^A01 (Admit/Visit Notification) message
-      to a FHIR R4 Bundle containing:
-        - MessageHeader
-        - Patient         (from PID)
-        - Encounter       (from PV1, patient class = inpatient)
+      to a FHIR R4 transaction Bundle containing:
+        - Patient         (from PID)  — conditional PUT on MR identifier
+        - Encounter       (from PV1)  — conditional PUT on visit identifier
+
+      Transaction semantics: repeated sends are idempotent — the same
+      patient/encounter is updated rather than duplicated.
 
       Imports: hl7v2-fhir-functions.xslt
     -->
@@ -33,20 +35,7 @@
 
         <Bundle xmlns="http://hl7.org/fhir">
             <id value="{$messageId}"/>
-            <type value="message"/>
-            <timestamp value="{fn:toFhirDateTime(hl7:MSH/hl7:MSH.7/hl7:TS.1)}"/>
-
-            <!-- MessageHeader -->
-            <entry>
-                <fullUrl value="urn:uuid:messageheader-{$messageId}"/>
-                <resource>
-                    <xsl:apply-templates select="hl7:MSH" mode="MessageHeader">
-                        <xsl:with-param name="eventCode"    select="'A01'"/>
-                        <xsl:with-param name="eventDisplay" select="'ADT/ACK - Admit/visit notification'"/>
-                        <xsl:with-param name="focusRef"     select="concat('urn:uuid:encounter-', $visitId)"/>
-                    </xsl:apply-templates>
-                </resource>
-            </entry>
+            <type value="transaction"/>
 
             <!-- Patient -->
             <entry>
@@ -56,6 +45,10 @@
                         <xsl:with-param name="patientId" select="$patientId"/>
                     </xsl:apply-templates>
                 </resource>
+                <request>
+                    <method value="PUT"/>
+                    <url value="Patient?identifier=urn:oid:2.16.840.1.113883.2.4.6.3|{$patientId}"/>
+                </request>
             </entry>
 
             <!-- Encounter -->
@@ -67,6 +60,10 @@
                         <xsl:with-param name="patientId" select="$patientId"/>
                     </xsl:apply-templates>
                 </resource>
+                <request>
+                    <method value="PUT"/>
+                    <url value="Encounter?identifier={$visitId}"/>
+                </request>
             </entry>
 
         </Bundle>
@@ -85,8 +82,6 @@
         <xsl:param name="patientId" as="xs:string?"/>
 
         <Encounter xmlns="http://hl7.org/fhir">
-            <id value="encounter-{$visitId}"/>
-
             <identifier>
                 <use value="official"/>
                 <value value="{$visitId}"/>

@@ -182,8 +182,6 @@
         <xsl:param name="patientId" as="xs:string?"/>
 
         <Patient xmlns="http://hl7.org/fhir">
-            <id value="patient-{$patientId}"/>
-
             <identifier>
                 <use value="usual"/>
                 <type>

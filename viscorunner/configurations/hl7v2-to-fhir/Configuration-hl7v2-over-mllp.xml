@@ -36,8 +36,12 @@
             <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
             <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.5" />
 
-            <!-- Step 2: save HL7v2 XML — both the FHIR forward and ACK build will need it from session -->
-            <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml" />
+            <!-- Step 2: save HL7v2 XML and extract key fields for tracing in the debugger -->
+            <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml">
+                <Param type="STRING" name="sender"    xpathExpression="/h:ADT_A01/h:MSH/h:MSH.3/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="receiver"  xpathExpression="/h:ADT_A01/h:MSH/h:MSH.5/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="patientId" xpathExpression="/h:ADT_A01/h:PID/h:PID.3/h:CX.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+            </PutInSessionPipe>
 
             <!-- Step 3: extract department code (PV1.3/PL.1) as plain text for IfPipe -->
             <XsltPipe name="extractDept" styleSheetName="xslt/extract-department.xslt" />

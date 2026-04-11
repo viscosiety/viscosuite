@@ -1,3 +1,10 @@
+jdbc:
+  - name: "ladybug"
+    type: "${ladybug.jdbc.driver}"
+    url: "${ladybug.jdbc.url}"
+    username: "${ladybug.jdbc.username}"
+    password: "${ladybug.jdbc.password}"
+
 mllp:
   - name: "inbound-2575"
     url: "mllp://0.0.0.0:2575"

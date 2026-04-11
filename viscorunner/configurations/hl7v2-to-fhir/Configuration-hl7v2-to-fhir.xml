@@ -1,7 +1,7 @@
 <Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
     <Adapter name="HL7v2ToFHIR"
-             description="Received HL7v2 messages through a Java listener and converts these messages to persisted FHIR resources">
+             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR R4 transaction Bundle, and POSTs it to viscostore">
 
         <Receiver name="HL7v2ToFHIRReceiver">
             <JavaListener name="HL7v2ToFHIRListener" />
@@ -30,11 +30,18 @@
                 <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/',/h:ADT_A01/h:MSH/h:MSH.9/h:MSG.3, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
             </PutInSessionPipe>
 
-            <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet">
-                <Param name="patientId" sessionKey="patient.identifier" />
-            </XsltPipe>
+            <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet"/>
 
-            <EchoPipe name="test"></EchoPipe>
+            <SenderPipe name="postToViscostore">
+                <HttpSender
+                    url="${viscostore.fhir.base.url}"
+                    methodType="POST"
+                    postType="RAW"
+                    contentType="application/fhir+xml;charset=UTF-8"
+                />
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
         </Pipeline>
     </Adapter>
 </Module>
