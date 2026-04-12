@@ -15,66 +15,96 @@
             <div class="col-sm-9 col-sm-offset-3 col-md-9 col-md-offset-3 main">
 
                 <div th:replace="~{tmpl-banner :: banner}"></div>
-
                 <div class="panel panel-default">
                     <div class="panel-heading">
-                        <h3 class="panel-title">About This Server</h3>
+                        <h3 class="panel-title">ViscoStore</h3>
                     </div>
-                    <div class="panel-body">
-                        <div id="replacementAbout">
-                            <p>
-                                This server provides a complete implementation of the FHIR Specification
-                                using a 100% open source software stack.
-                            </p>
-                            <p>
-                                This server is built
-                                from a number of modules of the
-                                <a href="https://github.com/hapifhir/hapi-fhir/">HAPI FHIR</a>
-                                project, which is a 100% open-source (Apache 2.0 Licensed) Java based
-                                implementation of the FHIR specification.
-                            </p>
+                        <article>
+                            <p>The persistent FHIR Clinical Data Repository at the heart of ViscoSuite.</p>
+                            <section>
+                                <h2>What it is</h2>
+                                <p>
+                                    ViscoStore is Viscosiety's production-configured implementation of
+                                    <a href="https://hapifhir.io" target="_blank" rel="noopener">HAPI FHIR</a> —
+                                    the open-source FHIR server maintained by a global community and widely regarded
+                                    as the reference implementation of the HL7 FHIR standard. It provides the
+                                    persistent, queryable data layer that sits at the centre of every ViscoSuite
+                                    deployment.
+                                </p>
+                                <p>
+                                    ViscoStore is not middleware. It does not transform, route, or enrich data.
+                                    It does one thing, and does it reliably: it stores FHIR resources, exposes a
+                                    fully conformant FHIR API, and makes your clinical data available to whatever
+                                    needs it — now and in the future.
+                                </p>
+                            </section>
 
-                        </div>
-                    </div>
+                            <section>
+                                <h2>What it gives you</h2>
+                                <ul>
+                                    <li>
+                                        <strong>Full FHIR R4 and R5 API compliance</strong> — create, read, update,
+                                        delete, search, and subscribe to FHIR resources via a standard REST interface
+                                        that any FHIR-capable system can speak to without custom connectors.
+                                    </li>
+                                    <li>
+                                        <strong>A persistent Clinical Data Repository (CDR)</strong> — a single,
+                                        authoritative store for your organisation's FHIR data, queryable across
+                                        resource types and time, with full version history retained.
+                                    </li>
+                                    <li>
+                                        <strong>Multi-partition support</strong> — isolate data by tenant, use case,
+                                        or sensitivity zone within a single ViscoStore instance. Used by ViscoSuite
+                                        feature packs such as ViscoPseudo (PII vs pseudonymised zones) and
+                                        ViscoPersonal (patient-partitioned MedMij/VIPP5 data).
+                                    </li>
+                                    <li>
+                                        <strong>The stable target for everything upstream</strong> — all inbound
+                                        data flowing through ViscoLink lands here. ViscoStore is where HL7 v2
+                                        messages become FHIR resources, where ETL data becomes a queryable data
+                                        model, and where transformed and enriched data is persisted and kept in sync.
+                                    </li>
+                                    <li>
+                                        <strong>Open source, no license fees</strong> — ViscoStore is built entirely
+                                        on HAPI FHIR. There is nothing proprietary in the storage layer. Your data,
+                                        your schema, your infrastructure.
+                                    </li>
+                                </ul>
+                            </section>
 
+                            <section>
+                                <h2>What it is not responsible for</h2>
+                                <p>
+                                    Transformation, routing, protocol translation, and facade logic are handled
+                                    by <a href="#">ViscoLink</a> — the Frank!Framework-based integration engine
+                                    that sits alongside ViscoStore in every ViscoSuite deployment. The two
+                                    components are designed to work together, but their responsibilities are
+                                    deliberately separate. ViscoStore does not need to know where your data came
+                                    from or what shape it was in before it arrived.
+                                </p>
+                            </section>
 
-                </div>
-                <div class="panel panel-default">
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Data On This Server</h3>
-                    </div>
-                    <div class="panel-body">
-                        <p>
-                            We're excited to introduce our new data storage solution, designed specifically with the security and privacy needs of healthcare institutions like yours in mind. Our system uses what's called a "single-tenant FHIR server" to store your valuable patient data. Here’s what that means for you and why it’s important:
-                        </p>
-                    </div>
+                            <section>
+                                <h2>Built on</h2>
+                                <ul>
+                                    <li><a href="https://hapifhir.io" target="_blank" rel="noopener">HAPI FHIR</a> — open-source FHIR server, HL7 FHIR reference implementation</li>
+                                    <li>FHIR R4 / R5</li>
+                                    <li>Deployable via Docker and Helm (Kubernetes) — included in the ViscoSuite open-source package</li>
+                                </ul>
+                            </section>
 
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Single-Tenant Architecture: ViscoStore</h3>
-                    </div>
-                    <div class="panel-body"><p>Think of a single-tenant architecture as having a secure, dedicated storage facility just for your hospital or clinic, unlike a multi-tenant architecture where multiple organizations share the same storage space. This dedicated environment ensures:</p>
-                        <ul>
-                            <li>Enhanced Security: Your data is stored in its own isolated server environment. This minimizes risks from cyber threats that could potentially affect servers shared by multiple organizations.</li>
-                            <li>Customized Performance and Reliability: Because the server is solely dedicated to your organization, it can be optimized specifically for your data and usage patterns, ensuring faster access and greater reliability.</li>
-                            <li>Exclusive Control and Privacy: You have complete control over the server settings and access, reinforcing privacy and compliance with healthcare regulations such as HIPAA in the US.</li>
-                        </ul>
-                    </div>
+                            <section>
+                                <h2>Attribution</h2>
+                                <p>
+                                    ViscoStore is built from a number of modules of the
+                                    <a href="https://github.com/hapifhir/hapi-fhir/" target="_blank" rel="noopener">HAPI FHIR</a>
+                                    project, which is a 100% open-source (Apache 2.0 Licensed) Java-based
+                                    implementation of the FHIR specification.
+                                </p>
+                            </section>
 
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Secure Access Through IPSec VPN and mTLS Connections</h3>
+                        </article>
                     </div>
-                    <div class="panel-body"><p>Access to your dedicated FHIR server is safeguarded by two robust security measures: IPSec VPN and mTLS connections. Here's how they work to protect your data:</p>
-                        <ul>
-                            <li>IPSec VPN (Virtual Private Network): This creates a secure, encrypted tunnel over the internet between your network and our servers. It's as if you have a private, secure line directly to your dedicated server, making it extremely difficult for unauthorized parties to intercept or access your data.</li>
-                            <li>mTLS (Mutual Transport Layer Security) Connections: mTLS adds another layer of security by requiring both the client (you) and the server (us) to authenticate each other before any data is exchanged. This ensures that only authorized devices and servers can communicate with each other, significantly reducing the risk of data breaches.</li>
-                        </ul>
-                    </div>
-
-                    <div class="panel-heading">
-                        <h3 class="panel-title">Peace of Mind</h3>
-                    </div>
-                    <div class="panel-body"><p> By choosing our single-tenant FHIR server secured with IPSec VPN and mTLS connections, you're not just getting a storage solution. You're ensuring that your patients' data is stored in a private, secure environment that's accessible only through the most secure connections. This commitment to security and privacy helps maintain your institution's reputation and trustworthiness, ultimately benefiting both you and the patients you serve.
-                    </p>
                 </div>
 
             </div>
