@@ -19,6 +19,9 @@ stages:
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  # -B: batch mode (no ANSI colours, no interactive prompts)
+  # --no-transfer-progress: suppresses the per-chunk download progress lines
+  MAVEN_CLI_OPTS: "-B --no-transfer-progress"
   IMAGE: $CI_REGISTRY_IMAGE/viscorunner
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
@@ -39,7 +42,7 @@ test:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn verify -pl viscostore
+    - mvn $MAVEN_CLI_OPTS verify -pl viscostore
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -54,7 +57,7 @@ package:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn package -DskipTests
+    - mvn $MAVEN_CLI_OPTS package -DskipTests
   artifacts:
     paths:
       - viscorunner/target/viscolink.war
