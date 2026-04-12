@@ -1,0 +1,83 @@
+# ViscoSuite CI/CD pipeline
+#
+# Stages:
+#   test    — unit + integration tests (all branches and MRs)
+#   package — full Maven build, produces WARs for the Docker image (main only)
+#   docker  — builds and pushes viscorunner image to the GitLab registry (main only)
+#
+# Runners: self-hosted Docker runners
+# Registry: $CI_REGISTRY_IMAGE (GitLab project registry)
+
+stages:
+  - test
+  - package
+  - docker
+
+variables:
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  IMAGE: $CI_REGISTRY_IMAGE/viscorunner
+  # Disable TLS for Docker-in-Docker on self-hosted runners
+  DOCKER_TLS_CERTDIR: ""
+
+# Maven dependency cache — keyed per branch so branches don't invalidate each other
+default:
+  cache:
+    key: "maven-$CI_COMMIT_REF_SLUG"
+    paths:
+      - .m2/repository/
+
+# ---------------------------------------------------------------------------
+# Stage: test
+# Runs on every push and every merge request.
+# ---------------------------------------------------------------------------
+test:
+  stage: test
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn verify -pl viscostore
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH'
+
+# ---------------------------------------------------------------------------
+# Stage: package
+# Full reactor build. Produces viscorunner/target/ (WARs + drivers)
+# needed by the Docker build step.
+# ---------------------------------------------------------------------------
+package:
+  stage: package
+  image: maven:3.9-eclipse-temurin-21
+  script:
+    - mvn package -DskipTests
+  artifacts:
+    paths:
+      - viscorunner/target/
+    expire_in: 1 hour
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: docker
+# Builds viscorunner and pushes two tags:
+#   - <registry>/viscorunner:<commit-sha>  (immutable, for traceability)
+#   - <registry>/viscorunner:latest        (floating, for convenience)
+# ---------------------------------------------------------------------------
+docker:
+  stage: docker
+  image: docker:27
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build
+        -t "$IMAGE:$CI_COMMIT_SHA"
+        -t "$IMAGE:latest"
+        viscorunner/
+    - docker push "$IMAGE:$CI_COMMIT_SHA"
+    - docker push "$IMAGE:latest"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
