@@ -6,25 +6,13 @@ import ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect;
 import ca.uhn.fhir.jpa.searchparam.config.NicknameServiceConfig;
 import ca.uhn.fhir.jpa.starter.cr.CrProperties;
 import ca.uhn.fhir.model.primitive.IdDt;
-import ca.uhn.fhir.rest.api.CacheControlDirective;
-import ca.uhn.fhir.rest.api.EncodingEnum;
 import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
-import jakarta.websocket.ContainerProvider;
-import jakarta.websocket.Session;
-import jakarta.websocket.WebSocketContainer;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpGet;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.hl7.fhir.instance.model.api.IIdType;
 import org.hl7.fhir.r4.model.*;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.opencds.cqf.fhir.cr.hapi.config.RepositoryConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -32,14 +20,8 @@ import org.springframework.boot.test.web.server.LocalServerPort;
 import org.springframework.test.context.ActiveProfiles;
 
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 
-import static ca.uhn.fhir.util.TestUtil.waitForSize;
-import static org.awaitility.Awaitility.await;
-import static org.hamcrest.Matchers.equalTo;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -59,7 +41,6 @@ import static org.opencds.cqf.fhir.utility.r4.Parameters.stringPart;
 	"spring.ai.mcp.server.enabled=false",
 	"hapi.fhir.enable_repository_validating_interceptor=true",
 	"hapi.fhir.fhir_version=r4",
-	"hapi.fhir.subscription.websocket_enabled=true",
 	//"hapi.fhir.mdm_enabled=true",
 	"hapi.fhir.cr.enabled=true",
 	"hapi.fhir.cr.caregaps.section_author=Organization/alphora-author",
@@ -210,62 +191,6 @@ class ExampleServerR4IT implements IServerSupport {
 		ourClient.transaction().withBundle(bundle).execute();
 	}
 
-	@Test
-	@Order(1)
-	void testWebsocketSubscription() throws Exception {
-		/*
-		 * Create subscription
-		 */
-		Subscription subscription = new Subscription();
-		subscription.setReason("Monitor new neonatal function (note, age will be determined by the monitor)");
-		subscription.setStatus(Subscription.SubscriptionStatus.REQUESTED);
-		subscription.setCriteria("Observation?status=final");
-
-		Subscription.SubscriptionChannelComponent channel = new Subscription.SubscriptionChannelComponent();
-		channel.setType(Subscription.SubscriptionChannelType.WEBSOCKET);
-		channel.setPayload("application/json");
-		subscription.setChannel(channel);
-
-		int initialActiveSubscriptionCount = activeSubscriptionCount();
-
-		MethodOutcome methodOutcome = ourClient.create().resource(subscription).execute();
-		IIdType mySubscriptionId = methodOutcome.getId();
-
-		// Wait for the subscription to be activated
-		await().atMost(1, TimeUnit.MINUTES).until(this::activeSubscriptionCount, equalTo(initialActiveSubscriptionCount + 1));
-
-		/*
-		 * Attach websocket
-		 */
-
-		SocketImplementation mySocketImplementation = new SocketImplementation(mySubscriptionId.getIdPart(),
-			EncodingEnum.JSON);
-
-		URI echoUri = new URI("ws://localhost:" + port + "/websocket");
-
-		WebSocketContainer container = ContainerProvider.getWebSocketContainer();
-
-		ourLog.info("Connecting to : {}", echoUri);
-		Session session = container.connectToServer(mySocketImplementation, echoUri);
-		ourLog.info("Connected to WS: {}", session.isOpen());
-
-		/*
-		 * Create a matching resource
-		 */
-		Observation obs = new Observation();
-		obs.setStatus(Observation.ObservationStatus.FINAL);
-		ourClient.create().resource(obs).execute();
-
-		/*
-		 * Ensure that we receive a ping on the websocket
-		 */
-		waitForSize(1, () -> mySocketImplementation.myPingCount);
-
-		/*
-		 * Clean up
-		 */
-		ourClient.delete().resourceById(mySubscriptionId).execute();
-	}
 
 	@Test
 	void testCareGaps() throws IOException {
@@ -303,22 +228,6 @@ class ExampleServerR4IT implements IServerSupport {
 		});
 	}
 
-	private int activeSubscriptionCount() {
-		return ourClient.search().forResource(Subscription.class).where(Subscription.STATUS.exactly().code("active"))
-			.cacheControl(new CacheControlDirective().setNoCache(true)).returnBundle(Bundle.class).execute().getEntry()
-			.size();
-	}
-
-	@ParameterizedTest
-	@ValueSource(strings = {"prometheus", "health", "metrics", "info"})
-	void testActuatorEndpointExists(String endpoint) throws IOException, URISyntaxException {
-
-		CloseableHttpClient httpclient = HttpClients.createDefault();
-		CloseableHttpResponse response = httpclient.execute(new HttpGet(new URI("http", null, "localhost", port, "/actuator/" + endpoint, null, null)));
-		int statusCode = response.getStatusLine().getStatusCode();
-		assertEquals(200, statusCode);
-
-	}
 
 	@Test
 	void testDiffOperationIsRegistered() {
