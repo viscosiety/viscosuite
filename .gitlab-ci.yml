@@ -1,17 +1,21 @@
 # ViscoSuite CI/CD pipeline
 #
 # Stages:
-#   test    — unit + integration tests (all branches and MRs)
-#   package — full Maven build, produces WARs for the Docker image (main only)
-#   docker  — builds and pushes viscorunner image to the GitLab registry (main only)
+#   test     — unit + integration tests (all branches and MRs)
+#   package  — full Maven build, produces WARs for the Docker image (main only)
+#   docker   — builds platform-specific images in parallel (main only)
+#   manifest — combines amd64 + arm64 images into a single multi-arch manifest (main only)
 #
 # Runners: self-hosted Docker runners
+#   amd64: tags [docker, dind]
+#   arm64: tags [docker, arm64, dind]  (Raspberry Pi 5)
 # Registry: $CI_REGISTRY_IMAGE (GitLab project registry)
 
 stages:
   - test
   - package
   - docker
+  - manifest
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
@@ -33,6 +37,7 @@ default:
 test:
   stage: test
   image: maven:3.9-eclipse-temurin-21
+  tags: [docker]
   script:
     - mvn verify -pl viscostore
   rules:
@@ -42,29 +47,35 @@ test:
 # ---------------------------------------------------------------------------
 # Stage: package
 # Full reactor build. Produces viscorunner/target/ (WARs + drivers)
-# needed by the Docker build step.
+# needed by both Docker build jobs.
 # ---------------------------------------------------------------------------
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
+  tags: [docker]
   script:
     - mvn package -DskipTests
   artifacts:
     paths:
-      - viscorunner/target/
+      - viscorunner/target/viscolink.war
+      - viscorunner/target/viscostore.war
+      - viscorunner/target/drivers/
     expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
 # ---------------------------------------------------------------------------
 # Stage: docker
-# Builds viscorunner and pushes two tags:
-#   - <registry>/viscorunner:<commit-sha>  (immutable, for traceability)
-#   - <registry>/viscorunner:latest        (floating, for convenience)
+# Builds a platform-specific image on each native runner and pushes it with
+# a platform suffix tag, e.g.:
+#   <registry>/viscorunner:<sha>-amd64
+#   <registry>/viscorunner:<sha>-arm64
+# The two jobs run in parallel.
 # ---------------------------------------------------------------------------
-docker:
+docker:amd64:
   stage: docker
   image: docker:27
+  tags: [dind]
   services:
     - docker:27-dind
   needs:
@@ -73,11 +84,55 @@ docker:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build
+    - docker build --platform linux/amd64
+        -t "$IMAGE:$CI_COMMIT_SHA-amd64"
+        viscorunner/
+    - docker push "$IMAGE:$CI_COMMIT_SHA-amd64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+docker:arm64:
+  stage: docker
+  image: docker:27
+  tags: [docker, arm64, dind]
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --platform linux/arm64
+        -t "$IMAGE:$CI_COMMIT_SHA-arm64"
+        viscorunner/
+    - docker push "$IMAGE:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: manifest
+# Combines the two platform images into a single multi-arch manifest and
+# pushes two final tags:
+#   - <registry>/viscorunner:<commit-sha>  (immutable)
+#   - <registry>/viscorunner:latest        (floating)
+# ---------------------------------------------------------------------------
+manifest:
+  stage: manifest
+  image: docker:27
+  tags: [dind]
+  services:
+    - docker:27-dind
+  needs:
+    - docker:amd64
+    - docker:arm64
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker buildx imagetools create
         -t "$IMAGE:$CI_COMMIT_SHA"
         -t "$IMAGE:latest"
-        viscorunner/
-    - docker push "$IMAGE:$CI_COMMIT_SHA"
-    - docker push "$IMAGE:latest"
+        "$IMAGE:$CI_COMMIT_SHA-amd64"
+        "$IMAGE:$CI_COMMIT_SHA-arm64"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
