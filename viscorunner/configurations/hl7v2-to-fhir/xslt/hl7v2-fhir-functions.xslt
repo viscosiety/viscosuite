@@ -146,6 +146,27 @@
                           else 'usual'"/>
     </xsl:function>
 
+    <!-- HL7 discharge disposition (PV1.36, table 0112) → FHIR discharge-disposition code -->
+    <xsl:function name="fn:toFhirDischargeDisposition" as="xs:string">
+        <xsl:param name="hl7code" as="xs:string?"/>
+        <xsl:variable name="code" select="($hl7code, '')[1]"/>
+        <xsl:variable name="map" select="map{
+      '01': 'home',
+      '02': 'alt-home',
+      '03': 'other-hcf',
+      '04': 'hosp',
+      '05': 'long',
+      '06': 'aadvice',
+      '07': 'exp',
+      '20': 'psy',
+      '21': 'rehab',
+      '30': 'oth'
+    }"/>
+        <xsl:value-of select="if (map:contains($map, $code))
+                          then map:get($map, $code)
+                          else 'oth'"/>
+    </xsl:function>
+
     <!-- ============================================================
          SHARED FHIR RESOURCE TEMPLATES
          These produce FHIR resources that appear in many message types.

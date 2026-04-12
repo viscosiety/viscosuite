@@ -26,6 +26,11 @@
                     <property name="label" value="PatientId"/>
                     <property name="sessionKey" value="patientId" />
                 </bean>
+                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
+                    <property name="name" value="event"/>
+                    <property name="label" value="Event"/>
+                    <property name="sessionKey" value="event" />
+                </bean>
             </list>
         </property>
     </bean>
@@ -39,6 +44,7 @@
                 <value>name</value>
                 <value>sender</value>
                 <value>receiver</value>
+                <value>event</value>
                 <value>patientId</value>
                 <value>correlationId</value>
                 <value>status</value>

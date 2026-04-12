@@ -20,9 +20,8 @@ done
 # --- generated values ---
 # HL7v2 timestamp: YYYYMMDDHHmmss
 TS=$(date +"%Y%m%d%H%M%S")
-# Message control ID: script-basename + timestamp, e.g. ADT-A01-20260308143022
-SCRIPT_BASE=$(basename "${BASH_SOURCE[1]}" .sh)
-MSG_ID="${SCRIPT_BASE}-${TS}-$$"
+# Message control ID: timestamp + milliseconds (17 chars, ≤20 per HL7v2 spec)
+MSG_ID=$(date +"%Y%m%d%H%M%S%3N")
 
 # --- JAR path (relative to this script's location) ---
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# ADT-A03-DischargePatient.sh — Discharge / End Visit
+# Sends an ADT^A03 message: John Smith (PAT-001) is discharged home (01)
+# from CARDIO ward 102 bed B.
+#
+# Depends on a prior ADT^A01 (ADT-A01-AdmitPatient.sh) to have created the encounter.
+#
+# Usage:
+#   ./ADT-A03-DischargePatient.sh [-h host] [-p port]
+#
+# Defaults: host=localhost, port=2575
+
+source "$(dirname "$0")/_common.sh" "$@"
+
+# PV1.36 = 01 (discharged to home)      — 17 pipes after V-2026-001 (PV1.19)
+# PV1.44 = admit date/time (from A01)   —  8 pipes after PV1.36
+# PV1.45 = discharge date/time (now)    —  1 pipe  after PV1.44
+send "MSH|^~\&|SendingApp|SendingFac|viscolink|viscosiety|${TS}||ADT^A03^ADT_A03|${MSG_ID}|P|2.5\r\
+EVN|A03|${TS}\r\
+PID|1||PAT-001^^^HospitalA^MR||Smith^John^A||19800315|M|||123 Main St^^Springfield^IL^62701^USA\r\
+PV1|1|I|CARDIO^102^B^HospitalA||||DR001^Johnson^Emily^^^Dr.^MD||||||||||DR001^Johnson^Emily^^^Dr.^MD|OP|V-2026-001|||||||||||||||||01||||||||20260301080000|${TS}"

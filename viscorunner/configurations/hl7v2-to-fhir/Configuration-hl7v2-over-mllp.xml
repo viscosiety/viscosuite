@@ -36,11 +36,14 @@
             <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
             <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.5" />
 
-            <!-- Step 2: save HL7v2 XML and extract key fields for tracing in the debugger -->
+            <!-- Step 2: save HL7v2 XML and extract key fields for tracing in the debugger.
+                 Use //h: wildcards so XPaths work regardless of the root element name
+                 (ADT_A01, ADT_A02, ADT_A03, ADT_A09, …). -->
             <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml">
-                <Param type="STRING" name="sender"    xpathExpression="/h:ADT_A01/h:MSH/h:MSH.3/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="receiver"  xpathExpression="/h:ADT_A01/h:MSH/h:MSH.5/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="patientId" xpathExpression="/h:ADT_A01/h:PID/h:PID.3/h:CX.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="sender"    xpathExpression="//h:MSH/h:MSH.3/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="receiver"  xpathExpression="//h:MSH/h:MSH.5/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="patientId" xpathExpression="//h:PID/h:PID.3/h:CX.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="event"     xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1,' ',//h:MSH/h:MSH.9/h:MSG.2)" namespaceDefs="h=urn:hl7-org:v2xml"/>
             </PutInSessionPipe>
 
             <!-- Step 3: extract department code (PV1.3/PL.1) as plain text for IfPipe -->
@@ -61,7 +64,7 @@
             <SenderPipe name="forwardToFhirPipeline">
                 <IbisLocalSender javaListener="HL7v2ToFHIRListener" />
                 <Forward name="success"   path="restoreForAck"/>
-                <Forward name="exception" path="Error"/>
+                <Forward name="exception" path="restoreForError"/>
             </SenderPipe>
 
             <GetFromSessionPipe name="restoreForAck" sessionKey="hl7Xml">
@@ -70,6 +73,19 @@
 
             <XsltPipe name="buildAckXml" styleSheetName="xslt/HL7v2-ACK.xslt">
                 <Param name="ackCode"            value="AA"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Error path: exception from FHIR pipeline → AE NACK -->
+            <GetFromSessionPipe name="restoreForError" sessionKey="hl7Xml">
+                <Forward name="success" path="buildErrorXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildErrorXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AE"/>
+                <Param name="errorMessage"       value="Internal processing error; check the Frank!Console for details"/>
                 <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
                 <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
                 <Forward name="success" path="encodeResponse"/>
