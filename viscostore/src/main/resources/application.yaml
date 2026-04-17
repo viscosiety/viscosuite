@@ -170,6 +170,7 @@ hapi:
     # -------------------------------------------------------------------------------
     openapi_enabled: true                       # Swagger UI at /fhir/swagger-ui/index.html; API docs at /fhir/api-docs
     fhir_version: R4                            # DSTU2 | DSTU3 | R4 | R5
+    server_id_strategy: UUID                    # Server-generated UUIDs for all resource IDs
     # use_apache_address_strategy: false
     # use_apache_address_strategy_https: false
     # custom_content_path: ./custom               # folder name must be 'custom'
