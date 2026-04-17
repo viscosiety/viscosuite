@@ -1,7 +1,7 @@
 <Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
     <Adapter name="HL7v2ToFHIR"
-             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR R4 transaction Bundle, and POSTs it to viscostore">
+             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR ${fhir.target.version} transaction Bundle, validates it against the FHIR ${fhir.target.version} XSD, and POSTs it to viscostore">
 
         <Receiver name="HL7v2ToFHIRReceiver">
             <JavaListener name="HL7v2ToFHIRListener" />
@@ -32,10 +32,23 @@
                 <Param type="STRING" name="messageSender"   xpathExpression="//h:MSH/h:MSH.3/h:HD.1"       namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="messageReceiver" xpathExpression="//h:MSH/h:MSH.5/h:HD.1"       namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="hl7TriggerEvent" xpathExpression="//h:MSH/h:MSH.9/h:MSG.2"      namespaceDefs="h=urn:hl7-org:v2xml" />
-                <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/ADT_', //h:MSH/h:MSH.9/h:MSG.2, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/${fhir.target.version}/ADT_', //h:MSH/h:MSH.9/h:MSG.2, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
             </PutInSessionPipe>
 
-            <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet"/>
+            <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet">
+                <Param name="mrSystemBase" value="${mr.system.base}"/>
+            </XsltPipe>
+
+            <!-- Validate the produced FHIR Bundle against the version-specific XSD.
+                 fhir-single.xsd must be present in xsd/${fhir.target.version}/.
+                 Run xsd/${fhir.target.version}/fetch-schemas.sh once to download it. -->
+            <XmlValidatorPipe name="ValidateFhirBundle"
+                              schema="xsd/${fhir.target.version}/fhir-single.xsd"
+                              root="Bundle">
+                <Forward name="success"   path="postToViscostore"/>
+                <Forward name="failure"   path="BadRequest"/>
+                <Forward name="exception" path="ServerError"/>
+            </XmlValidatorPipe>
 
             <SenderPipe name="postToViscostore">
                 <HttpSender

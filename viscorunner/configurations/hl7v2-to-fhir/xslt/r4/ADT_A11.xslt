@@ -28,7 +28,10 @@
     <xsl:template match="/hl7:ADT_A09">
 
         <xsl:variable name="messageId" select="(hl7:MSH/hl7:MSH.10, '')[1]"/>
-        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="mrSystem"  select="if (hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               then concat('urn:oid:', hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
         <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
         <Bundle xmlns="http://hl7.org/fhir">
@@ -54,7 +57,7 @@
                         </class>
 
                         <subject>
-                            <reference value="Patient?identifier=urn:oid:2.16.840.1.113883.2.4.6.3|{$patientId}"/>
+                            <reference value="Patient?identifier={$mrSystem}|{$patientId}"/>
                         </subject>
                     </Encounter>
                 </resource>

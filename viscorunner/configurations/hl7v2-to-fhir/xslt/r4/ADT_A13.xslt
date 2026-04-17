@@ -7,25 +7,32 @@
                 exclude-result-prefixes="hl7 fn xs">
 
     <!--
-      ADT_A03.xslt
+      ADT_A13.xslt
       ============
-      Maps an HL7v2 ADT^A03 (Discharge/End Visit) message to a FHIR R4
+      Maps an HL7v2 ADT^A13 (Cancel Discharge / End Visit) message to a FHIR R4
       transaction Bundle containing:
         - Patient         (from PID)  — conditional PUT on MR identifier
         - Encounter       (from PV1)  — conditional PUT on visit identifier
-                                        status=finished, period.end, discharge disposition
+                                        status reverted to in-progress,
+                                        period.end intentionally omitted so the
+                                        PUT replaces the previously discharged
+                                        resource with no end date.
 
-      XML root element: ADT_A03  (A03 has its own message structure in HL7 2.5)
+      XML root element: ADT_A01  (A13 shares the ADT_A01 message structure in HL7 2.5)
+      Routing: pipeline routes to ADT_A13.xslt via MSG.2 = A13.
     -->
 
     <xsl:import href="hl7v2-fhir-functions.xslt"/>
 
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 
-    <xsl:template match="/hl7:ADT_A03">
+    <xsl:template match="/hl7:ADT_A01">
 
         <xsl:variable name="messageId" select="(hl7:MSH/hl7:MSH.10, '')[1]"/>
-        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="mrSystem"  select="if (hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               then concat('urn:oid:', hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
         <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
         <Bundle xmlns="http://hl7.org/fhir">
@@ -42,11 +49,11 @@
                 </resource>
                 <request>
                     <method value="PUT"/>
-                    <url value="Patient?identifier=urn:oid:2.16.840.1.113883.2.4.6.3|{$patientId}"/>
+                    <url value="Patient?identifier={$mrSystem}|{$patientId}"/>
                 </request>
             </entry>
 
-            <!-- Encounter -->
+            <!-- Encounter — revert to in-progress, period.end omitted (removes discharge) -->
             <entry>
                 <fullUrl value="urn:uuid:encounter-{$visitId}"/>
                 <resource>
@@ -68,18 +75,14 @@
         <xsl:param name="visitId"   as="xs:string?"/>
         <xsl:param name="patientId" as="xs:string?"/>
 
-        <xsl:variable name="admitDt"    select="(hl7:PV1.44/hl7:TS.1, '')[1]"/>
-        <xsl:variable name="dischargeDt" select="(hl7:PV1.45/hl7:TS.1, '')[1]"/>
-        <xsl:variable name="disposition" select="(hl7:PV1.36, '')[1]"/>
-
         <Encounter xmlns="http://hl7.org/fhir">
             <identifier>
                 <use value="official"/>
                 <value value="{$visitId}"/>
             </identifier>
 
-            <!-- A03 = visit has ended -->
-            <status value="finished"/>
+            <!-- A13 = discharge cancelled; patient is still admitted -->
+            <status value="in-progress"/>
 
             <class>
                 <system value="http://terminology.hl7.org/CodeSystem/v3-ActCode"/>
@@ -89,28 +92,6 @@
             <subject>
                 <reference value="urn:uuid:patient-{$patientId}"/>
             </subject>
-
-            <!-- Period: admit → discharge -->
-            <xsl:if test="$admitDt != '' or $dischargeDt != ''">
-                <period>
-                    <xsl:if test="$admitDt != ''">
-                        <start value="{fn:toFhirDateTime($admitDt)}"/>
-                    </xsl:if>
-                    <xsl:if test="$dischargeDt != ''">
-                        <end value="{fn:toFhirDateTime($dischargeDt)}"/>
-                    </xsl:if>
-                </period>
-            </xsl:if>
-
-            <!-- Last known location from PV1.3 -->
-            <xsl:if test="hl7:PV1.3">
-                <location>
-                    <location>
-                        <display value="{hl7:PV1.3/hl7:PL.1} / {hl7:PV1.3/hl7:PL.2} / {hl7:PV1.3/hl7:PL.3}"/>
-                    </location>
-                    <status value="completed"/>
-                </location>
-            </xsl:if>
 
             <!-- Attending physician from PV1.7 -->
             <xsl:if test="hl7:PV1.7">
@@ -128,16 +109,21 @@
                 </participant>
             </xsl:if>
 
-            <!-- Discharge disposition from PV1.36 -->
-            <xsl:if test="$disposition != ''">
-                <hospitalization>
-                    <dischargeDisposition>
-                        <coding>
-                            <system value="http://terminology.hl7.org/CodeSystem/discharge-disposition"/>
-                            <code   value="{fn:toFhirDischargeDisposition($disposition)}"/>
-                        </coding>
-                    </dischargeDisposition>
-                </hospitalization>
+            <!-- Admit date/time only — period.end deliberately absent to clear discharge -->
+            <xsl:if test="hl7:PV1.44/hl7:TS.1">
+                <period>
+                    <start value="{fn:toFhirDateTime(hl7:PV1.44/hl7:TS.1)}"/>
+                </period>
+            </xsl:if>
+
+            <!-- Location from PV1.3 -->
+            <xsl:if test="hl7:PV1.3">
+                <location>
+                    <location>
+                        <display value="{hl7:PV1.3/hl7:PL.1} / {hl7:PV1.3/hl7:PL.2} / {hl7:PV1.3/hl7:PL.3}"/>
+                    </location>
+                    <status value="active"/>
+                </location>
             </xsl:if>
 
         </Encounter>

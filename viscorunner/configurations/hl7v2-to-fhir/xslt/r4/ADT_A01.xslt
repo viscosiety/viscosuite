@@ -30,7 +30,10 @@
     <xsl:template match="/hl7:ADT_A01">
 
         <xsl:variable name="messageId" select="(hl7:MSH/hl7:MSH.10, '')[1]"/>
-        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="patientId" select="(hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.1, '')[1]"/>
+        <xsl:variable name="mrSystem"  select="if (hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               then concat('urn:oid:', hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
+                                               else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
         <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
         <Bundle xmlns="http://hl7.org/fhir">
@@ -47,7 +50,7 @@
                 </resource>
                 <request>
                     <method value="PUT"/>
-                    <url value="Patient?identifier=urn:oid:2.16.840.1.113883.2.4.6.3|{$patientId}"/>
+                    <url value="Patient?identifier={$mrSystem}|{$patientId}"/>
                 </request>
             </entry>
 
@@ -95,27 +98,19 @@
                 <code   value="{fn:toFhirEncounterClass(hl7:PV1.2)}"/>
             </class>
 
+            <!-- Admission type from PV1.4 -->
+            <xsl:if test="hl7:PV1.4">
+                <type>
+                    <coding>
+                        <system value="http://terminology.hl7.org/CodeSystem/v2-0007"/>
+                        <code   value="{hl7:PV1.4}"/>
+                    </coding>
+                </type>
+            </xsl:if>
+
             <subject>
                 <reference value="urn:uuid:patient-{$patientId}"/>
             </subject>
-
-            <!-- Admit date/time from PV1.44 -->
-            <xsl:if test="hl7:PV1.44/hl7:TS.1">
-                <period>
-                    <start value="{fn:toFhirDateTime(hl7:PV1.44/hl7:TS.1)}"/>
-                    <!-- No period.end on admission — that comes with ADT_A03 -->
-                </period>
-            </xsl:if>
-
-            <!-- Ward / room / bed from PV1.3 -->
-            <xsl:if test="hl7:PV1.3">
-                <location>
-                    <location>
-                        <display value="{hl7:PV1.3/hl7:PL.1} / {hl7:PV1.3/hl7:PL.2} / {hl7:PV1.3/hl7:PL.3}"/>
-                    </location>
-                    <status value="active"/>
-                </location>
-            </xsl:if>
 
             <!-- Attending physician from PV1.7 -->
             <xsl:if test="hl7:PV1.7">
@@ -149,14 +144,22 @@
                 </participant>
             </xsl:if>
 
-            <!-- Admission type from PV1.4 -->
-            <xsl:if test="hl7:PV1.4">
-                <type>
-                    <coding>
-                        <system value="http://terminology.hl7.org/CodeSystem/v2-0007"/>
-                        <code   value="{hl7:PV1.4}"/>
-                    </coding>
-                </type>
+            <!-- Admit date/time from PV1.44 -->
+            <xsl:if test="hl7:PV1.44/hl7:TS.1">
+                <period>
+                    <start value="{fn:toFhirDateTime(hl7:PV1.44/hl7:TS.1)}"/>
+                    <!-- No period.end on admission — that comes with ADT_A03 -->
+                </period>
+            </xsl:if>
+
+            <!-- Ward / room / bed from PV1.3 -->
+            <xsl:if test="hl7:PV1.3">
+                <location>
+                    <location>
+                        <display value="{hl7:PV1.3/hl7:PL.1} / {hl7:PV1.3/hl7:PL.2} / {hl7:PV1.3/hl7:PL.3}"/>
+                    </location>
+                    <status value="active"/>
+                </location>
             </xsl:if>
 
         </Encounter>

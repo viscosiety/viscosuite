@@ -17,5 +17,5 @@ source "$(dirname "$0")/_common.sh" "$@"
 # PV1.45 = discharge date/time (now)    —  1 pipe  after PV1.44
 send "MSH|^~\&|SendingApp|SendingFac|viscolink|viscosiety|${TS}||ADT^A03^ADT_A03|${MSG_ID}|P|2.5\r\
 EVN|A03|${TS}\r\
-PID|1||PAT-001^^^HospitalA^MR||Smith^John^A||19800315|M|||123 Main St^^Springfield^IL^62701^USA\r\
+PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||Smith^John^A||19800315|M|||123 Main St^^Springfield^IL^62701^USA||+31612345678^CP^CP~j.smith@example.nl^NET^Internet\r\
 PV1|1|I|CARDIO^102^B^HospitalA||||DR001^Johnson^Emily^^^Dr.^MD||||||||||DR001^Johnson^Emily^^^Dr.^MD|OP|V-2026-001|||||||||||||||||01||||||||20260301080000|${TS}"

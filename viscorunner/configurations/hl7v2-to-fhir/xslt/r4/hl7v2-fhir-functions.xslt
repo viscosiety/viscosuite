@@ -20,6 +20,14 @@
         - Reusable FHIR resource templates (Patient, MessageHeader)
     -->
 
+    <!--
+      Configurable base URL used when the MR assigning authority (CX.4) carries
+      only a text name (HD.1) rather than an OID (HD.2).
+      Override by passing mrSystemBase as an XSLT parameter from the pipeline.
+      Default matches the value of mr.system.base in DeploymentSpecifics.properties.
+    -->
+    <xsl:param name="mrSystemBase" as="xs:string" select="'https://example.nl/fhir/NamingSystem/'"/>
+
     <!-- ============================================================
          DATE / DATETIME FUNCTIONS
          ============================================================ -->
@@ -203,18 +211,37 @@
         <xsl:param name="patientId" as="xs:string?"/>
 
         <Patient xmlns="http://hl7.org/fhir">
-            <identifier>
-                <use value="usual"/>
-                <type>
-                    <coding>
-                        <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
-                        <code value="MR"/>
-                        <display value="Medical record number"/>
-                    </coding>
-                </type>
-                <system value="urn:oid:2.16.840.1.113883.2.4.6.3"/>
-                <value value="{$patientId}"/>
-            </identifier>
+            <!-- Emit one <identifier> per PID.3 repetition, typed by CX.5 -->
+            <xsl:for-each select="hl7:PID.3">
+                <xsl:choose>
+                    <xsl:when test="hl7:CX.5 = 'MR'">
+                        <!-- MR system derived from assigning authority (CX.4):
+                             HD.2 (OID) takes precedence; fall back to a URL built from HD.1. -->
+                        <identifier>
+                            <use value="usual"/>
+                            <type>
+                                <coding>
+                                    <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+                                    <code value="MR"/>
+                                    <display value="Medical record number"/>
+                                </coding>
+                            </type>
+                            <system value="{if (hl7:CX.4/hl7:HD.2)
+                                            then concat('urn:oid:', hl7:CX.4/hl7:HD.2)
+                                            else concat('https://example.nl/fhir/NamingSystem/', hl7:CX.4/hl7:HD.1)}"/>
+                            <value value="{hl7:CX.1}"/>
+                        </identifier>
+                    </xsl:when>
+                    <xsl:when test="hl7:CX.5 = 'NNLD'">
+                        <!-- BSN: system URL alone identifies this as a Dutch BSN; no type needed -->
+                        <identifier>
+                            <use value="official"/>
+                            <system value="http://fhir.nl/fhir/NamingSystem/bsn"/>
+                            <value value="{hl7:CX.1}"/>
+                        </identifier>
+                    </xsl:when>
+                </xsl:choose>
+            </xsl:for-each>
 
             <xsl:for-each select="hl7:PID.5">
                 <name>
@@ -223,6 +250,14 @@
                     <xsl:if test="hl7:XPN.2"><given value="{hl7:XPN.2}"/></xsl:if>
                     <xsl:if test="hl7:XPN.3"><given value="{hl7:XPN.3}"/></xsl:if>
                 </name>
+            </xsl:for-each>
+
+            <xsl:for-each select="hl7:PID.13[hl7:XTN.1]">
+                <telecom>
+                    <system value="{fn:toFhirTelecomSystem(hl7:XTN.3)}"/>
+                    <value  value="{hl7:XTN.1}"/>
+                    <use    value="{fn:toFhirTelecomUse(hl7:XTN.2)}"/>
+                </telecom>
             </xsl:for-each>
 
             <xsl:if test="hl7:PID.8">
@@ -241,14 +276,6 @@
                     <xsl:if test="hl7:XAD.5"><postalCode value="{hl7:XAD.5}"/></xsl:if>
                     <xsl:if test="hl7:XAD.6"><country value="{hl7:XAD.6}"/></xsl:if>
                 </address>
-            </xsl:for-each>
-
-            <xsl:for-each select="hl7:PID.13[hl7:XTN.1]">
-                <telecom>
-                    <system value="{fn:toFhirTelecomSystem(hl7:XTN.3)}"/>
-                    <value  value="{hl7:XTN.1}"/>
-                    <use    value="{fn:toFhirTelecomUse(hl7:XTN.2)}"/>
-                </telecom>
             </xsl:for-each>
 
         </Patient>
