@@ -41,7 +41,8 @@
                 <fullUrl value="urn:uuid:patient-{$patientId}"/>
                 <resource>
                     <xsl:apply-templates select="hl7:PID" mode="Patient">
-                        <xsl:with-param name="patientId" select="$patientId"/>
+                        <xsl:with-param name="patientId"    select="$patientId"/>
+                        <xsl:with-param name="nk1Segments"  select="hl7:NK1"/>
                     </xsl:apply-templates>
                 </resource>
                 <request>

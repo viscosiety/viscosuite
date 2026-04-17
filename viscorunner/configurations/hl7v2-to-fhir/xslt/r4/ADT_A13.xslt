@@ -44,7 +44,8 @@
                 <fullUrl value="urn:uuid:patient-{$patientId}"/>
                 <resource>
                     <xsl:apply-templates select="hl7:PID" mode="Patient">
-                        <xsl:with-param name="patientId" select="$patientId"/>
+                        <xsl:with-param name="patientId"    select="$patientId"/>
+                        <xsl:with-param name="nk1Segments"  select="hl7:NK1"/>
                     </xsl:apply-templates>
                 </resource>
                 <request>
@@ -89,6 +90,26 @@
                 <code   value="{fn:toFhirEncounterClass(hl7:PV1.2)}"/>
             </class>
 
+            <!-- Admission type from PV1.4 -->
+            <xsl:if test="hl7:PV1.4">
+                <type>
+                    <coding>
+                        <system value="http://terminology.hl7.org/CodeSystem/v2-0007"/>
+                        <code   value="{hl7:PV1.4}"/>
+                    </coding>
+                </type>
+            </xsl:if>
+
+            <!-- Hospital service from PV1.10 -->
+            <xsl:if test="hl7:PV1.10">
+                <serviceType>
+                    <coding>
+                        <system value="http://terminology.hl7.org/CodeSystem/v2-0069"/>
+                        <code   value="{hl7:PV1.10}"/>
+                    </coding>
+                </serviceType>
+            </xsl:if>
+
             <subject>
                 <reference value="urn:uuid:patient-{$patientId}"/>
             </subject>
@@ -109,11 +130,88 @@
                 </participant>
             </xsl:if>
 
+            <!-- Referring physician from PV1.8 -->
+            <xsl:if test="hl7:PV1.8">
+                <participant>
+                    <type>
+                        <coding>
+                            <system value="http://terminology.hl7.org/CodeSystem/v3-ParticipationType"/>
+                            <code value="REF"/>
+                            <display value="referrer"/>
+                        </coding>
+                    </type>
+                    <individual>
+                        <display value="{hl7:PV1.8/hl7:XCN.3} {hl7:PV1.8/hl7:XCN.2/hl7:FN.1}"/>
+                    </individual>
+                </participant>
+            </xsl:if>
+
+            <!-- Consulting physician from PV1.9 -->
+            <xsl:if test="hl7:PV1.9">
+                <participant>
+                    <type>
+                        <coding>
+                            <system value="http://terminology.hl7.org/CodeSystem/v3-ParticipationType"/>
+                            <code value="CON"/>
+                            <display value="consultant"/>
+                        </coding>
+                    </type>
+                    <individual>
+                        <display value="{hl7:PV1.9/hl7:XCN.3} {hl7:PV1.9/hl7:XCN.2/hl7:FN.1}"/>
+                    </individual>
+                </participant>
+            </xsl:if>
+
+            <!-- Admitting physician from PV1.17 -->
+            <xsl:if test="hl7:PV1.17">
+                <participant>
+                    <type>
+                        <coding>
+                            <system value="http://terminology.hl7.org/CodeSystem/v3-ParticipationType"/>
+                            <code value="ADM"/>
+                            <display value="admitter"/>
+                        </coding>
+                    </type>
+                    <individual>
+                        <display value="{hl7:PV1.17/hl7:XCN.3} {hl7:PV1.17/hl7:XCN.2/hl7:FN.1}"/>
+                    </individual>
+                </participant>
+            </xsl:if>
+
             <!-- Admit date/time only — period.end deliberately absent to clear discharge -->
             <xsl:if test="hl7:PV1.44/hl7:TS.1">
                 <period>
                     <start value="{fn:toFhirDateTime(hl7:PV1.44/hl7:TS.1)}"/>
                 </period>
+            </xsl:if>
+
+            <!-- Admit reason from PV2.3 -->
+            <xsl:if test="../hl7:PV2/hl7:PV2.3/hl7:CE.1 or ../hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                <reasonCode>
+                    <xsl:if test="../hl7:PV2/hl7:PV2.3/hl7:CE.1">
+                        <coding>
+                            <code value="{../hl7:PV2/hl7:PV2.3/hl7:CE.1}"/>
+                            <xsl:if test="../hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                                <display value="{../hl7:PV2/hl7:PV2.3/hl7:CE.2}"/>
+                            </xsl:if>
+                        </coding>
+                    </xsl:if>
+                    <xsl:if test="../hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                        <text value="{../hl7:PV2/hl7:PV2.3/hl7:CE.2}"/>
+                    </xsl:if>
+                </reasonCode>
+            </xsl:if>
+
+            <!-- Admit source from PV1.14 -->
+            <xsl:if test="hl7:PV1.14">
+                <hospitalization>
+                    <admitSource>
+                        <coding>
+                            <system value="http://terminology.hl7.org/CodeSystem/v2-0023"/>
+                            <code   value="{hl7:PV1.14}"/>
+                        </coding>
+                    </admitSource>
+                </hospitalization>
             </xsl:if>
 
             <!-- Location from PV1.3 -->

@@ -56,9 +56,36 @@
                             <code   value="{fn:toFhirEncounterClass(hl7:PV1/hl7:PV1.2)}"/>
                         </class>
 
+                        <!-- Hospital service from PV1.10 -->
+                        <xsl:if test="hl7:PV1/hl7:PV1.10">
+                            <serviceType>
+                                <coding>
+                                    <system value="http://terminology.hl7.org/CodeSystem/v2-0069"/>
+                                    <code   value="{hl7:PV1/hl7:PV1.10}"/>
+                                </coding>
+                            </serviceType>
+                        </xsl:if>
+
                         <subject>
                             <reference value="Patient?identifier={$mrSystem}|{$patientId}"/>
                         </subject>
+
+                        <!-- Admit reason from PV2.3 -->
+                        <xsl:if test="hl7:PV2/hl7:PV2.3/hl7:CE.1 or hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                            <reasonCode>
+                                <xsl:if test="hl7:PV2/hl7:PV2.3/hl7:CE.1">
+                                    <coding>
+                                        <code value="{hl7:PV2/hl7:PV2.3/hl7:CE.1}"/>
+                                        <xsl:if test="hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                                            <display value="{hl7:PV2/hl7:PV2.3/hl7:CE.2}"/>
+                                        </xsl:if>
+                                    </coding>
+                                </xsl:if>
+                                <xsl:if test="hl7:PV2/hl7:PV2.3/hl7:CE.2">
+                                    <text value="{hl7:PV2/hl7:PV2.3/hl7:CE.2}"/>
+                                </xsl:if>
+                            </reasonCode>
+                        </xsl:if>
                     </Encounter>
                 </resource>
                 <request>

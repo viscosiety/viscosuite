@@ -16,7 +16,7 @@
 
       Contents:
         - Date/datetime conversion
-        - Code translations (gender, encounter class, telecom)
+        - Code translations (gender, encounter class, telecom, name use, discharge disposition)
         - Reusable FHIR resource templates (Patient, MessageHeader)
     -->
 
@@ -206,12 +206,17 @@
         </MessageHeader>
     </xsl:template>
 
-    <!-- Patient — driven by PID segment -->
+    <!-- Patient — driven by PID segment
+         nk1Segments: zero or more NK1 sibling elements passed from the root template -->
     <xsl:template match="hl7:PID" mode="Patient">
-        <xsl:param name="patientId" as="xs:string?"/>
+        <xsl:param name="patientId"   as="xs:string?"/>
+        <xsl:param name="nk1Segments" as="element()*" select="()"/>
 
         <Patient xmlns="http://hl7.org/fhir">
-            <!-- Emit one <identifier> per PID.3 repetition, typed by CX.5 -->
+
+            <!-- ── Identifiers ──────────────────────────────────────────── -->
+
+            <!-- PID.3: MR and NNLD (BSN) identifiers (one entry per repetition) -->
             <xsl:for-each select="hl7:PID.3">
                 <xsl:choose>
                     <xsl:when test="hl7:CX.5 = 'MR'">
@@ -228,12 +233,12 @@
                             </type>
                             <system value="{if (hl7:CX.4/hl7:HD.2)
                                             then concat('urn:oid:', hl7:CX.4/hl7:HD.2)
-                                            else concat('https://example.nl/fhir/NamingSystem/', hl7:CX.4/hl7:HD.1)}"/>
+                                            else concat($mrSystemBase, hl7:CX.4/hl7:HD.1)}"/>
                             <value value="{hl7:CX.1}"/>
                         </identifier>
                     </xsl:when>
                     <xsl:when test="hl7:CX.5 = 'NNLD'">
-                        <!-- BSN: system URL alone identifies this as a Dutch BSN; no type needed -->
+                        <!-- BSN: system URL alone identifies this as a Dutch BSN -->
                         <identifier>
                             <use value="official"/>
                             <system value="http://fhir.nl/fhir/NamingSystem/bsn"/>
@@ -243,6 +248,24 @@
                 </xsl:choose>
             </xsl:for-each>
 
+            <!-- PID.18: Patient account number -->
+            <xsl:if test="hl7:PID.18/hl7:CX.1">
+                <identifier>
+                    <use value="usual"/>
+                    <type>
+                        <coding>
+                            <system value="http://terminology.hl7.org/CodeSystem/v2-0203"/>
+                            <code value="AN"/>
+                            <display value="Account number"/>
+                        </coding>
+                    </type>
+                    <value value="{hl7:PID.18/hl7:CX.1}"/>
+                </identifier>
+            </xsl:if>
+
+            <!-- ── Names ────────────────────────────────────────────────── -->
+
+            <!-- PID.5: Patient names (all repetitions) -->
             <xsl:for-each select="hl7:PID.5">
                 <name>
                     <use value="{fn:toFhirNameUse(hl7:XPN.7)}"/>
@@ -252,6 +275,18 @@
                 </name>
             </xsl:for-each>
 
+            <!-- PID.6: Mother's maiden name -->
+            <xsl:if test="hl7:PID.6/hl7:XPN.1/hl7:FN.1">
+                <name>
+                    <use value="maiden"/>
+                    <family value="{hl7:PID.6/hl7:XPN.1/hl7:FN.1}"/>
+                    <xsl:if test="hl7:PID.6/hl7:XPN.2"><given value="{hl7:PID.6/hl7:XPN.2}"/></xsl:if>
+                </name>
+            </xsl:if>
+
+            <!-- ── Telecom ───────────────────────────────────────────────── -->
+
+            <!-- PID.13: Home/personal phone numbers -->
             <xsl:for-each select="hl7:PID.13[hl7:XTN.1]">
                 <telecom>
                     <system value="{fn:toFhirTelecomSystem(hl7:XTN.3)}"/>
@@ -260,14 +295,40 @@
                 </telecom>
             </xsl:for-each>
 
+            <!-- PID.14: Business phone numbers (always use=work) -->
+            <xsl:for-each select="hl7:PID.14[hl7:XTN.1]">
+                <telecom>
+                    <system value="{fn:toFhirTelecomSystem(hl7:XTN.3)}"/>
+                    <value  value="{hl7:XTN.1}"/>
+                    <use    value="work"/>
+                </telecom>
+            </xsl:for-each>
+
+            <!-- ── Demographics ──────────────────────────────────────────── -->
+
+            <!-- PID.8: Administrative sex -->
             <xsl:if test="hl7:PID.8">
                 <gender value="{fn:toFhirGender(hl7:PID.8)}"/>
             </xsl:if>
 
+            <!-- PID.7: Date of birth -->
             <xsl:if test="hl7:PID.7/hl7:TS.1">
                 <birthDate value="{fn:toFhirDate(hl7:PID.7/hl7:TS.1)}"/>
             </xsl:if>
 
+            <!-- PID.29/PID.30: Deceased — exact date takes precedence over boolean flag -->
+            <xsl:choose>
+                <xsl:when test="hl7:PID.29/hl7:TS.1">
+                    <deceasedDateTime value="{fn:toFhirDateTime(hl7:PID.29/hl7:TS.1)}"/>
+                </xsl:when>
+                <xsl:when test="hl7:PID.30 = 'Y'">
+                    <deceasedBoolean value="true"/>
+                </xsl:when>
+            </xsl:choose>
+
+            <!-- ── Address ───────────────────────────────────────────────── -->
+
+            <!-- PID.11: Patient addresses -->
             <xsl:for-each select="hl7:PID.11">
                 <address>
                     <use value="home"/>
@@ -277,6 +338,86 @@
                     <xsl:if test="hl7:XAD.6"><country value="{hl7:XAD.6}"/></xsl:if>
                 </address>
             </xsl:for-each>
+
+            <!-- ── Marital status ─────────────────────────────────────────── -->
+
+            <!-- PID.16: Marital status (table 0002 codes align with v3-MaritalStatus) -->
+            <xsl:if test="hl7:PID.16/hl7:CE.1">
+                <maritalStatus>
+                    <coding>
+                        <system value="http://terminology.hl7.org/CodeSystem/v3-MaritalStatus"/>
+                        <code   value="{hl7:PID.16/hl7:CE.1}"/>
+                    </coding>
+                </maritalStatus>
+            </xsl:if>
+
+            <!-- ── Multiple birth ─────────────────────────────────────────── -->
+
+            <!-- PID.25 (birth order) takes precedence over PID.24 (Y/N indicator) -->
+            <xsl:choose>
+                <xsl:when test="hl7:PID.25 castable as xs:integer">
+                    <multipleBirthInteger value="{hl7:PID.25}"/>
+                </xsl:when>
+                <xsl:when test="hl7:PID.24 = 'Y'">
+                    <multipleBirthBoolean value="true"/>
+                </xsl:when>
+            </xsl:choose>
+
+            <!-- ── Next of kin → contact ──────────────────────────────────── -->
+
+            <!-- NK1: one Patient.contact entry per NK1 segment passed by the caller -->
+            <xsl:for-each select="$nk1Segments">
+                <contact>
+                    <!-- NK1.3: Relationship (table 0063) -->
+                    <xsl:if test="hl7:NK1.3/hl7:CE.1">
+                        <relationship>
+                            <coding>
+                                <system value="http://terminology.hl7.org/CodeSystem/v2-0131"/>
+                                <code   value="{hl7:NK1.3/hl7:CE.1}"/>
+                            </coding>
+                        </relationship>
+                    </xsl:if>
+                    <!-- NK1.2: Name -->
+                    <xsl:if test="hl7:NK1.2/hl7:XPN.1/hl7:FN.1">
+                        <name>
+                            <family value="{hl7:NK1.2/hl7:XPN.1/hl7:FN.1}"/>
+                            <xsl:if test="hl7:NK1.2/hl7:XPN.2"><given value="{hl7:NK1.2/hl7:XPN.2}"/></xsl:if>
+                        </name>
+                    </xsl:if>
+                    <!-- NK1.5: Phone numbers -->
+                    <xsl:for-each select="hl7:NK1.5[hl7:XTN.1]">
+                        <telecom>
+                            <system value="{fn:toFhirTelecomSystem(hl7:XTN.3)}"/>
+                            <value  value="{hl7:XTN.1}"/>
+                            <use    value="{fn:toFhirTelecomUse(hl7:XTN.2)}"/>
+                        </telecom>
+                    </xsl:for-each>
+                    <!-- NK1.4: Address -->
+                    <xsl:if test="hl7:NK1.4/hl7:XAD.1/hl7:SAD.1 or hl7:NK1.4/hl7:XAD.3">
+                        <address>
+                            <xsl:if test="hl7:NK1.4/hl7:XAD.1/hl7:SAD.1"><line value="{hl7:NK1.4/hl7:XAD.1/hl7:SAD.1}"/></xsl:if>
+                            <xsl:if test="hl7:NK1.4/hl7:XAD.3"><city value="{hl7:NK1.4/hl7:XAD.3}"/></xsl:if>
+                            <xsl:if test="hl7:NK1.4/hl7:XAD.5"><postalCode value="{hl7:NK1.4/hl7:XAD.5}"/></xsl:if>
+                            <xsl:if test="hl7:NK1.4/hl7:XAD.6"><country value="{hl7:NK1.4/hl7:XAD.6}"/></xsl:if>
+                        </address>
+                    </xsl:if>
+                </contact>
+            </xsl:for-each>
+
+            <!-- ── Communication ─────────────────────────────────────────── -->
+
+            <!-- PID.15: Primary language (CE.1 carries the BCP-47 / table 0296 code) -->
+            <xsl:if test="hl7:PID.15/hl7:CE.1">
+                <communication>
+                    <language>
+                        <coding>
+                            <system value="urn:ietf:bcp:47"/>
+                            <code   value="{hl7:PID.15/hl7:CE.1}"/>
+                        </coding>
+                    </language>
+                    <preferred value="true"/>
+                </communication>
+            </xsl:if>
 
         </Patient>
     </xsl:template>
