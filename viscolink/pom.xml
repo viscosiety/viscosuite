@@ -21,7 +21,7 @@
 	-->
 
 	<properties>
-		<frankframework.version>9.4.1</frankframework.version>
+		<frankframework.version>10.1.0-20260307.042328</frankframework.version>
 		<hapi.version>7.4.0</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
@@ -46,7 +46,7 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-		</dependencies>
+</dependencies>
 	</dependencyManagement>
 
 	<dependencies>
@@ -196,6 +196,18 @@
 				<version>3.5.1</version>
 				<configuration>
 					<failOnMissingWebXml>false</failOnMissingWebXml>
+					<!-- Package WEB-INF/classes as a JAR so Frank!Framework's ComponentLoader
+					     can open it as a ZipFile during module discovery. Without this,
+					     Tomcat deploys an exploded WEB-INF/classes directory which F!F
+					     tries to open as a ZipFile and fails with "Is a directory".
+					     addDefaultImplementationEntries adds Implementation-Title and
+					     Implementation-Version, which ModuleInformation requires. -->
+					<archiveClasses>true</archiveClasses>
+					<archive>
+						<manifest>
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+						</manifest>
+					</archive>
 				</configuration>
 			</plugin>
 		</plugins>
