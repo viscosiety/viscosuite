@@ -78,7 +78,7 @@ package:
 docker:amd64:
   stage: docker
   image: docker:27
-  tags: [dind]
+  tags: [docker, x86-64, dind]
   services:
     - docker:27-dind
   needs:
