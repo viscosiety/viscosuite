@@ -4,7 +4,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: viscorunner:local
+    image: registry.git.viscosiety.com/public-applications/viscosuite/viscorunner:latest
     ports:
       - "8180:8080"
       - "5005:5005"
