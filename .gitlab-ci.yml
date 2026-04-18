@@ -21,7 +21,7 @@ variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   # -B: batch mode (no ANSI colours, no interactive prompts)
   # --no-transfer-progress: suppresses the per-chunk download progress lines
-  MAVEN_CLI_OPTS: "-B --no-transfer-progress -s .mvn/settings.xml"
+  MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
   IMAGE: $CI_REGISTRY_IMAGE/viscorunner
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
