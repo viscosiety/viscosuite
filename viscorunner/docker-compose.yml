@@ -14,24 +14,23 @@ services:
       dtap.stage: LOC
       configurations.names: hl7v2-to-fhir
 
-      # Ladybug JDBC connection — shared PostgreSQL instance, separate schema via Liquibase
-      ladybug.jdbc.driver: org.postgresql.Driver
-      ladybug.jdbc.url: jdbc:postgresql://postgres:5432/viscostore
-      ladybug.jdbc.username: visco
-      ladybug.jdbc.password: visco
-      
-      # ViscoStore (HAPI FHIR) Spring Boot datasource — overrides application.yaml inside the WAR
-      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/viscostore
-      SPRING_DATASOURCE_DRIVER_CLASS_NAME: org.postgresql.Driver
-      SPRING_DATASOURCE_USERNAME: visco
-      SPRING_DATASOURCE_PASSWORD: visco
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
+      # Frank!Framework (viscolink) JNDI datasource
+      VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
+      VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink
+      VISCOLINK_JDBC_USERNAME: visco
+      VISCOLINK_JDBC_PASSWORD: visco
+
+      # ViscoStore (HAPI FHIR) datasource — overrides application.yaml defaults
+      VISCOSTORE_JDBC_DRIVER: org.postgresql.Driver
+      VISCOSTORE_JDBC_URL: jdbc:postgresql://postgres:5432/viscostore
+      VISCOSTORE_JDBC_USERNAME: visco
+      VISCOSTORE_JDBC_PASSWORD: visco
+      VISCOSTORE_JDBC_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
       # Tester backend makes server-side HTTP calls to this address; must be reachable from within
       # the container (port 8080, not the host-mapped 8180)
       HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
       # Pass JPDA debug flag; entrypoint.sh appends $JAVA_OPTS to the F!F JVM flags
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN"
     depends_on:
       postgres:
         condition: service_healthy
@@ -43,6 +42,7 @@ services:
 
   postgres:
     image: postgres:16
+    container_name: postgres
     environment:
       POSTGRES_DB: viscostore
       POSTGRES_USER: visco
@@ -51,11 +51,13 @@ services:
       - "5432:5432"
     volumes:
       - postgres-data:/var/lib/postgresql/data
+      - ./postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U visco -d viscostore"]
       interval: 5s
       timeout: 5s
       retries: 10
+      start_period: 30s
 
 volumes:
   postgres-data:

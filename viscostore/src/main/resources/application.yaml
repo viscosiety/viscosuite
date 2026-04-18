@@ -97,10 +97,10 @@ spring:
 
   datasource:
     # url: "jdbc:h2:file:./target/database/h2"
-    url: jdbc:h2:mem:test_mem
-    username: sa
-    password: null
-    driver-class-name: org.h2.Driver
+    url: ${VISCOSTORE_JDBC_URL:jdbc:h2:mem:test_mem}
+    username: ${VISCOSTORE_JDBC_USERNAME:sa}
+    password: ${VISCOSTORE_JDBC_PASSWORD:}
+    driver-class-name: ${VISCOSTORE_JDBC_DRIVER:org.h2.Driver}
     # max-active: 15     # (ignored with HikariCP; use hikari.maximum-pool-size)
     hikari:
       maximum-pool-size: 10
@@ -113,7 +113,7 @@ spring:
         # Hibernate dialect is auto-detected except for H2/Postgres.
         # If using H2:     ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect
         # If using Postgres: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
-        dialect: ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect
+        dialect: ${VISCOSTORE_JDBC_DIALECT:ca.uhn.fhir.jpa.model.dialect.HapiFhirH2Dialect}
 
         # --- Optional Hibernate DDL & tuning (commented out from source) ---
         hbm2ddl:

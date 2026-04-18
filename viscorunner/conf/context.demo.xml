@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+
+		<Resource name="jdbc/viscolink"
+			auth="Container"
+			type="javax.sql.DataSource"
+			driverClassName="${VISCOLINK_JDBC_DRIVER}"
+			url="${VISCOLINK_JDBC_URL}"
+			username="${VISCOLINK_JDBC_USERNAME}"
+			password="${VISCOLINK_JDBC_PASSWORD}"
+			maxTotal="20" maxIdle="5" maxWaitMillis="10000"/>
+
+		<Resource name="jdbc/viscostore"
+			auth="Container"
+			type="javax.sql.DataSource"
+			driverClassName="${VISCOSTORE_JDBC_DRIVER}"
+			url="${VISCOSTORE_JDBC_URL}"
+			username="${VISCOSTORE_JDBC_USERNAME}"
+			password="${VISCOSTORE_JDBC_PASSWORD}"
+			maxTotal="20" maxIdle="5" maxWaitMillis="10000"/>
+
+		<!-- Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint) -->
+		<Resource name="jdbc/fake-emr"
+			auth="Container"
+			type="javax.sql.DataSource"
+			driverClassName="${FAKE_EMR_JDBC_DRIVER}"
+			url="${FAKE_EMR_JDBC_URL}"
+			username="${FAKE_EMR_JDBC_USERNAME}"
+			password="${FAKE_EMR_JDBC_PASSWORD}"
+			maxTotal="10" maxIdle="3" maxWaitMillis="10000"/>
+
+</Context>

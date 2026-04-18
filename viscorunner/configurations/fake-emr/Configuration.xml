@@ -1,0 +1,7 @@
+<!DOCTYPE Configuration [
+        <!ENTITY fake-emr SYSTEM "Configuration-fake-emr.xml">
+        ]>
+
+<Configuration name="fake-emr">
+    &fake-emr;
+</Configuration>

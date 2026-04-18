@@ -1,0 +1,25 @@
+# Demo overlay — adds the fake-EMR integration on top of the base compose file.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+#
+# This file overrides only what differs from the base:
+#   - enables the fake-emr F!F configuration
+#   - injects the fake-emr JDBC credentials
+#   - mounts conf/context.demo.xml, which extends the base context.xml with the
+#     jdbc/fake-emr JNDI datasource
+
+services:
+
+  viscorunner:
+    environment:
+      configurations.names: hl7v2-to-fhir,fake-emr
+      configurations.fake-emr.classLoaderType: DirectoryClassLoader
+      # Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint)
+      FAKE_EMR_JDBC_DRIVER: org.postgresql.Driver
+      FAKE_EMR_JDBC_URL: "jdbc:postgresql://fake-emr.k8s.viscosiety.com:5433/fake_emr?sslmode=require"
+      FAKE_EMR_JDBC_USERNAME: emr_user
+      FAKE_EMR_JDBC_PASSWORD: emr_lokaal_2024
+
+    volumes:
+      - ./conf/context.demo.xml:/usr/local/tomcat/conf/context.xml:ro

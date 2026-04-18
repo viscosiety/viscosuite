@@ -1,0 +1,32 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <Adapter name="GetPatientDiagnoses"
+             description="Fetches diagnoses for patient PAT-2020001 from the fake-EMR database via stored procedure emr.sp_diagnoses_patient">
+
+        <Receiver name="GetPatientDiagnosesReceiver">
+            <JavaListener name="GetPatientDiagnosesListener" />
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS" />
+                <Exit name="Exception" state="ERROR" />
+            </Exits>
+
+            <SenderPipe name="FetchDiagnoses">
+                <FixedQuerySender
+                    name="DiagnosesQuerySender"
+                    datasourceName="jdbc/fake-emr"
+                    query="SELECT * FROM emr.sp_diagnoses_patient('PAT-2020001', FALSE)"
+                    queryType="SELECT"
+                    outputFormat="JSON"
+                />
+                <Forward name="success"   path="Exit" />
+                <Forward name="exception" path="Exception" />
+            </SenderPipe>
+        </Pipeline>
+
+    </Adapter>
+
+</Module>

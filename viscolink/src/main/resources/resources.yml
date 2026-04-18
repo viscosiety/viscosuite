@@ -1,9 +1,10 @@
 jdbc:
   - name: "ladybug"
-    type: "${ladybug.jdbc.driver}"
-    url: "${ladybug.jdbc.url}"
-    username: "${ladybug.jdbc.username}"
-    password: "${ladybug.jdbc.password}"
+    type: "${VISCOLINK_JDBC_DRIVER}"
+    url: "${VISCOLINK_JDBC_URL}"
+    username: "${VISCOLINK_JDBC_USERNAME}"
+    password: "${VISCOLINK_JDBC_PASSWORD}"
+
 
 mllp:
   - name: "inbound-2575"
