@@ -21,7 +21,7 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.1.0-20260318.042325</frankframework.version>
+		<frankframework.version>10.1.0-20260323.042326</frankframework.version>
 		<hapi.version>7.4.0</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
