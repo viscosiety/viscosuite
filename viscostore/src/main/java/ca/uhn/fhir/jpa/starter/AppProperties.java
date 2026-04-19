@@ -94,7 +94,7 @@ public class AppProperties {
 	private Subscription subscription = new Subscription();
 	private Cors cors = null;
 	private Partitioning partitioning = null;
-	private Boolean validate_resource_status_for_package_upload = true;
+	private Boolean validate_resource_status_for_package_upload = false;
 	private Boolean install_transitive_ig_dependencies = true;
 
 	private List<String> install_additional_resources_from_ig_folders = new ArrayList<>();
