@@ -5,27 +5,15 @@
 >
 
     <changeSet id="LadybugCustom:1" author="Tom Peeters">
-        <comment>Add column sender</comment>
+        <comment>Add column flow (replaces sender + receiver + event with one abstract integration-type-agnostic column)</comment>
         <addColumn tableName="LADYBUG">
-            <column name="sender" type="java.sql.Types.VARCHAR(255)"/>
+            <column name="flow" type="java.sql.Types.VARCHAR(255)"/>
         </addColumn>
     </changeSet>
     <changeSet id="LadybugCustom:2" author="Tom Peeters">
-        <comment>Add column receiver</comment>
-        <addColumn tableName="LADYBUG">
-            <column name="receiver" type="java.sql.Types.VARCHAR(255)"/>
-        </addColumn>
-    </changeSet>
-    <changeSet id="LadybugCustom:3" author="Tom Peeters">
         <comment>Add column patientid (lowercase to avoid PostgreSQL quoted-identifier mismatch)</comment>
         <addColumn tableName="LADYBUG">
             <column name="patientid" type="java.sql.Types.VARCHAR(255)"/>
-        </addColumn>
-    </changeSet>
-    <changeSet id="LadybugCustom:4" author="Tom Peeters">
-        <comment>Add column event (lowercase to avoid PostgreSQL quoted-identifier mismatch)</comment>
-        <addColumn tableName="LADYBUG">
-            <column name="event" type="java.sql.Types.VARCHAR(255)"/>
         </addColumn>
     </changeSet>
 </databaseChangeLog>

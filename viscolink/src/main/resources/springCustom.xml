@@ -1,25 +1,18 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    F!F loads this file automatically via SPRING.CONFIG.LOCATIONS in AppConstants.properties.
-    It is merged into the IbisApplicationContext (child of the web environment context),
-    so beans here can inject servletManager from the parent environment context.
+    F!F loads this file via SPRING.CONFIG.LOCATIONS in AppConstants.properties.
+    It is merged into a child context of IbisApplicationContext after the initial refresh.
 
-    <context:annotation-config/> is required so Spring processes @Configuration and @Bean
-    on FhirServerConfiguration — without it the @Bean factory methods are never called.
+    FHIR servlet beans (R4FhirServlet, Dstu3FhirServlet, FhirFfBridge) are declared
+    in springFhir.xml, which is registered via ViscoLinkModule.getSpringConfigurationFiles()
+    so they participate in the main context refresh and are picked up by
+    ServletRegisteringPostProcessor.
+
+    Use this file for Ladybug / debugger customisation only.
 -->
-<beans
-        xmlns="http://www.springframework.org/schema/beans"
-        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-        xmlns:context="http://www.springframework.org/schema/context"
-        xsi:schemaLocation="
-            http://www.springframework.org/schema/beans   http://www.springframework.org/schema/beans/spring-beans.xsd
-            http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context.xsd
-        ">
-
-    <!-- Enable @Configuration / @Bean / @Autowired processing in this context -->
-    <context:annotation-config/>
-
-    <!-- Registers the FHIR servlet at /fhir/* via F!F's ServletManager -->
-    <bean class="com.viscosiety.fhir.FhirServerConfiguration"/>
-
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
 </beans>

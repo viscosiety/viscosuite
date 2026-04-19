@@ -12,24 +12,14 @@
             <list>
                 <bean class="org.wearefrank.ladybug.metadata.StatusMetadataFieldExtractor" />
                 <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
-                    <property name="name" value="sender"/>
-                    <property name="label" value="Sender"/>
-                    <property name="sessionKey" value="messageSender" />
-                </bean>
-                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
-                    <property name="name" value="receiver"/>
-                    <property name="label" value="Receiver"/>
-                    <property name="sessionKey" value="messageReceiver" />
+                    <property name="name" value="flow"/>
+                    <property name="label" value="Flow"/>
+                    <property name="sessionKey" value="flow" />
                 </bean>
                 <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
                     <property name="name" value="patientId"/>
                     <property name="label" value="PatientId"/>
                     <property name="sessionKey" value="patientId" />
-                </bean>
-                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
-                    <property name="name" value="event"/>
-                    <property name="label" value="Event"/>
-                    <property name="sessionKey" value="event" />
                 </bean>
             </list>
         </property>
@@ -42,9 +32,7 @@
                 <value>endTime</value>
                 <value>duration</value>
                 <value>name</value>
-                <value>sender</value>
-                <value>receiver</value>
-                <value>event</value>
+                <value>flow</value>
                 <value>patientId</value>
                 <value>correlationId</value>
                 <value>status</value>
