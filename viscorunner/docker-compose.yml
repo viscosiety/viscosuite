@@ -12,7 +12,6 @@ services:
     environment:
       # Frank!Framework — override dtap.stage so it doesn't default to LOC
       dtap.stage: LOC
-      configurations.names: hl7v2-to-fhir
 
       # Frank!Framework (viscolink) JNDI datasource
       VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
@@ -37,8 +36,14 @@ services:
     volumes:
       # Mount credentials file for local development (create from credentials.properties.example)
       - ./secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
-      # Mount configurations so changes can be made and reloaded via the Frank!Console without rebuilding
+      # Mount the configurations directory so users can add their own configurations and reload
+      # them via the Frank!Console without rebuilding.  The directory is empty by default;
+      # add subdirectories and set configurations.names to activate them.
       - ./configurations:/opt/frank/configurations
+      # Shared resources on the Tomcat shared.loader classpath — available to all F!F
+      # configurations.  Contains FHIR XSD schemas under fhir-xsd/{r4,r5,dstu3}/.
+      # Regenerate with: viscorunner/scripts/update-fhir-xsd.sh
+      - ./resources:/opt/frank/resources:ro
 
   postgres:
     image: postgres:16

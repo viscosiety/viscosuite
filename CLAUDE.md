@@ -5,13 +5,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Build Commands
 
 ```bash
-# Build all modules (from repo root)
-mvn package
+# Build all modules and install to local repo (required before docker compose up --build)
+./mvnw install -pl viscolink,viscostore
+./mvnw package -pl viscorunner
 
-# Build a single module
-mvn package -pl viscolink
-mvn package -pl viscostore
-mvn package -pl viscorunner   # requires viscolink + viscostore already built
+# Or in one step:
+./mvnw install -pl viscolink,viscostore && ./mvnw package -pl viscorunner
+
+# WARNING: copy-dependencies in viscorunner always resolves from .m2/ (not the reactor).
+# Always run `mvn install` for viscolink and/or viscostore before building viscorunner,
+# otherwise stale .m2/ artifacts end up in the Docker image.
+# Never run `mvn package -pl viscorunner` alone after changing viscolink or viscostore.
 
 # Run unit tests
 mvn test -pl viscostore

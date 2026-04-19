@@ -1,20 +1,29 @@
-# Demo overlay — adds the fake-EMR integration on top of the base compose file.
+# Demo overlay — mounts the reference implementation configurations and enables auto-discovery.
 #
 # Usage:
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 #
-# This file overrides only what differs from the base:
-#   - enables the fake-emr F!F configuration
-#   - injects the fake-emr JDBC credentials
-#   - mounts conf/context.demo.xml, which extends the base context.xml with the
-#     jdbc/fake-emr JNDI datasource
+# What this overlay adds on top of the base:
+#   - Mounts demo-configurations/ over /opt/frank/configurations, replacing the base
+#     (empty) configurations mount with the full reference implementation.
+#   - Enables Frank!Framework auto-discovery so all subdirectories in demo-configurations/
+#     are loaded as F!F configurations without listing them explicitly.
+#   - Sets DirectoryClassLoader as the default so externally-mounted configurations
+#     are read from the filesystem rather than the WAR classpath.
+#   - Provides credentials and a JNDI datasource for the fake-emr integration.
+#   - Mounts conf-demo/context.xml, which extends the base context.xml with the
+#     jdbc/fake-emr JNDI datasource.
 
 services:
 
   viscorunner:
     environment:
-      configurations.names: hl7v2-to-fhir,fake-emr
-      configurations.fake-emr.classLoaderType: DirectoryClassLoader
+      # Enable F!F auto-discovery of all subdirectories in the configurations directory.
+      configurations.directory.autoLoad: "true"
+      # Use DirectoryClassLoader as the default so F!F reads configurations from the
+      # mounted filesystem rather than scanning the WAR classpath.
+      classloader.type: DirectoryClassLoader
+
       # Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint)
       FAKE_EMR_JDBC_DRIVER: org.postgresql.Driver
       FAKE_EMR_JDBC_URL: "jdbc:postgresql://fake-emr.k8s.viscosiety.com:5433/fake_emr?sslmode=require"
@@ -22,4 +31,9 @@ services:
       FAKE_EMR_JDBC_PASSWORD: emr_lokaal_2024
 
     volumes:
-      - ./conf/context.demo.xml:/usr/local/tomcat/conf/context.xml:ro
+      # Shadow the base configurations mount with the demo reference implementation.
+      # Docker applies bind mounts in order; this entry (being last) wins for
+      # /opt/frank/configurations, giving F!F the demo configurations to auto-discover.
+      - ./demo-configurations:/opt/frank/configurations
+      # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
+      - ./conf-demo/context.xml:/usr/local/tomcat/conf/context.xml:ro

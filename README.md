@@ -13,17 +13,35 @@ viscoSuite/
 
 Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunner`.
 
+## Prerequisites
+
+| Tool | Version | Purpose |
+|---|---|---|
+| Docker with Compose V2 | Docker ≥ 24 | Running the application (`docker compose` subcommand) |
+| Java JDK | 21+ | Building from source |
+| `mvn` (Maven) | 3.9+ | Schema update scripts (`update-frankconfig-xsd.sh`, `update-fhir-xsd.sh`) |
+| `unzip` | any | Same schema update scripts (extracts XSDs from downloaded JARs) |
+
+The Maven **wrapper** (`./mvnw`) is included and downloads the correct Maven version automatically for all `./mvnw` build commands — no separate Maven installation is needed for those. The update scripts are the only place that call `mvn` directly.
+
+`unzip` is pre-installed on most Linux distributions and macOS. On macOS it ships with Xcode Command Line Tools; on Debian/Ubuntu: `apt-get install unzip`.
+
+---
+
 ## Quick Start
 
 ```bash
 # 1. Create credentials file (required before first run)
 cp viscorunner/secrets/credentials.properties.example viscorunner/secrets/credentials.properties
 
-# 2. Build and start
+# 2a. Run the demo (full reference implementation — HL7v2→FHIR, FHIR R4/DSTU3, fake-EMR)
+cd viscorunner && docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+
+# 2b. Or start with zero configurations as a blank slate for your own integrations
 cd viscorunner && docker compose up --build
 ```
 
-The application is available at `http://localhost:8180`.
+The application is available at `http://localhost:8180`. See `viscorunner/README.md` for full details on both modes.
 
 ## Key Endpoints
 
@@ -31,7 +49,13 @@ The application is available at `http://localhost:8180`.
 |---|---|
 | `POST /viscolink/hl7v2` | HL7v2 message ingestion |
 | `/viscolink/iaf/` | Frank!Console / Ladybug debugger (auth disabled in LOC) |
-| `/viscostore/fhir` | FHIR R4 REST API |
+| `POST /viscolink/fhir/r4/{facadeName}` | FHIR R4 bundle transaction (demo: `fhir-to-fhir`) |
+| `GET /viscolink/fhir/r4/{facadeName}/Patient/{id}` | FHIR R4 patient read |
+| `POST /viscolink/fhir/r5/{facadeName}` | FHIR R5 bundle transaction |
+| `GET /viscolink/fhir/r5/{facadeName}/Patient/{id}` | FHIR R5 patient read |
+| `POST /viscolink/fhir/dstu3/{facadeName}` | FHIR DSTU3 bundle transaction |
+| `GET /viscolink/fhir/dstu3/{facadeName}/Patient/{id}` | FHIR DSTU3 patient read |
+| `/viscostore/fhir` | FHIR R4 REST API (HAPI JPA Server) |
 | `/viscostore/tester/` | Interactive FHIR Tester UI |
 | `/viscostore/fhir/swagger-ui/` | Swagger API docs |
 | `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
@@ -57,10 +81,10 @@ A Maven wrapper is included so you don't need Maven installed locally — `./mvn
 
 1. HTTP `POST /hl7v2` received by `HL7v2-over-http-to-FHIR` adapter
 2. Message type extracted from MSH.9 (e.g. `ADT_A01`)
-3. XSLT applied from `configurations/hl7v2-to-fhir/xslt/<MSG_TYPE>.xslt`
+3. XSLT applied from `demo-configurations/hl7v2-to-fhir/xslt/<MSG_TYPE>.xslt`
 4. Output: FHIR R4 Bundle (MessageHeader + Patient + Encounter)
 
-Currently supported: `ADT_A01` (Admit/Visit Notification).
+Currently supported: `ADT_A01` (Admit/Visit Notification). Requires the demo overlay (see Quick Start 2a).
 
 ## MCP Integration
 
@@ -92,13 +116,19 @@ Then add two **Before launch** steps to your IntelliJ Remote JVM Debug configura
 
 | File | Purpose |
 |---|---|
-| `viscorunner/docker-compose.yml` | Services, ports, environment overrides |
+| `viscorunner/docker-compose.yml` | Base services, ports, environment overrides |
+| `viscorunner/docker-compose.demo.yml` | Demo overlay — mounts reference configurations and enables auto-discovery |
 | `viscorunner/src/scripts/catalinaAdditional.properties` | Tomcat / Frank!Framework settings |
-| `viscorunner/src/conf/context.xml` | Tomcat JNDI datasource |
+| `viscorunner/conf/context.xml` | Tomcat JNDI datasources (viscolink + viscostore) |
+| `viscorunner/conf-demo/context.xml` | Demo context — adds `jdbc/fake-emr` on top of base |
 | `viscolink/src/main/resources/DeploymentSpecifics.properties` | Frank!Framework base properties |
 | `viscostore/src/main/resources/application.yaml` | HAPI FHIR / Spring Boot settings |
 
-Frank!Framework configurations live in `viscorunner/configurations/` and are mounted into the container at `/opt/frank/configurations/` — they can be edited and reloaded via the Frank!Console without rebuilding.
+Frank!Framework configurations:
+- `viscorunner/configurations/` — empty scaffold for your own integrations; mounted at `/opt/frank/configurations/` in the base compose
+- `viscorunner/demo-configurations/` — reference implementation (`hl7v2-to-fhir`, `fhir-to-fhir`, `fake-emr`); activated by the demo overlay
+
+Configurations can be edited and reloaded via the Frank!Console without rebuilding.
 
 ## Smoke Tests
 
