@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # seed.sh — POST FHIR fixture bundles directly to the viscostore CDR.
 #
-# Each fixture is a FHIR R4 transaction Bundle (PUT entries with stable IDs)
+# Each fixture is a FHIR R5 transaction Bundle (PUT entries with stable IDs)
 # so the script is safe to re-run — existing resources are updated in place.
 #
 # Usage:
@@ -40,9 +40,22 @@ CDR_URL="http://${HOST}:${PORT}/viscostore/fhir"
 # post_fixture <file>
 post_fixture() {
     local file="$1"
-    local ext name content_type created updated errors
+    local ext name
     ext="${file##*.}"
     name="$(basename "$file" ".${ext}")"
+
+    if [[ "$ext" == "map" ]]; then
+        post_fml_fixture "$file" "$name"
+    else
+        post_bundle_fixture "$file" "$name" "$ext"
+    fi
+}
+
+# post_bundle_fixture <file> <name> <ext>
+# POSTs an XML or JSON FHIR transaction Bundle to the CDR root.
+post_bundle_fixture() {
+    local file="$1" name="$2" ext="$3"
+    local content_type created updated errors response
 
     case "$ext" in
         json) content_type="application/fhir+json" ;;
@@ -74,21 +87,61 @@ post_fixture() {
     fi
 }
 
+# post_fml_fixture <file> <name>
+# Compiles a .map FML file via POST /fhir/StructureMap/$compile (Content-Type: text/fhir-mapping).
+# The endpoint is provided by FmlCompileFilter in ViscoStore.
+post_fml_fixture() {
+    local file="$1" name="$2"
+    local http_code response
+
+    printf '→ Compiling %-43s ' "[${name}]"
+
+    # Write response body to a temp file so we can capture both body and HTTP status.
+    local tmp
+    tmp=$(mktemp)
+
+    http_code=$(curl --silent --show-error \
+        -o "$tmp" \
+        -w "%{http_code}" \
+        -X POST "${CDR_URL}/StructureMap/\$compile" \
+        -H "Content-Type: text/fhir-mapping" \
+        -H "Accept: application/fhir+xml" \
+        --data-binary "@${file}" 2>&1) || {
+        echo "CURL ERROR"
+        cat "$tmp" >&2
+        rm -f "$tmp"
+        return 1
+    }
+
+    response=$(cat "$tmp")
+    rm -f "$tmp"
+
+    case "$http_code" in
+        201) echo "OK      (created)" ;;
+        200) echo "OK      (updated)" ;;
+        *)
+            echo "FAILED  (HTTP ${http_code})"
+            echo "   ${response}" >&2
+            return 1
+            ;;
+    esac
+}
+
 # Resolve the list of fixture files to load
 if [[ ${#SETS[@]} -eq 0 ]]; then
     FILES=()
     while IFS= read -r -d '' f; do
         FILES+=("$f")
-    done < <(find "$FIXTURES_DIR" \( -name "*.xml" -o -name "*.json" \) -print0 | sort -z)
+    done < <(find "$FIXTURES_DIR" \( -name "*.xml" -o -name "*.json" -o -name "*.map" \) -print0 | sort -z)
 else
     FILES=()
     for set_name in "${SETS[@]}"; do
-        match=$(find "$FIXTURES_DIR" \( -name "${set_name}.xml" -o -name "${set_name}.json" \) | head -1)
+        match=$(find "$FIXTURES_DIR" \( -name "${set_name}.xml" -o -name "${set_name}.json" -o -name "${set_name}.map" \) | head -1)
         if [[ -z "$match" ]]; then
             echo "No fixture found for set: ${set_name}" >&2
             echo "Available sets:" >&2
-            find "$FIXTURES_DIR" \( -name "*.xml" -o -name "*.json" \) \
-                | sed 's|.*/||;s|\.\(xml\|json\)$||' | sort >&2 | sed 's/^/  /'
+            find "$FIXTURES_DIR" \( -name "*.xml" -o -name "*.json" -o -name "*.map" \) \
+                | sed 's|.*/||;s|\.\(xml\|json\|map\)$||' | sort >&2 | sed 's/^/  /'
             exit 1
         fi
         FILES+=("$match")

@@ -1,0 +1,55 @@
+map "https://ig.viscosiety.com/StructureMap/InboundLabObservation-to-Observation" = "InboundLabObservationToObservation"
+
+// Codifies an inbound-zone lab Observation carrying NullFlavor/OTH + code.text "Calcium"
+// into a codified-zone Observation with LOINC 17861-6 (Calcium [Moles/volume] in Serum or Plasma).
+//
+// Fields carried forward: status, category, subject, effective[x], value[x],
+//                         specimen, referenceRange, interpretation.
+//
+// Fields NOT set by this map — injected by CodificationService post-transform:
+//   - meta.tag: data-zone|codified
+//   - extension: ext-inbound-source-ref
+//   - extension: ext-data-provenance (mappingType=fml, structureMapUrl)
+//
+// HAPI polymorphic-property note:
+//   StructureMapUtilities.getChildrenByName() resolves choice elements by the base
+//   model property name. 'effectiveDateTime' and 'valueQuantity' both throw
+//   "Attempt to read invalid property on type Observation". Use 'effective' and 'value'.
+//
+// FML copy-semantics note:
+//   The simple form  src.field -> tgt.field  compiles to transform=create (not copy),
+//   which causes StructureMapUtilities.transform() to look for a matching sub-group and
+//   fail with "No matches found for rule". The correct copy form is:
+//     src.field as v -> tgt.field = v "rule-name";
+//   which compiles to transform=copy with parameter valueId=v.
+//   All rules in this map use this explicit form. Rule names (trailing quoted string
+//   before ';') are required by HAPI's parser on any rule that uses 'as', '= value',
+//   or 'then'.
+
+uses "http://hl7.org/fhir/StructureDefinition/Observation" alias InboundObs as source
+uses "http://hl7.org/fhir/StructureDefinition/Observation" alias Observation as target
+
+group MapLabObservation(source src : InboundObs, target tgt : Observation) {
+  src.status          as v  -> tgt.status         = v   "status";
+  src.category        as v  -> tgt.category        = v   "category";
+  src.subject         as v  -> tgt.subject         = v   "subject";
+  src.effective       as v  -> tgt.effective       = v   "effective";
+  src.value           as v  -> tgt.value           = v   "value";
+  src.specimen        as v  -> tgt.specimen        = v   "specimen";
+  src.referenceRange  as v  -> tgt.referenceRange  = v   "referenceRange";
+  src.interpretation  as v  -> tgt.interpretation  = v   "interpretation";
+  src.code            as sc -> tgt.code            as tc then MapCode(sc, tc) "code";
+}
+
+// MapCode: replace NullFlavor/OTH with LOINC 17861-6 and preserve code.text.
+group MapCode(source sc, target tc) {
+  sc -> tc.coding as tcoding then MapLoinc(sc, tcoding) "make-coding";
+  sc.text as t -> tc.text = t "code-text";
+}
+
+// MapLoinc: populate system, code, display on the Coding element.
+group MapLoinc(source sc, target tcoding) {
+  sc -> tcoding.system  = 'http://loinc.org'                          "loinc-system";
+  sc -> tcoding.code    = '17861-6'                                    "loinc-code";
+  sc -> tcoding.display = 'Calcium [Moles/volume] in Serum or Plasma'  "loinc-display";
+}

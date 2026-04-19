@@ -22,6 +22,8 @@ services:
       customViews.labmapper.name: "Lab Code Mapper"
       customViews.labmapper.url: /loinc-mapping.html
 
+      SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/app/overlay-config/"
+
       # Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint)
       FAKE_EMR_JDBC_DRIVER: org.postgresql.Driver
       FAKE_EMR_JDBC_URL: "jdbc:postgresql://fake-emr.k8s.viscosiety.com:5433/fake_emr?sslmode=require"
@@ -38,3 +40,7 @@ services:
       # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/loinc-mapping.html
       - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/usr/local/tomcat/webapps/ROOT/loinc-mapping.html:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
+      - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
+      - hsearch-data:/data
+volumes:
+  hsearch-data:

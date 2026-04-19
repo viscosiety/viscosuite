@@ -47,7 +47,7 @@
         "type": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -82,7 +82,7 @@
         "type": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -117,7 +117,7 @@
         "type": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -152,7 +152,7 @@
         "type": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -200,7 +200,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -270,7 +270,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -357,7 +357,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -444,7 +444,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -531,7 +531,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -623,7 +623,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -704,7 +704,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -791,7 +791,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -861,7 +861,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -912,7 +912,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -999,7 +999,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1080,7 +1080,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1167,7 +1167,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1254,7 +1254,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1341,7 +1341,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1405,7 +1405,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1454,7 +1454,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1503,7 +1503,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1567,7 +1567,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1631,7 +1631,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1690,7 +1690,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1751,7 +1751,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1800,7 +1800,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1849,7 +1849,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1898,7 +1898,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -1968,7 +1968,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2017,7 +2017,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2066,7 +2066,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2125,7 +2125,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2206,7 +2206,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2287,7 +2287,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2374,7 +2374,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2455,7 +2455,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2525,7 +2525,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2595,7 +2595,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2682,7 +2682,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2769,7 +2769,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2818,7 +2818,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2905,7 +2905,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -2975,7 +2975,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -3062,7 +3062,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -3132,7 +3132,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -3202,7 +3202,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }
@@ -3280,7 +3280,7 @@
         "code": {
           "coding": [
             {
-              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "system": "http://terminology.hl7.org/CodeSystem/v3-NullFlavor",
               "code": "OTH",
               "display": "Anders"
             }

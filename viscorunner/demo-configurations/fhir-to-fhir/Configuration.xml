@@ -1,14 +1,18 @@
 <!DOCTYPE Configuration [
+        <!ENTITY fhir-bundle-r5          SYSTEM "Configuration-fhir-bundle-r5.xml">
         <!ENTITY fhir-bundle-r4          SYSTEM "Configuration-fhir-bundle-r4.xml">
         <!ENTITY fhir-bundle-dstu3       SYSTEM "Configuration-fhir-bundle-dstu3.xml">
+        <!ENTITY fhir-patient-read-r5    SYSTEM "Configuration-fhir-patient-read-r5.xml">
         <!ENTITY fhir-patient-read-r4    SYSTEM "Configuration-fhir-patient-read-r4.xml">
         <!ENTITY fhir-patient-read-dstu3 SYSTEM "Configuration-fhir-patient-read-dstu3.xml">
         <!ENTITY lab-enrichment          SYSTEM "Configuration-lab-enrichment.xml">
         ]>
 
 <Configuration name="fhir-to-fhir">
+    &fhir-bundle-r5;
     &fhir-bundle-r4;
     &fhir-bundle-dstu3;
+    &fhir-patient-read-r5;
     &fhir-patient-read-r4;
     &fhir-patient-read-dstu3;
     &lab-enrichment;

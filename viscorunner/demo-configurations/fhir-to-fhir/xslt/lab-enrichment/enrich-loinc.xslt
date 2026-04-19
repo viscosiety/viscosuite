@@ -73,7 +73,7 @@
     -->
     <xsl:template match="fhir:Observation[
         fhir:code/fhir:coding[
-            fhir:system/@value = 'http://hl7.org/fhir/v3/NullFlavor'
+            fhir:system/@value = 'http://terminology.hl7.org/CodeSystem/v3-NullFlavor'
             and fhir:code/@value = 'OTH'
         ]
         and normalize-space(fhir:code/fhir:text/@value) != ''
@@ -164,7 +164,7 @@
     -->
     <xsl:template match="fhir:Observation/fhir:code[
         fhir:coding[
-            fhir:system/@value = 'http://hl7.org/fhir/v3/NullFlavor'
+            fhir:system/@value = 'http://terminology.hl7.org/CodeSystem/v3-NullFlavor'
             and fhir:code/@value = 'OTH'
         ]
         and normalize-space(fhir:text/@value) != ''
@@ -176,7 +176,7 @@
             <xsl:apply-templates select="fhir:coding[
                 not(exists($loincRow))
                 or not(
-                    fhir:system/@value = 'http://hl7.org/fhir/v3/NullFlavor'
+                    fhir:system/@value = 'http://terminology.hl7.org/CodeSystem/v3-NullFlavor'
                     and fhir:code/@value = 'OTH'
                 )
             ]"/>

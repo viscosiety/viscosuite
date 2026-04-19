@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  labObservationCodification.xml
+  ==============================
+  Codification infrastructure for lab Observations. Load with:
+    ./seed.sh labObservationCodification
+
+  Contains the SearchParameter that CodificationService depends on.
+  The StructureMap is maintained as FML in InboundLabObservation-to-Observation.map
+  and compiled into ViscoStore by seed.sh via POST /fhir/StructureMap/$compile.
+
+    SearchParameter/observation-inbound-source-ref
+       Required by CodificationService for the ifNoneExist conditional-create
+       (idempotent re-runs) and for locating the existing codified resource on
+       Phase 5 revision. Base: Observation. Type: reference.
+-->
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="fixture-lab-observation-codification"/>
+  <type value="transaction"/>
+
+  <!-- ═══════════════════════════════════════════════════════════════════════
+       1. SearchParameter — inbound-source-ref on Observation
+       ═══════════════════════════════════════════════════════════════════════ -->
+  <entry>
+    <fullUrl value="SearchParameter/observation-inbound-source-ref"/>
+    <resource>
+      <SearchParameter>
+        <id value="observation-inbound-source-ref"/>
+        <url value="https://ig.viscosiety.com/SearchParameter/Observation-inbound-source-ref"/>
+        <name value="ObservationInboundSourceRef"/>
+        <status value="active"/>
+        <description value="Searches codified Observations by the inbound-zone Observation they were derived from. Used by CodificationService as the ifNoneExist condition on conditional-create (idempotent re-runs) and to locate the existing codified resource when re-codifying a revised inbound Observation (Phase 5)."/>
+        <code value="inbound-source-ref"/>
+        <base value="Observation"/>
+        <type value="reference"/>
+        <expression value="Observation.extension.where(url='https://ig.viscosiety.com/StructureDefinition/ext-inbound-source-ref').value.ofType(Reference)"/>
+        <target value="Observation"/>
+      </SearchParameter>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="SearchParameter/observation-inbound-source-ref"/>
+    </request>
+  </entry>
+
+  <!-- StructureMap is maintained as FML in InboundLabObservation-to-Observation.map
+       and compiled into ViscoStore by seed.sh via POST /fhir/StructureMap/$compile. -->
+
+</Bundle>

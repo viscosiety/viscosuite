@@ -377,10 +377,15 @@ hapi:
     # -------------------------------------------------------------------------------
     # M. Extensibility (custom beans / interceptors / providers)
     # -------------------------------------------------------------------------------
-    # comma-separated package names, will be @ComponentScan'ed by Spring to allow for creating custom Spring beans
+    # Package scan for ViscoSuite custom beans (interceptor, service, operation provider, config)
+    custom-bean-packages: com.viscosiety.viscostore
 
-    # custom-bean-packages:
+    # CodificationInterceptor is registered on IInterceptorService (not RestfulServer)
+    # via CodificationConfig.@PostConstruct so it fires for ALL DAO-level writes, not
+    # only HTTP REST requests. It does NOT need to be listed here.
     # custom-interceptor-classes:
+
+    # $convert provider is registered programmatically in CodificationConfig.@PostConstruct
     # custom-provider-classes:
     
     # store_meta_source_information: NONE

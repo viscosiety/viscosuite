@@ -1,0 +1,20 @@
+hapi:
+  fhir:
+    # ig_runtime_upload_enabled: true
+    # validate_resource_status_for_package_upload: false
+    # install_transitive_ig_dependencies: true
+    implementationguides:
+      plugin:
+        packageUrl: http://ig-package-host/package-combined.tgz
+        name: default
+        version: 0.1.0
+        installMode: STORE_AND_INSTALL
+    search:
+      enabled: true
+      backend:
+        type: lucene
+        analysis:
+          configurer: ca.uhn.fhir.jpa.search.HapiHSearchAnalysisConfigurers$HapiLuceneAnalysisConfigurer
+        directory:
+          type: local-filesystem
+          root: /data/lucene
