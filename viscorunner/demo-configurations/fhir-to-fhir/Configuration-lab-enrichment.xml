@@ -1,0 +1,218 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        loinc-enriched FHIR facade
+        ==========================
+        Serves FHIR R4 Observation search and read-by-id on the "loinc-enriched" facade.
+
+        For every request the facade:
+          1. Builds a viscostore URL (search or _id search) that always includes
+             _include=Observation:specimen so the specimen type is available for mapping.
+          2. Delegates to FetchAndEnrichBundle, which fetches the Bundle from viscostore,
+             looks up the full loinc_mapping table, and injects LOINC codings into every
+             Observation that carries only a NullFlavor/OTH placeholder code.
+          3. For read-by-id: extracts the single Observation from the enriched Bundle.
+
+        Endpoints:
+          GET /viscolink/fhir/r4/loinc-enriched/Observation?<search params>
+          GET /viscolink/fhir/r4/loinc-enriched/Observation/{id}
+
+        All other routes (Patient, Specimen, DiagnosticReport, ...) are transparently
+        proxied to viscostore by FhirFacadeServlet via the LabEnrichmentCdrProxy adapter.
+
+        Adapters:
+          LabEnrichmentCdrProxy          — proxy placeholder (pipeline never invoked)
+          FetchAndEnrichBundle           — shared sub-adapter: URL → enriched Bundle XML
+          LabEnrichmentObservationSearch — search: builds URL, calls sub-adapter
+          LabEnrichmentObservationRead   — read:   builds URL, calls sub-adapter, extracts Observation
+    -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         CDR pass-through — pipeline is a placeholder; routing is handled
+         at servlet level by FhirFacadeServlet.
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LabEnrichmentCdrProxy"
+             description="Transparent CDR pass-through for all routes in the loinc-enriched facade that are not handled by a dedicated adapter">
+
+        <Receiver name="LabEnrichmentCdrProxyReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="LabEnrichmentCdrProxyListener"
+                      fhirVersion="R4"
+                      facadeName="loinc-enriched"
+                      operation="proxy"
+                      proxyCdrBaseUrl="${viscostore.fhir.base.url}"/>
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS"/>
+            </Exits>
+            <EchoPipe name="Echo">
+                <Forward name="success" path="Exit"/>
+            </EchoPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Shared sub-adapter: fetch + enrich
+         Input  (via IbisLocalSender): plain-text viscostore search URL
+         Output: enriched FHIR R4 Bundle XML
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="FetchAndEnrichBundle"
+             description="Shared sub-adapter: fetches a Bundle from viscostore and injects LOINC codings using the loinc_mapping table">
+
+        <Receiver name="FetchAndEnrichBundleReceiver">
+            <JavaListener name="FetchAndEnrichBundleListener" onException="RETHROW"/>
+        </Receiver>
+
+        <Pipeline firstPipe="saveSearchUrl">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- 1. Save the incoming URL (the message) so HttpSender can reference it -->
+            <PutInSessionPipe name="saveSearchUrl" sessionKey="searchUrl">
+                <Forward name="success" path="callViscostore"/>
+            </PutInSessionPipe>
+
+            <!-- 2. Fetch Observations (+ _include-d Specimens) from viscostore -->
+            <SenderPipe name="callViscostore">
+                <HttpSender urlParam="searchUrl" methodType="GET">
+                    <Param name="searchUrl" sessionKey="searchUrl"/>
+                </HttpSender>
+                <Forward name="success"   path="saveViscoBundle"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- 3. Save the raw searchset Bundle -->
+            <PutInSessionPipe name="saveViscoBundle" sessionKey="viscoBundle">
+                <Forward name="success" path="fetchLoincMapping"/>
+            </PutInSessionPipe>
+
+            <!-- 4. Fetch the full loinc_mapping table -->
+            <SenderPipe name="fetchLoincMapping">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="SELECT"
+                    query="SELECT text, specimen, code, display FROM loinc_mapping ORDER BY text, specimen"/>
+                <Forward name="success"   path="saveLoincMapping"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- 5. Save the LOINC mapping XML -->
+            <PutInSessionPipe name="saveLoincMapping" sessionKey="loincMapping">
+                <Forward name="success" path="restoreBundle"/>
+            </PutInSessionPipe>
+
+            <!-- 6. Restore the viscostore Bundle as the current message -->
+            <GetFromSessionPipe name="restoreBundle" sessionKey="viscoBundle">
+                <Forward name="success" path="enrichWithLoinc"/>
+            </GetFromSessionPipe>
+
+            <!-- 7. Inject LOINC codings into NullFlavor/OTH Observations and tag their meta -->
+            <XsltPipe name="enrichWithLoinc" styleSheetName="xslt/lab-enrichment/enrich-loinc.xslt">
+                <Param name="loincMapping" sessionKey="loincMapping"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Observation search
+         Input  (from FhirSearchProvider): <searchParams><param …/></searchParams>
+         Output: enriched FHIR R4 Bundle XML
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LabEnrichmentObservationSearch"
+             description="Observation search on facade 'loinc-enriched': builds viscostore URL and delegates to FetchAndEnrichBundle">
+
+        <Receiver name="LabEnrichmentObservationSearchReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="LabEnrichmentObservationSearchListener"
+                      fhirVersion="R4"
+                      facadeName="loinc-enriched"
+                      resourceType="Observation"
+                      operation="search"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow"
+                              sessionKey="flow"
+                              value="FHIR R4 Observation search → loinc-enriched">
+                <Forward name="success" path="buildSearchUrl"/>
+            </PutInSessionPipe>
+
+            <!-- Convert <searchParams> to a viscostore URL (always includes _include and _format) -->
+            <XsltPipe name="buildSearchUrl" styleSheetName="xslt/lab-enrichment/build-search-url.xslt">
+                <Param name="viscoBaseUrl" value="${viscostore.fhir.base.url}"/>
+                <Forward name="success"   path="fetchAndEnrich"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+
+            <!-- Delegate fetch + enrichment to the shared sub-adapter -->
+            <SenderPipe name="fetchAndEnrich">
+                <IbisLocalSender javaListener="FetchAndEnrichBundleListener"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         Observation read-by-id
+         Input  (from FhirReadProvider): <id value="{observationId}"/>
+         Output: enriched FHIR R4 Observation XML (single resource)
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LabEnrichmentObservationRead"
+             description="Observation read-by-id on facade 'loinc-enriched': builds viscostore URL, delegates to FetchAndEnrichBundle, extracts the Observation">
+
+        <Receiver name="LabEnrichmentObservationReadReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="LabEnrichmentObservationReadListener"
+                      fhirVersion="R4"
+                      facadeName="loinc-enriched"
+                      resourceType="Observation"
+                      operation="read"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow"
+                              sessionKey="flow"
+                              value="FHIR R4 Observation read → loinc-enriched">
+                <Forward name="success" path="buildReadUrl"/>
+            </PutInSessionPipe>
+
+            <!-- Convert <id value="…"/> to a _id search URL (includes _include and _format) -->
+            <XsltPipe name="buildReadUrl" styleSheetName="xslt/lab-enrichment/build-read-url.xslt">
+                <Param name="viscoBaseUrl" value="${viscostore.fhir.base.url}"/>
+                <Forward name="success"   path="fetchAndEnrich"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+
+            <!-- Delegate fetch + enrichment to the shared sub-adapter -->
+            <SenderPipe name="fetchAndEnrich">
+                <IbisLocalSender javaListener="FetchAndEnrichBundleListener"/>
+                <Forward name="success"   path="extractObservation"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- Peel the Bundle wrapper; FhirReadProvider expects a single resource document -->
+            <XsltPipe name="extractObservation" styleSheetName="xslt/lab-enrichment/extract-observation.xslt">
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+</Module>

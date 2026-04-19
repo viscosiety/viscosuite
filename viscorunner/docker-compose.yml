@@ -13,6 +13,12 @@ services:
       # Frank!Framework — override dtap.stage so it doesn't default to LOC
       dtap.stage: LOC
 
+      # Enable F!F auto-discovery of all subdirectories in the configurations directory.
+      configurations.directory.autoLoad: "true"
+      # Use DirectoryClassLoader as the default so F!F reads configurations from the
+      # mounted filesystem rather than scanning the WAR classpath.
+      classloader.type: DirectoryClassLoader
+
       # Frank!Framework (viscolink) JNDI datasource
       VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
       VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink
@@ -43,7 +49,7 @@ services:
       # Shared resources on the Tomcat shared.loader classpath — available to all F!F
       # configurations.  Contains FHIR XSD schemas under fhir-xsd/{r4,r5,dstu3}/.
       # Regenerate with: viscorunner/scripts/update-fhir-xsd.sh
-      - ./resources:/opt/frank/resources:ro
+      - ./resources/fhir-xsd:/opt/frank/resources/fhir-xsd:ro
 
   postgres:
     image: postgres:16

@@ -1,0 +1,51 @@
+# LOINC mapping for lab observations that carry only NullFlavor/OTH + code.text.
+# Delimiter: semicolon (LOINC display names contain commas).
+# Columns:
+#   text     — exact value of Observation.code.text as it appears in the source
+#   specimen — Specimen.type.text for disambiguation (leave blank if text is unique across all specimens)
+#   code     — LOINC code
+#   display  — LOINC long common name
+text;specimen;code;display
+Albumine;Lithium Heparine Plasma;1751-7;Albumin [Mass/volume] in Serum or Plasma
+Alkalische fosfatase;Lithium Heparine Plasma;6768-6;Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma
+ALAT;Lithium Heparine Plasma;1742-6;Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma
+Amylase;Lithium Heparine Plasma;1798-8;Amylase [Enzymatic activity/volume] in Serum or Plasma
+ASAT;Lithium Heparine Plasma;1920-8;Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma
+Basofielen;Bloed;704-7;Basophils [#/volume] in Blood by Automated count
+Bilirubine;Urine (portie);5770-3;Bilirubin [Presence] in Urine by Test strip
+Bilirubine Totaal;Lithium Heparine Plasma;14631-6;Bilirubin.total [Moles/volume] in Serum or Plasma
+Calcium;Lithium Heparine Plasma;2000-8;Calcium [Mass/volume] in Serum or Plasma
+CRP;Lithium Heparine Plasma;1988-5;C reactive protein [Mass/volume] in Serum or Plasma
+eGFR-MDRD;Bloed;33914-3;Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)
+Eosinofielen;Bloed;711-2;Eosinophils [#/volume] in Blood by Automated count
+Erytrocyten;Bloed;789-8;Erythrocytes [#/volume] in Blood by Automated count
+Fosfaat;Lithium Heparine Plasma;14879-1;Phosphate [Moles/volume] in Serum or Plasma
+Gamma-GT;Serum;2324-2;Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma
+geschatte GFR (CKD-EPI);Bloed;62238-1;Glomerular filtration rate/1.73 sq M.predicted [Volume Rate/Area] in Serum, Plasma or Blood by Creatinine-based formula (CKD-EPI)
+Glucose;Urine portie;25428-4;Glucose [Presence] in Urine by Test strip
+Glucose;Lithium heparine plasma;15074-8;Glucose [Moles/volume] in Blood
+Hematocriet;Bloed;4544-3;Hematocrit [Volume Fraction] of Blood by Automated count
+Hemoglobine;Bloed;718-7;Hemoglobin [Mass/volume] in Blood
+Hemoglobine;Urine (portie);5794-3;Hemoglobin [Presence] in Urine by Test strip
+Kalium (plasma);Lithium Heparine Plasma;2823-3;Potassium [Moles/volume] in Serum or Plasma
+Ketonen;Urine (portie);2514-8;Ketones [Presence] in Urine by Test strip
+Kreatinine;Lithium Heparine Plasma;14682-9;Creatinine [Moles/volume] in Serum or Plasma
+LD;Lithium Heparine Plasma;14804-9;Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma by Lactate to pyruvate reaction
+Leucocyten;Urine;5799-2;Leukocytes [#/volume] in Urine by Test strip
+Leukocyten;Bloed;6690-2;Leukocytes [#/volume] in Blood by Automated count
+Lymfocyten;Bloed;731-0;Lymphocytes [#/volume] in Blood by Automated count
+Magnesium;Lithium Heparine Plasma;19123-9;Magnesium [Moles/volume] in Serum or Plasma
+MCH;Bloed;785-6;MCH [Entitic mass] by Automated count
+MCHC;Bloed;786-4;MCHC [Mass/volume] by Automated count
+MCV;Bloed;787-2;MCV [Entitic volume] by Automated count
+Monocyten;Bloed;742-7;Monocytes [#/volume] in Blood by Automated count
+Natrium;Lithium Heparine Plasma;2951-2;Sodium [Moles/volume] in Serum or Plasma
+Neutrofielen;Bloed;751-8;Neutrophils [#/volume] in Blood by Automated count
+Nitriet;Urine (portie);5802-4;Nitrite [Presence] in Urine by Test strip
+pH;Urine portie;2756-5;pH of Urine by Test strip
+RDW;Bloed;788-0;Erythrocyte distribution width [Ratio] by Automated count
+Soortelijk gewicht;Urine (portie);2965-2;Specific gravity of Urine by Test strip
+Totaal eiwit;Urine;2888-6;Protein [Mass/volume] in Urine
+Trombocyten;Bloed;777-3;Platelets [#/volume] in Blood by Automated count
+Ureum;Lithium Heparine Plasma;22664-7;Urea [Moles/volume] in Serum or Plasma
+Urobilinogeen;Urine (portie);13658-0;Urobilinogen [Mass/volume] in Urine by Test strip

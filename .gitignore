@@ -9,6 +9,10 @@ node_modules/
 # Never commit real credentials
 viscorunner/secrets/credentials.properties
 
+# Frank!Framework creates a log directory named literally "${ff:log.dir}" in the module
+# working directory when the ff: lookup plugin is not available during the Maven build JVM.
+${ff:log.dir}/
+
 # macOS
 .DS_Store
 .AppleDouble

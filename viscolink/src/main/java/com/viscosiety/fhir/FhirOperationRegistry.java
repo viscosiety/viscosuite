@@ -51,4 +51,21 @@ public final class FhirOperationRegistry {
                 .filter(op -> op.fhirVersion().equals(fhirVersion) && op.facadeName().equals(facadeName))
                 .collect(Collectors.toSet());
     }
+
+    /**
+     * Returns the {@link FhirListener} declared with {@code operation="proxy"} for the given
+     * facade, or {@code null} if no proxy is configured.
+     *
+     * <p>Called by {@link FhirFacadeServlet} during {@code initialize()} to determine whether
+     * unhandled routes should be forwarded to an upstream CDR.</p>
+     */
+    public static FhirListener getProxyListener(String fhirVersion, String facadeName) {
+        return REGISTRY.entrySet().stream()
+                .filter(e -> e.getKey().fhirVersion().equals(fhirVersion)
+                        && e.getKey().facadeName().equals(facadeName)
+                        && "proxy".equals(e.getKey().operation()))
+                .map(e -> (FhirListener) e.getValue())
+                .findFirst()
+                .orElse(null);
+    }
 }

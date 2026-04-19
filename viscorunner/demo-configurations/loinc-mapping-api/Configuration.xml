@@ -1,0 +1,306 @@
+<Configuration name="loinc-mapping-api"
+               xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        LOINC Mapping CRUD API
+        ======================
+        Full REST API for the loinc_mapping table in the viscolink PostgreSQL database.
+
+        Table schema:
+          loinc_mapping (
+              text     TEXT NOT NULL,       (PK part 1: observation name / code.text)
+              specimen TEXT NOT NULL DEFAULT '',  (PK part 2: specimen material type)
+              code     TEXT NOT NULL,       (LOINC code)
+              display  TEXT NOT NULL        (LOINC display name)
+              PRIMARY KEY (text, specimen)
+          )
+
+        Endpoints (all under /viscolink/api/):
+          GET    loinc-mapping                         → list all rows as JSON array
+          GET    loinc-mapping/{text}/{specimen}        → get one row as JSON array
+          POST   loinc-mapping                         → create row; body: {text,specimen,code,display}
+          PUT    loinc-mapping/{text}/{specimen}        → update row; body: {code,display}
+          DELETE loinc-mapping/{text}/{specimen}        → delete row
+
+        Note: URL-encode the text and specimen path segments when they contain spaces or
+        special characters (e.g. "Glucose in blood" → "Glucose%20in%20blood").
+    -->
+
+    <!-- ════════════════════════════════════════════════════════════════
+         GET /api/loinc-mapping  →  list all rows
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LoincMappingList"
+             description="Returns all loinc_mapping rows as a JSON array">
+
+        <Receiver name="LoincMappingListReceiver">
+            <ApiListener name="LoincMappingListListener"
+                         uriPattern="loinc-mapping"
+                         method="GET"
+                         produces="JSON"
+                         allowAllParams="true"/>
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <SenderPipe name="SelectAll">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="SELECT"
+                    outputFormat="JSON"
+                    query="SELECT text, specimen, code, display FROM loinc_mapping ORDER BY text, specimen"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         GET /api/loinc-mapping/{text}/{specimen}  →  get one row
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LoincMappingGet"
+             description="Returns one loinc_mapping row by primary key (text + specimen) as a JSON array">
+
+        <Receiver name="LoincMappingGetReceiver">
+            <ApiListener name="LoincMappingGetListener"
+                         uriPattern="loinc-mapping/{text}/{specimen}"
+                         method="GET"
+                         produces="JSON"
+                         allowAllParams="true"/>
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <SenderPipe name="SelectOne">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="SELECT"
+                    outputFormat="JSON"
+                    query="SELECT text, specimen, code, display FROM loinc_mapping WHERE text = ? AND specimen = ?">
+                    <Param name="text"     sessionKey="text"/>
+                    <Param name="specimen" sessionKey="specimen"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         POST /api/loinc-mapping  →  create row
+         Body: {"text":"...","specimen":"...","code":"...","display":"..."}
+         Returns: the created row as a JSON array
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LoincMappingCreate"
+             description="Inserts a new loinc_mapping row from a JSON body and returns it">
+
+        <Receiver name="LoincMappingCreateReceiver">
+            <ApiListener name="LoincMappingCreateListener"
+                         uriPattern="loinc-mapping"
+                         method="POST"
+                         consumes="JSON"
+                         produces="JSON"
+                         allowAllParams="true"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SaveBody">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- 1. Save the JSON body so all extraction pipes can read it -->
+            <PutInSessionPipe name="SaveBody" sessionKey="body">
+                <Forward name="success" path="ExtractText"/>
+            </PutInSessionPipe>
+
+            <!-- 2–5. Extract individual fields from the saved body -->
+            <JsonPathPipe name="ExtractText"
+                          jsonPathExpression="$.text"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramText">
+                <Forward name="success"   path="ExtractSpecimen"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <JsonPathPipe name="ExtractSpecimen"
+                          jsonPathExpression="$.specimen"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramSpecimen">
+                <Forward name="success"   path="ExtractCode"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <JsonPathPipe name="ExtractCode"
+                          jsonPathExpression="$.code"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramCode">
+                <Forward name="success"   path="ExtractDisplay"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <JsonPathPipe name="ExtractDisplay"
+                          jsonPathExpression="$.display"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramDisplay">
+                <Forward name="success"   path="InsertRow"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <!-- 6. Insert the row -->
+            <SenderPipe name="InsertRow">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="OTHER"
+                    query="INSERT INTO loinc_mapping (text, specimen, code, display) VALUES (?, ?, ?, ?)">
+                    <Param name="text"     sessionKey="paramText"/>
+                    <Param name="specimen" sessionKey="paramSpecimen"/>
+                    <Param name="code"     sessionKey="paramCode"/>
+                    <Param name="display"  sessionKey="paramDisplay"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="SelectCreated"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- 7. Return the created row -->
+            <SenderPipe name="SelectCreated">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="SELECT"
+                    outputFormat="JSON"
+                    query="SELECT text, specimen, code, display FROM loinc_mapping WHERE text = ? AND specimen = ?">
+                    <Param name="text"     sessionKey="paramText"/>
+                    <Param name="specimen" sessionKey="paramSpecimen"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         PUT /api/loinc-mapping/{text}/{specimen}  →  update row
+         Body: {"code":"...","display":"..."}
+         Returns: the updated row as a JSON array
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LoincMappingUpdate"
+             description="Updates code and display of a loinc_mapping row identified by text and specimen path params">
+
+        <Receiver name="LoincMappingUpdateReceiver">
+            <ApiListener name="LoincMappingUpdateListener"
+                         uriPattern="loinc-mapping/{text}/{specimen}"
+                         method="PUT"
+                         consumes="JSON"
+                         produces="JSON"
+                         allowAllParams="true"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SaveBody">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- 1. Save the JSON body -->
+            <PutInSessionPipe name="SaveBody" sessionKey="body">
+                <Forward name="success" path="ExtractCode"/>
+            </PutInSessionPipe>
+
+            <!-- 2–3. Extract code and display from the body -->
+            <JsonPathPipe name="ExtractCode"
+                          jsonPathExpression="$.code"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramCode">
+                <Forward name="success"   path="ExtractDisplay"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <JsonPathPipe name="ExtractDisplay"
+                          jsonPathExpression="$.display"
+                          getInputFromSessionKey="body"
+                          storeResultInSessionKey="paramDisplay">
+                <Forward name="success"   path="UpdateRow"/>
+                <Forward name="exception" path="Exception"/>
+            </JsonPathPipe>
+
+            <!-- 4. Update the row; text and specimen come from URI path params (session) -->
+            <SenderPipe name="UpdateRow">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="OTHER"
+                    query="UPDATE loinc_mapping SET code = ?, display = ? WHERE text = ? AND specimen = ?">
+                    <Param name="code"     sessionKey="paramCode"/>
+                    <Param name="display"  sessionKey="paramDisplay"/>
+                    <Param name="text"     sessionKey="text"/>
+                    <Param name="specimen" sessionKey="specimen"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="SelectUpdated"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- 5. Return the updated row -->
+            <SenderPipe name="SelectUpdated">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="SELECT"
+                    outputFormat="JSON"
+                    query="SELECT text, specimen, code, display FROM loinc_mapping WHERE text = ? AND specimen = ?">
+                    <Param name="text"     sessionKey="text"/>
+                    <Param name="specimen" sessionKey="specimen"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+    <!-- ════════════════════════════════════════════════════════════════
+         DELETE /api/loinc-mapping/{text}/{specimen}  →  delete row
+         Returns: {"deleted":true}
+         ════════════════════════════════════════════════════════════════ -->
+    <Adapter name="LoincMappingDelete"
+             description="Deletes one loinc_mapping row identified by text and specimen path params">
+
+        <Receiver name="LoincMappingDeleteReceiver">
+            <ApiListener name="LoincMappingDeleteListener"
+                         uriPattern="loinc-mapping/{text}/{specimen}"
+                         method="DELETE"
+                         produces="JSON"
+                         allowAllParams="true"/>
+        </Receiver>
+
+        <Pipeline firstPipe="DeleteRow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- 1. Delete the row; text and specimen come from URI path params (session) -->
+            <SenderPipe name="DeleteRow">
+                <FixedQuerySender
+                    datasourceName="jdbc/viscolink"
+                    queryType="OTHER"
+                    query="DELETE FROM loinc_mapping WHERE text = ? AND specimen = ?">
+                    <Param name="text"     sessionKey="text"/>
+                    <Param name="specimen" sessionKey="specimen"/>
+                </FixedQuerySender>
+                <Forward name="success"   path="RespondDeleted"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
+
+            <!-- 2. Return confirmation -->
+            <EchoPipe name="RespondDeleted" getInputFromFixedValue='{"deleted":true}'>
+                <Forward name="success" path="Exit"/>
+            </EchoPipe>
+        </Pipeline>
+    </Adapter>
+
+</Configuration>

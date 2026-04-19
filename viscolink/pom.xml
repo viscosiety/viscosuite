@@ -236,6 +236,17 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.0</version>
 			</plugin>
+			<!-- Redirect F!F's log directory to target/ during the build so the ff: lookup
+			     fallback does not create a literal "${ff:log.dir}" folder in the source tree. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<log.dir>${project.build.directory}/logs</log.dir>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-war-plugin</artifactId>

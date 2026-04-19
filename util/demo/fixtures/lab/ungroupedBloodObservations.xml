@@ -1,0 +1,449 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  ungroupedBloodObservations — Complete Blood Count (CBC) as eight standalone Observations.
+
+  Showcase: a full CBC where each result is an independent Observation resource with no
+  hasMember grouping and no parent DiagnosticReport.  The pattern stresses FHIR viewers
+  and analytics pipelines that rely on grouping to display a coherent result panel.
+
+  Clinical pattern: normocytic anaemia (low Hgb/Ht/RBC, normal MCV/MCH/MCHC) with
+  reactive leukocytosis and thrombocytosis — plausible e.g. after acute blood loss.
+-->
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="fixture-ungrouped-blood-observations"/>
+  <type value="transaction"/>
+
+  <!-- ═══════════════════════ Patient ═══════════════════════ -->
+  <entry>
+    <fullUrl value="Patient/pat-lab-ungrouped-001"/>
+    <resource>
+      <Patient>
+        <id value="pat-lab-ungrouped-001"/>
+        <identifier>
+          <system value="http://example.nl/fhir/NamingSystem/bsn"/>
+          <value value="999900012"/>
+        </identifier>
+        <name>
+          <family value="de Vries"/>
+          <given value="Jan"/>
+        </name>
+        <gender value="male"/>
+        <birthDate value="1968-05-23"/>
+      </Patient>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Patient/pat-lab-ungrouped-001"/>
+    </request>
+  </entry>
+
+  <!-- ═══════════════════════ Observations ═══════════════════════ -->
+
+  <!-- Hemoglobin  |  718-7  |  8.2 g/dL  (L) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-hgb-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-hgb-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+            <display value="Laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="718-7"/>
+            <display value="Hemoglobin [Mass/volume] in Blood"/>
+          </coding>
+          <text value="Hemoglobine"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="8.2"/>
+          <unit value="g/dL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="g/dL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="L"/>
+            <display value="Low"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="13.5"/><unit value="g/dL"/><system value="http://unitsofmeasure.org"/><code value="g/dL"/></low>
+          <high><value value="17.5"/><unit value="g/dL"/><system value="http://unitsofmeasure.org"/><code value="g/dL"/></high>
+          <appliesTo>
+            <coding>
+              <system value="http://terminology.hl7.org/CodeSystem/v3-AdministrativeGender"/>
+              <code value="M"/>
+            </coding>
+          </appliesTo>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-hgb-001"/>
+    </request>
+  </entry>
+
+  <!-- Haematocrit  |  4544-3  |  25.1 %  (L) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-ht-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-ht-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="4544-3"/>
+            <display value="Hematocrit [Volume Fraction] of Blood by Automated count"/>
+          </coding>
+          <text value="Hematocriet"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="25.1"/>
+          <unit value="%"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="%"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="L"/>
+            <display value="Low"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="41.0"/><unit value="%"/><system value="http://unitsofmeasure.org"/><code value="%"/></low>
+          <high><value value="52.0"/><unit value="%"/><system value="http://unitsofmeasure.org"/><code value="%"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-ht-001"/>
+    </request>
+  </entry>
+
+  <!-- Erythrocytes (RBC)  |  789-8  |  2.85 10*6/uL  (L) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-rbc-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-rbc-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="789-8"/>
+            <display value="Erythrocytes [#/volume] in Blood by Automated count"/>
+          </coding>
+          <text value="Erythrocyten"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="2.85"/>
+          <unit value="10*6/uL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="10*6/uL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="L"/>
+            <display value="Low"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="4.5"/><unit value="10*6/uL"/><system value="http://unitsofmeasure.org"/><code value="10*6/uL"/></low>
+          <high><value value="5.5"/><unit value="10*6/uL"/><system value="http://unitsofmeasure.org"/><code value="10*6/uL"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-rbc-001"/>
+    </request>
+  </entry>
+
+  <!-- MCV  |  787-2  |  88.1 fL  (N) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-mcv-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-mcv-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="787-2"/>
+            <display value="MCV [Entitic volume] by Automated count"/>
+          </coding>
+          <text value="MCV"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="88.1"/>
+          <unit value="fL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="fL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="N"/>
+            <display value="Normal"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="80.0"/><unit value="fL"/><system value="http://unitsofmeasure.org"/><code value="fL"/></low>
+          <high><value value="100.0"/><unit value="fL"/><system value="http://unitsofmeasure.org"/><code value="fL"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-mcv-001"/>
+    </request>
+  </entry>
+
+  <!-- MCH  |  785-6  |  28.8 pg  (N) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-mch-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-mch-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="785-6"/>
+            <display value="MCH [Entitic mass] by Automated count"/>
+          </coding>
+          <text value="MCH"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="28.8"/>
+          <unit value="pg"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="pg"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="N"/>
+            <display value="Normal"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="27.0"/><unit value="pg"/><system value="http://unitsofmeasure.org"/><code value="pg"/></low>
+          <high><value value="33.0"/><unit value="pg"/><system value="http://unitsofmeasure.org"/><code value="pg"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-mch-001"/>
+    </request>
+  </entry>
+
+  <!-- MCHC  |  786-4  |  32.7 g/dL  (N) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-mchc-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-mchc-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="786-4"/>
+            <display value="MCHC [Mass/volume] by Automated count"/>
+          </coding>
+          <text value="MCHC"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="32.7"/>
+          <unit value="g/dL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="g/dL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="N"/>
+            <display value="Normal"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="32.0"/><unit value="g/dL"/><system value="http://unitsofmeasure.org"/><code value="g/dL"/></low>
+          <high><value value="36.0"/><unit value="g/dL"/><system value="http://unitsofmeasure.org"/><code value="g/dL"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-mchc-001"/>
+    </request>
+  </entry>
+
+  <!-- Leukocytes (WBC)  |  6690-2  |  11.8 10*3/uL  (H) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-wbc-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-wbc-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="6690-2"/>
+            <display value="Leukocytes [#/volume] in Blood by Automated count"/>
+          </coding>
+          <text value="Leukocyten"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="11.8"/>
+          <unit value="10*3/uL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="10*3/uL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="H"/>
+            <display value="High"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="4.5"/><unit value="10*3/uL"/><system value="http://unitsofmeasure.org"/><code value="10*3/uL"/></low>
+          <high><value value="11.0"/><unit value="10*3/uL"/><system value="http://unitsofmeasure.org"/><code value="10*3/uL"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-wbc-001"/>
+    </request>
+  </entry>
+
+  <!-- Thrombocytes (Platelets)  |  777-3  |  421 10*3/uL  (H) -->
+  <entry>
+    <fullUrl value="Observation/obs-ungrouped-plt-001"/>
+    <resource>
+      <Observation>
+        <id value="obs-ungrouped-plt-001"/>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="laboratory"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="777-3"/>
+            <display value="Platelets [#/volume] in Blood by Automated count"/>
+          </coding>
+          <text value="Trombocyten"/>
+        </code>
+        <subject>
+          <reference value="Patient/pat-lab-ungrouped-001"/>
+        </subject>
+        <effectiveDateTime value="2026-03-10T08:15:00+01:00"/>
+        <valueQuantity>
+          <value value="421"/>
+          <unit value="10*3/uL"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="10*3/uL"/>
+        </valueQuantity>
+        <interpretation>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation"/>
+            <code value="H"/>
+            <display value="High"/>
+          </coding>
+        </interpretation>
+        <referenceRange>
+          <low><value value="150"/><unit value="10*3/uL"/><system value="http://unitsofmeasure.org"/><code value="10*3/uL"/></low>
+          <high><value value="400"/><unit value="10*3/uL"/><system value="http://unitsofmeasure.org"/><code value="10*3/uL"/></high>
+        </referenceRange>
+      </Observation>
+    </resource>
+    <request>
+      <method value="PUT"/>
+      <url value="Observation/obs-ungrouped-plt-001"/>
+    </request>
+  </entry>
+
+</Bundle>

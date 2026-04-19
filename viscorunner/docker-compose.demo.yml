@@ -11,18 +11,16 @@
 #   - Sets DirectoryClassLoader as the default so externally-mounted configurations
 #     are read from the filesystem rather than the WAR classpath.
 #   - Provides credentials and a JNDI datasource for the fake-emr integration.
-#   - Mounts conf-demo/context.xml, which extends the base context.xml with the
+#   - Mounts demo-conf/context.xml, which extends the base context.xml with the
 #     jdbc/fake-emr JNDI datasource.
 
 services:
 
   viscorunner:
     environment:
-      # Enable F!F auto-discovery of all subdirectories in the configurations directory.
-      configurations.directory.autoLoad: "true"
-      # Use DirectoryClassLoader as the default so F!F reads configurations from the
-      # mounted filesystem rather than scanning the WAR classpath.
-      classloader.type: DirectoryClassLoader
+      customViews.names: viscoStore,labmapper
+      customViews.labmapper.name: "Lab Code Mapper"
+      customViews.labmapper.url: /loinc-mapping.html
 
       # Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint)
       FAKE_EMR_JDBC_DRIVER: org.postgresql.Driver
@@ -36,4 +34,7 @@ services:
       # /opt/frank/configurations, giving F!F the demo configurations to auto-discover.
       - ./demo-configurations:/opt/frank/configurations
       # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
-      - ./conf-demo/context.xml:/usr/local/tomcat/conf/context.xml:ro
+      - ./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro
+      # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/loinc-mapping.html
+      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/usr/local/tomcat/webapps/ROOT/loinc-mapping.html:ro
+      - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro

@@ -34,6 +34,13 @@ import org.frankframework.receivers.JavaListener;
  *   <li>{@code read} — handles {@code GET /fhir/{version}/{facadeName}/{Resource}/{id}}</li>
  *   <li>{@code bundle-transaction} — handles {@code POST /fhir/{version}/{facadeName}} with a
  *       transaction Bundle</li>
+ *   <li>{@code search} — handles {@code GET /fhir/{version}/{facadeName}/{Resource}?...} with
+ *       arbitrary search parameters; the pipeline receives a {@code <searchParams>} XML document
+ *       and must return a FHIR Bundle XML</li>
+ *   <li>{@code proxy} — declares that all routes in this facade that are not handled by a more
+ *       specific adapter are forwarded transparently to {@code proxyCdrBaseUrl}.  No
+ *       {@code resourceType} is required.  The pipeline in the declaring adapter is never
+ *       invoked; the forwarding is done at servlet level by {@link FhirFacadeServlet}.</li>
  * </ul>
  */
 public class FhirListener extends JavaListener<String> {
@@ -44,6 +51,8 @@ public class FhirListener extends JavaListener<String> {
     private String facadeName;
     private String resourceType;
     private String operation;
+    /** Base URL of the upstream CDR; required only for {@code operation="proxy"}. */
+    private String proxyCdrBaseUrl;
 
     @Override
     public void configure() throws ConfigurationException {
@@ -53,12 +62,24 @@ public class FhirListener extends JavaListener<String> {
         if (facadeName == null || facadeName.isBlank()) {
             throw new ConfigurationException("facadeName is required on FhirListener [" + getName() + "]");
         }
-        if (resourceType == null || resourceType.isBlank()) {
-            throw new ConfigurationException("resourceType is required on FhirListener [" + getName() + "]");
-        }
         if (operation == null || operation.isBlank()) {
             throw new ConfigurationException("operation is required on FhirListener [" + getName() + "]");
         }
+
+        if ("proxy".equals(operation)) {
+            if (proxyCdrBaseUrl == null || proxyCdrBaseUrl.isBlank()) {
+                throw new ConfigurationException(
+                        "proxyCdrBaseUrl is required on FhirListener [" + getName() + "] for operation=proxy");
+            }
+            if (resourceType == null || resourceType.isBlank()) {
+                resourceType = "*"; // sentinel — the proxy covers all unhandled resource types
+            }
+        } else {
+            if (resourceType == null || resourceType.isBlank()) {
+                throw new ConfigurationException("resourceType is required on FhirListener [" + getName() + "]");
+            }
+        }
+
         super.configure();
         FhirOperation op = new FhirOperation(fhirVersion, facadeName, resourceType, operation);
         FhirOperationRegistry.register(op, this);
@@ -82,18 +103,37 @@ public class FhirListener extends JavaListener<String> {
         this.facadeName = facadeName;
     }
 
-    /** FHIR resource type this listener handles, e.g. {@code Patient} or {@code Bundle}. */
-    @Mandatory
+    /**
+     * FHIR resource type this listener handles, e.g. {@code Patient} or {@code Bundle}.
+     * Not required when {@code operation="proxy"}.
+     */
     public void setResourceType(String resourceType) {
         this.resourceType = resourceType;
     }
 
     /**
      * FHIR operation this listener handles.
-     * Supported values: {@code read}, {@code bundle-transaction}.
+     * Supported values: {@code read}, {@code bundle-transaction}, {@code search}, {@code proxy}.
      */
     @Mandatory
     public void setOperation(String operation) {
         this.operation = operation;
+    }
+
+    /**
+     * Base URL of the upstream CDR to which unhandled requests are forwarded.
+     * Required when {@code operation="proxy"}; unused for all other operations.
+     * Supports Frank!Framework property references, e.g. {@code ${viscostore.fhir.base.url}}.
+     */
+    public void setProxyCdrBaseUrl(String proxyCdrBaseUrl) {
+        this.proxyCdrBaseUrl = proxyCdrBaseUrl;
+    }
+
+    /**
+     * Returns the CDR base URL configured for proxy forwarding, or {@code null} if this is
+     * not a proxy listener.
+     */
+    public String getProxyCdrBaseUrl() {
+        return proxyCdrBaseUrl;
     }
 }

@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <title>LOINC Mapping Manager — viscoSuite</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"/>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css"/>
+  <style>
+    :root {
+      --visco-navbar:  #063B3E;
+      --visco-teal:    #0F8A96;
+      --visco-hover:   #0B707A;
+      --visco-lime:    #C2C86B;
+      --visco-text:    #1F2A2C;
+      --visco-border:  #C9D1D3;
+      --visco-panel:   #F3F5F6;
+      --visco-bg:      #FAFBFB;
+    }
+
+    body {
+      background: var(--visco-bg);
+      color: var(--visco-text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+      padding-top: 56px;
+    }
+
+    /* ── Navbar ─────────────────────────────────────────────────────── */
+    .navbar {
+      background-color: var(--visco-navbar) !important;
+    }
+    .navbar-brand {
+      color: #fff !important;
+      font-weight: 600;
+      letter-spacing: .02em;
+    }
+    .navbar-brand span.accent {
+      color: var(--visco-lime);
+    }
+    .navbar-text {
+      color: rgba(255,255,255,.65);
+      font-size: .875rem;
+    }
+
+    /* ── Page header ────────────────────────────────────────────────── */
+    .page-header {
+      border-bottom: 2px solid var(--visco-teal);
+      padding-bottom: .5rem;
+      margin-bottom: 1.5rem;
+    }
+    .page-header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--visco-text);
+    }
+    .page-header p {
+      font-size: .875rem;
+      color: #5a6a6d;
+      margin: 0;
+    }
+
+    /* ── Cards ──────────────────────────────────────────────────────── */
+    .card {
+      border: 1px solid var(--visco-border);
+      border-radius: 6px;
+      background: #fff;
+    }
+    .card-header {
+      background: var(--visco-panel);
+      border-bottom: 1px solid var(--visco-border);
+      font-weight: 600;
+      font-size: .9rem;
+      color: var(--visco-text);
+      padding: .6rem 1rem;
+    }
+
+    /* ── Buttons ─────────────────────────────────────────────────────── */
+    .btn-visco {
+      background-color: var(--visco-teal);
+      border-color: var(--visco-teal);
+      color: #fff;
+    }
+    .btn-visco:hover, .btn-visco:focus {
+      background-color: var(--visco-hover);
+      border-color: var(--visco-hover);
+      color: #fff;
+    }
+    .btn-outline-visco {
+      border-color: var(--visco-teal);
+      color: var(--visco-teal);
+      background: transparent;
+    }
+    .btn-outline-visco:hover {
+      background-color: var(--visco-teal);
+      color: #fff;
+    }
+
+    /* ── Table ───────────────────────────────────────────────────────── */
+    .table thead th {
+      background: var(--visco-panel);
+      color: var(--visco-text);
+      font-size: .8rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: .05em;
+      border-bottom: 2px solid var(--visco-border);
+      white-space: nowrap;
+    }
+    .table tbody td {
+      font-size: .875rem;
+      vertical-align: middle;
+      border-color: var(--visco-border);
+    }
+    .table tbody tr:hover {
+      background-color: var(--visco-panel);
+    }
+    .badge-loinc {
+      background: var(--visco-lime);
+      color: var(--visco-text);
+      font-weight: 600;
+      font-family: monospace;
+      font-size: .8rem;
+      border-radius: 4px;
+      padding: 2px 6px;
+    }
+
+    /* ── Form labels ─────────────────────────────────────────────────── */
+    .form-label {
+      font-size: .8rem;
+      font-weight: 600;
+      color: #4a5a5d;
+      margin-bottom: .25rem;
+      text-transform: uppercase;
+      letter-spacing: .04em;
+    }
+    .form-control:focus, .form-select:focus {
+      border-color: var(--visco-teal);
+      box-shadow: 0 0 0 .2rem rgba(15,138,150,.2);
+    }
+
+    /* ── Toast ───────────────────────────────────────────────────────── */
+    .toast-container {
+      z-index: 1090;
+    }
+    #toast .toast-header {
+      background: var(--visco-teal);
+      color: #fff;
+    }
+    #toast .toast-header .btn-close {
+      filter: invert(1);
+    }
+
+    /* ── Empty state ─────────────────────────────────────────────────── */
+    .empty-state {
+      text-align: center;
+      padding: 2.5rem;
+      color: #8a9ea1;
+    }
+    .empty-state i {
+      font-size: 2.5rem;
+      margin-bottom: .75rem;
+      color: var(--visco-border);
+    }
+
+    /* ── Spinner overlay ─────────────────────────────────────────────── */
+    #loading-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(6,59,62,.15);
+      z-index: 1080;
+      align-items: center;
+      justify-content: center;
+    }
+    #loading-overlay.show {
+      display: flex;
+    }
+    .spinner-border {
+      color: var(--visco-teal);
+      width: 2.5rem;
+      height: 2.5rem;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══ Navbar ══════════════════════════════════════════════════════════ -->
+<nav class="navbar navbar-dark fixed-top">
+  <div class="container-fluid">
+    <span class="navbar-brand">
+      <i class="fa-solid fa-flask me-2" style="color:var(--visco-lime)"></i>visco<span class="accent">Suite</span>
+    </span>
+    <span class="navbar-text">LOINC Mapping Manager</span>
+    <button class="btn btn-outline-light btn-sm" id="btn-refresh" title="Refresh table">
+      <i class="fa-solid fa-arrows-rotate"></i>
+    </button>
+  </div>
+</nav>
+
+<!-- ══ Loading overlay ════════════════════════════════════════════════ -->
+<div id="loading-overlay">
+  <div class="spinner-border" role="status"><span class="visually-hidden">Loading…</span></div>
+</div>
+
+<!-- ══ Toast ══════════════════════════════════════════════════════════ -->
+<div class="toast-container position-fixed bottom-0 end-0 p-3">
+  <div id="toast" class="toast align-items-center" role="alert" aria-live="assertive" aria-atomic="true">
+    <div class="d-flex">
+      <div class="d-flex align-items-center toast-header">
+        <i class="fa-solid fa-circle-check me-2"></i>
+        <span id="toast-msg" class="me-auto fw-semibold"></span>
+        <button type="button" class="btn-close ms-2" data-bs-dismiss="toast"></button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Main content ════════════════════════════════════════════════════ -->
+<div class="container-xl py-4">
+
+  <!-- Page header -->
+  <div class="page-header">
+    <h1><i class="fa-solid fa-table-list me-2" style="color:var(--visco-teal)"></i>LOINC Mappings</h1>
+    <p>Maps observation text and specimen type to LOINC code and display name. Used by the <code>loinc-enriched</code> FHIR facade to inject LOINC codings into uncoded Observations.</p>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- ── Add new mapping ───────────────────────────────────────── -->
+    <div class="col-lg-4">
+      <div class="card h-100">
+        <div class="card-header"><i class="fa-solid fa-plus me-2" style="color:var(--visco-teal)"></i>Add Mapping</div>
+        <div class="card-body">
+          <form id="form-add" novalidate>
+            <div class="mb-3">
+              <label class="form-label" for="add-text">Observation text</label>
+              <input type="text" class="form-control form-control-sm" id="add-text" placeholder="e.g. Glucose" required/>
+              <div class="invalid-feedback">Required</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="add-specimen">Specimen <span class="text-muted fw-normal text-lowercase">(leave blank for any)</span></label>
+              <input type="text" class="form-control form-control-sm" id="add-specimen" placeholder="e.g. blood"/>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="add-code">LOINC code</label>
+              <input type="text" class="form-control form-control-sm" id="add-code" placeholder="e.g. 2345-7" required/>
+              <div class="invalid-feedback">Required</div>
+            </div>
+            <div class="mb-3">
+              <label class="form-label" for="add-display">Display name</label>
+              <input type="text" class="form-control form-control-sm" id="add-display" placeholder="e.g. Glucose [Mass/volume] in Serum or Plasma" required/>
+              <div class="invalid-feedback">Required</div>
+            </div>
+            <button type="submit" class="btn btn-visco btn-sm w-100">
+              <i class="fa-solid fa-plus me-1"></i>Add mapping
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Mappings table ─────────────────────────────────────────── -->
+    <div class="col-lg-8">
+      <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span><i class="fa-solid fa-database me-2" style="color:var(--visco-teal)"></i>Current mappings</span>
+          <span id="row-count" class="badge" style="background:var(--visco-teal)">…</span>
+        </div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0" id="mapping-table">
+              <thead>
+                <tr>
+                  <th>Observation text</th>
+                  <th>Specimen</th>
+                  <th>LOINC code</th>
+                  <th>Display</th>
+                  <th style="width:6rem"></th>
+                </tr>
+              </thead>
+              <tbody id="table-body">
+                <tr><td colspan="5"><div class="empty-state"><i class="fa-solid fa-circle-notch fa-spin"></i><div>Loading…</div></div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /row -->
+</div><!-- /container -->
+
+<!-- ══ Edit Modal ═════════════════════════════════════════════════════ -->
+<div class="modal fade" id="edit-modal" tabindex="-1" aria-labelledby="edit-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:var(--visco-panel); border-bottom:1px solid var(--visco-border)">
+        <h5 class="modal-title fw-semibold" id="edit-modal-label">
+          <i class="fa-solid fa-pen-to-square me-2" style="color:var(--visco-teal)"></i>Edit Mapping
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="text-muted mb-3" style="font-size:.8rem">
+          Primary key: <code id="edit-pk"></code>
+        </p>
+        <form id="form-edit" novalidate>
+          <input type="hidden" id="edit-text-orig"/>
+          <input type="hidden" id="edit-specimen-orig"/>
+          <div class="mb-3">
+            <label class="form-label" for="edit-code">LOINC code</label>
+            <input type="text" class="form-control form-control-sm" id="edit-code" required/>
+            <div class="invalid-feedback">Required</div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label" for="edit-display">Display name</label>
+            <input type="text" class="form-control form-control-sm" id="edit-display" required/>
+            <div class="invalid-feedback">Required</div>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--visco-border)">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-visco btn-sm" id="btn-save-edit">
+          <i class="fa-solid fa-floppy-disk me-1"></i>Save changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ Delete Confirm Modal ════════════════════════════════════════════ -->
+<div class="modal fade" id="delete-modal" tabindex="-1" aria-labelledby="delete-modal-label" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-centered modal-sm">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#fff1f0; border-bottom:1px solid #ffd6d3">
+        <h5 class="modal-title fw-semibold text-danger" id="delete-modal-label">
+          <i class="fa-solid fa-triangle-exclamation me-2"></i>Delete mapping?
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <p class="mb-1" style="font-size:.875rem">This will permanently delete:</p>
+        <p class="mb-0"><code id="delete-pk"></code></p>
+        <input type="hidden" id="delete-text"/>
+        <input type="hidden" id="delete-specimen"/>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid var(--visco-border)">
+        <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-danger btn-sm" id="btn-confirm-delete">
+          <i class="fa-solid fa-trash me-1"></i>Delete
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  const API = '/viscolink/api/loinc-mapping';
+
+  // ── Bootstrap instances ──────────────────────────────────────────
+  const editModal   = new bootstrap.Modal(document.getElementById('edit-modal'));
+  const deleteModal = new bootstrap.Modal(document.getElementById('delete-modal'));
+  const toastEl     = document.getElementById('toast');
+  const toast       = new bootstrap.Toast(toastEl, { delay: 3000 });
+  const overlay     = document.getElementById('loading-overlay');
+
+  // ── Utilities ────────────────────────────────────────────────────
+  function showToast(msg, isError = false) {
+    document.getElementById('toast-msg').textContent = msg;
+    toastEl.querySelector('i').className = isError
+      ? 'fa-solid fa-circle-xmark me-2'
+      : 'fa-solid fa-circle-check me-2';
+    toastEl.querySelector('.toast-header').style.background = isError ? '#b83030' : 'var(--visco-teal)';
+    toast.show();
+  }
+
+  function setLoading(on) {
+    overlay.classList.toggle('show', on);
+  }
+
+  function encodeSegment(s) {
+    return encodeURIComponent(s);
+  }
+
+  // ── Parse the API response from FixedQuerySender ──────────────────
+  // Response shape: { "fielddefinition": [...], "rowset": [ { "TEXT":…, "SPECIMEN":…, … }, … ] }
+  // Column names are uppercase; normalise to lowercase for consistent access.
+  function parseRows(json) {
+    const rowset = json && json.rowset;
+    if (!rowset) return [];
+    const rows = Array.isArray(rowset) ? rowset : [rowset];
+    return rows.map(r => ({
+      text:     r.TEXT     ?? r.text     ?? '',
+      specimen: r.SPECIMEN ?? r.specimen ?? '',
+      code:     r.CODE     ?? r.code     ?? '',
+      display:  r.DISPLAY  ?? r.display  ?? ''
+    }));
+  }
+
+  // ── Load & render table ──────────────────────────────────────────
+  async function loadTable() {
+    setLoading(true);
+    try {
+      const resp = await fetch(API);
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const json = await resp.json();
+      const rows = parseRows(json);
+      renderTable(rows);
+    } catch (err) {
+      renderError(err.message);
+      showToast('Failed to load mappings: ' + err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  function renderTable(rows) {
+    const tbody = document.getElementById('table-body');
+    document.getElementById('row-count').textContent = rows.length;
+
+    if (rows.length === 0) {
+      tbody.innerHTML = `<tr><td colspan="5"><div class="empty-state">
+        <i class="fa-solid fa-inbox"></i><div>No mappings yet — add one on the left.</div>
+      </div></td></tr>`;
+      return;
+    }
+
+    tbody.innerHTML = rows.map(r => `
+      <tr>
+        <td>${esc(r.text)}</td>
+        <td>${r.specimen ? esc(r.specimen) : '<span class="text-muted fst-italic">any</span>'}</td>
+        <td><span class="badge-loinc">${esc(r.code)}</span></td>
+        <td style="max-width:260px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="${esc(r.display)}">${esc(r.display)}</td>
+        <td class="text-end pe-2">
+          <button class="btn btn-outline-visco btn-sm py-0 px-2 me-1"
+                  onclick="openEdit(${jsStr(r.text)},${jsStr(r.specimen)},${jsStr(r.code)},${jsStr(r.display)})"
+                  title="Edit">
+            <i class="fa-solid fa-pen fa-xs"></i>
+          </button>
+          <button class="btn btn-outline-danger btn-sm py-0 px-2"
+                  onclick="openDelete(${jsStr(r.text)},${jsStr(r.specimen)})"
+                  title="Delete">
+            <i class="fa-solid fa-trash fa-xs"></i>
+          </button>
+        </td>
+      </tr>`).join('');
+  }
+
+  function renderError(msg) {
+    document.getElementById('table-body').innerHTML =
+      `<tr><td colspan="5"><div class="empty-state text-danger">
+        <i class="fa-solid fa-circle-xmark"></i><div>${esc(msg)}</div>
+      </div></td></tr>`;
+    document.getElementById('row-count').textContent = '!';
+  }
+
+  // Escape HTML
+  function esc(s) {
+    return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // Emit a JS string literal safe to embed in an onclick="..." HTML attribute.
+  // JSON.stringify produces double-quoted strings; esc() converts " → &quot; so
+  // they don't terminate the surrounding attribute value.
+  function jsStr(s) {
+    return esc(JSON.stringify(String(s ?? '')));
+  }
+
+  // ── Add mapping ──────────────────────────────────────────────────
+  document.getElementById('form-add').addEventListener('submit', async e => {
+    e.preventDefault();
+    const form = e.target;
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+
+    const body = {
+      text:     document.getElementById('add-text').value.trim(),
+      specimen: document.getElementById('add-specimen').value.trim(),
+      code:     document.getElementById('add-code').value.trim(),
+      display:  document.getElementById('add-display').value.trim()
+    };
+
+    setLoading(true);
+    try {
+      const resp = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      form.reset();
+      form.classList.remove('was-validated');
+      showToast('Mapping added');
+      await loadTable();
+    } catch (err) {
+      showToast('Add failed: ' + err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ── Edit modal ───────────────────────────────────────────────────
+  function openEdit(text, specimen, code, display) {
+    document.getElementById('edit-text-orig').value    = text;
+    document.getElementById('edit-specimen-orig').value = specimen;
+    document.getElementById('edit-pk').textContent     = text + (specimen ? ' / ' + specimen : '');
+    document.getElementById('edit-code').value         = code;
+    document.getElementById('edit-display').value      = display;
+    document.getElementById('form-edit').classList.remove('was-validated');
+    editModal.show();
+  }
+
+  document.getElementById('btn-save-edit').addEventListener('click', async () => {
+    const form = document.getElementById('form-edit');
+    if (!form.checkValidity()) { form.classList.add('was-validated'); return; }
+
+    const text     = document.getElementById('edit-text-orig').value;
+    const specimen = document.getElementById('edit-specimen-orig').value;
+    const url      = `${API}/${encodeSegment(text)}/${encodeSegment(specimen)}`;
+
+    setLoading(true);
+    try {
+      const resp = await fetch(url, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          code:    document.getElementById('edit-code').value.trim(),
+          display: document.getElementById('edit-display').value.trim()
+        })
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      editModal.hide();
+      showToast('Mapping updated');
+      await loadTable();
+    } catch (err) {
+      showToast('Update failed: ' + err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ── Delete modal ─────────────────────────────────────────────────
+  function openDelete(text, specimen) {
+    document.getElementById('delete-text').value     = text;
+    document.getElementById('delete-specimen').value = specimen;
+    document.getElementById('delete-pk').textContent = text + (specimen ? ' / ' + specimen : '');
+    deleteModal.show();
+  }
+
+  document.getElementById('btn-confirm-delete').addEventListener('click', async () => {
+    const text     = document.getElementById('delete-text').value;
+    const specimen = document.getElementById('delete-specimen').value;
+    const url      = `${API}/${encodeSegment(text)}/${encodeSegment(specimen)}`;
+
+    setLoading(true);
+    try {
+      const resp = await fetch(url, { method: 'DELETE' });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      deleteModal.hide();
+      showToast('Mapping deleted');
+      await loadTable();
+    } catch (err) {
+      showToast('Delete failed: ' + err.message, true);
+    } finally {
+      setLoading(false);
+    }
+  });
+
+  // ── Refresh button ───────────────────────────────────────────────
+  document.getElementById('btn-refresh').addEventListener('click', loadTable);
+
+  // ── Initial load ─────────────────────────────────────────────────
+  loadTable();
+</script>
+</body>
+</html>

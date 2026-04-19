@@ -1,0 +1,3342 @@
+{
+  "resourceType": "Bundle",
+  "id": "fixture-uncoded-lab-measurements",
+  "type": "transaction",
+  "comment": "44 lab Observations sourced from CS_lab_FHIR_transformed.json. All observations use NullFlavor/OTH as the test code (no LOINC). Specimens consolidated by material type. Faithful to the source: units, reference ranges, and interpretation systems are kept as-is.",
+  "entry": [
+    {
+      "fullUrl": "Patient/pat-lab-uncoded-001",
+      "resource": {
+        "resourceType": "Patient",
+        "id": "pat-lab-uncoded-001",
+        "identifier": [
+          {
+            "system": "http://example.nl/fhir/NamingSystem/bsn",
+            "value": "999900013"
+          }
+        ],
+        "name": [
+          {
+            "family": "de Vries",
+            "given": [
+              "Henk"
+            ]
+          }
+        ],
+        "gender": "male",
+        "birthDate": "1968-05-23",
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Patient/pat-lab-uncoded-001"
+      }
+    },
+    {
+      "fullUrl": "Specimen/spec-uncoded-plasma-001",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "spec-uncoded-plasma-001",
+        "type": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Lithium Heparine Plasma"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "collection": {
+          "collectedDateTime": "2025-11-09T16:10:00+01:00"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Specimen/spec-uncoded-plasma-001"
+      }
+    },
+    {
+      "fullUrl": "Specimen/spec-uncoded-blood-001",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "spec-uncoded-blood-001",
+        "type": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Bloed"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "collection": {
+          "collectedDateTime": "2025-11-09T16:10:00+01:00"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Specimen/spec-uncoded-blood-001"
+      }
+    },
+    {
+      "fullUrl": "Specimen/spec-uncoded-urine-001",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "spec-uncoded-urine-001",
+        "type": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Urine (portie)"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "collection": {
+          "collectedDateTime": "2025-11-09T16:10:00+01:00"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Specimen/spec-uncoded-urine-001"
+      }
+    },
+    {
+      "fullUrl": "Specimen/spec-uncoded-serum-001",
+      "resource": {
+        "resourceType": "Specimen",
+        "id": "spec-uncoded-serum-001",
+        "type": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Serum"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "collection": {
+          "collectedDateTime": "2025-11-09T16:10:00+01:00"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Specimen/spec-uncoded-serum-001"
+      }
+    },
+    {
+      "fullUrl": "Observation/ccd84811-f4e8-4c12-8ec3-ef562e3eb574",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ccd84811-f4e8-4c12-8ec3-ef562e3eb574",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ],
+            "text": "Laboratory test finding(finding)"
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Calcium"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 2.665,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 2.15,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 2.55,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/ccd84811-f4e8-4c12-8ec3-ef562e3eb574"
+      }
+    },
+    {
+      "fullUrl": "Observation/0806f80f-9b7d-44be-8615-43c0d3229239",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "0806f80f-9b7d-44be-8615-43c0d3229239",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Natrium"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 93,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 135,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 145,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/0806f80f-9b7d-44be-8615-43c0d3229239"
+      }
+    },
+    {
+      "fullUrl": "Observation/ecb1f764-ac3c-467b-aea5-93d34ce07d3b",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ecb1f764-ac3c-467b-aea5-93d34ce07d3b",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Neutrofielen"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 0.108,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 1.5,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            },
+            "high": {
+              "value": 7.5,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/ecb1f764-ac3c-467b-aea5-93d34ce07d3b"
+      }
+    },
+    {
+      "fullUrl": "Observation/e1783e55-5f5e-417f-b70b-3a859586607d",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e1783e55-5f5e-417f-b70b-3a859586607d",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Ureum"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 2,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 2.5,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 7.5,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/e1783e55-5f5e-417f-b70b-3a859586607d"
+      }
+    },
+    {
+      "fullUrl": "Observation/2d5006a6-94b9-47ba-aeb5-ff47264fe3c8",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2d5006a6-94b9-47ba-aeb5-ff47264fe3c8",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Kalium (plasma)"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 5,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "note": [
+          {
+            "text": "Toelichting: Dit is een extern testcommentaar. ;"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 3.2,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 4.7,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/2d5006a6-94b9-47ba-aeb5-ff47264fe3c8"
+      }
+    },
+    {
+      "fullUrl": "Observation/2705e304-8903-48af-bb16-d44f93bf32bf",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2705e304-8903-48af-bb16-d44f93bf32bf",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "geschatte GFR (CKD-EPI)"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 19,
+          "unit": "mL/min/1.73m2",
+          "system": "http://unitsofmeasure.org",
+          "code": "mL/min/1.73m2"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 46,
+              "unit": "mL/min/1.73m2",
+              "system": "http://unitsofmeasure.org",
+              "code": "mL/min/1.73m2"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/2705e304-8903-48af-bb16-d44f93bf32bf"
+      }
+    },
+    {
+      "fullUrl": "Observation/7d1e0afb-5281-48a6-94df-20296f23ab2a",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "7d1e0afb-5281-48a6-94df-20296f23ab2a",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Kreatinine"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 202,
+          "unit": "µmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "µmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 50,
+              "unit": "µmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "µmol/L"
+            },
+            "high": {
+              "value": 95,
+              "unit": "µmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "µmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/7d1e0afb-5281-48a6-94df-20296f23ab2a"
+      }
+    },
+    {
+      "fullUrl": "Observation/dea6fba1-8232-4fdf-bb1a-e7ff3e3aca03",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "dea6fba1-8232-4fdf-bb1a-e7ff3e3aca03",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "MCV"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 89,
+          "unit": "fL",
+          "system": "http://unitsofmeasure.org",
+          "code": "fL"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 83,
+              "unit": "fL",
+              "system": "http://unitsofmeasure.org",
+              "code": "fL"
+            },
+            "high": {
+              "value": 100,
+              "unit": "fL",
+              "system": "http://unitsofmeasure.org",
+              "code": "fL"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/dea6fba1-8232-4fdf-bb1a-e7ff3e3aca03"
+      }
+    },
+    {
+      "fullUrl": "Observation/c46de43a-62fc-4b66-aa26-7f0e59f2de89",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c46de43a-62fc-4b66-aa26-7f0e59f2de89",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Extra Informatie"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "<Memo>",
+        "note": [
+          {
+            "text": "Toelichting: Andere opmerking ;"
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/c46de43a-62fc-4b66-aa26-7f0e59f2de89"
+      }
+    },
+    {
+      "fullUrl": "Observation/b97b29a4-d5d3-4000-994c-002d2c8d7eb8",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b97b29a4-d5d3-4000-994c-002d2c8d7eb8",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Hematocriet"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 0.596,
+          "unit": "L/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "L/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.35,
+              "unit": "L/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "L/L"
+            },
+            "high": {
+              "value": 0.45,
+              "unit": "L/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "L/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/b97b29a4-d5d3-4000-994c-002d2c8d7eb8"
+      }
+    },
+    {
+      "fullUrl": "Observation/e14279bc-c4f6-4ac7-ab14-19954e9dfa19",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "e14279bc-c4f6-4ac7-ab14-19954e9dfa19",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "eGFR-MDRD"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 22,
+          "unit": "ml/min",
+          "system": "http://unitsofmeasure.org",
+          "code": "ml/min"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 48,
+              "unit": "ml/min",
+              "system": "http://unitsofmeasure.org",
+              "code": "ml/min"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/e14279bc-c4f6-4ac7-ab14-19954e9dfa19"
+      }
+    },
+    {
+      "fullUrl": "Observation/2548a85f-b3b2-431d-bed8-8c189c857e73",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2548a85f-b3b2-431d-bed8-8c189c857e73",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Hemoglobine"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 12,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 7.2,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 9.5,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/2548a85f-b3b2-431d-bed8-8c189c857e73"
+      }
+    },
+    {
+      "fullUrl": "Observation/6f32816a-cd39-4a3a-baf4-6f484c30376a",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "6f32816a-cd39-4a3a-baf4-6f484c30376a",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Fosfaat"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 1.455,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.7,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 1.45,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/6f32816a-cd39-4a3a-baf4-6f484c30376a"
+      }
+    },
+    {
+      "fullUrl": "Observation/f6a072f0-b3d0-474e-bf45-3d4820ff5525",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f6a072f0-b3d0-474e-bf45-3d4820ff5525",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Magnesium"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 0.108,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.65,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 1,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/f6a072f0-b3d0-474e-bf45-3d4820ff5525"
+      }
+    },
+    {
+      "fullUrl": "Observation/562e7f14-a5ad-48b5-8c25-a28459ca8db8",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "562e7f14-a5ad-48b5-8c25-a28459ca8db8",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "ASAT"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 30,
+          "unit": "U/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "U/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 31,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/562e7f14-a5ad-48b5-8c25-a28459ca8db8"
+      }
+    },
+    {
+      "fullUrl": "Observation/d6ae344f-deb9-49e8-9e6a-bc1d9e8f3f18",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d6ae344f-deb9-49e8-9e6a-bc1d9e8f3f18",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Nitriet"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/d6ae344f-deb9-49e8-9e6a-bc1d9e8f3f18"
+      }
+    },
+    {
+      "fullUrl": "Observation/6be60e68-5767-444b-8219-54eb5eca168b",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "6be60e68-5767-444b-8219-54eb5eca168b",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Glucose"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/6be60e68-5767-444b-8219-54eb5eca168b"
+      }
+    },
+    {
+      "fullUrl": "Observation/fd119ca0-2ba9-487b-8eb5-49b7ab2c60f0",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "fd119ca0-2ba9-487b-8eb5-49b7ab2c60f0",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "LD"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 47,
+          "unit": "U/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "U/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 248,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/fd119ca0-2ba9-487b-8eb5-49b7ab2c60f0"
+      }
+    },
+    {
+      "fullUrl": "Observation/29a1c6a4-1257-4617-95ca-f5103d5a6f75",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "29a1c6a4-1257-4617-95ca-f5103d5a6f75",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "ALAT"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 10,
+          "unit": "U/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "U/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 34,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/29a1c6a4-1257-4617-95ca-f5103d5a6f75"
+      }
+    },
+    {
+      "fullUrl": "Observation/9dad34ef-4149-4009-9507-35321aa0585d",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "9dad34ef-4149-4009-9507-35321aa0585d",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Amylase"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "<3",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 107,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/9dad34ef-4149-4009-9507-35321aa0585d"
+      }
+    },
+    {
+      "fullUrl": "Observation/9c5f0a77-cae2-47fc-b279-6c6bf333d69b",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "9c5f0a77-cae2-47fc-b279-6c6bf333d69b",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "pH"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 5
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 4.5
+            },
+            "high": {
+              "value": 8
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/9c5f0a77-cae2-47fc-b279-6c6bf333d69b"
+      }
+    },
+    {
+      "fullUrl": "Observation/d90c5885-fbf3-4092-a0a9-a01437790088",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "d90c5885-fbf3-4092-a0a9-a01437790088",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Hemoglobine"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/d90c5885-fbf3-4092-a0a9-a01437790088"
+      }
+    },
+    {
+      "fullUrl": "Observation/b564f1ab-df0a-4706-ab15-931286fe8e63",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "b564f1ab-df0a-4706-ab15-931286fe8e63",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Ketonen"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/b564f1ab-df0a-4706-ab15-931286fe8e63"
+      }
+    },
+    {
+      "fullUrl": "Observation/84ffa9cc-e24e-44bf-b2ec-f5f1eee2ef2a",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "84ffa9cc-e24e-44bf-b2ec-f5f1eee2ef2a",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Urobilinogeen"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/84ffa9cc-e24e-44bf-b2ec-f5f1eee2ef2a"
+      }
+    },
+    {
+      "fullUrl": "Observation/03fc8f30-22e9-45f7-a996-8c1ec34e620a",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "03fc8f30-22e9-45f7-a996-8c1ec34e620a",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Soortelijk gewicht"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 1.033,
+          "unit": "kg/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "kg/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 1.002,
+              "unit": "kg/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "kg/L"
+            },
+            "high": {
+              "value": 1.035,
+              "unit": "kg/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "kg/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/03fc8f30-22e9-45f7-a996-8c1ec34e620a"
+      }
+    },
+    {
+      "fullUrl": "Observation/be672854-fdde-4c62-932a-fa3163463f9c",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "be672854-fdde-4c62-932a-fa3163463f9c",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Totaal eiwit"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/be672854-fdde-4c62-932a-fa3163463f9c"
+      }
+    },
+    {
+      "fullUrl": "Observation/8f693a82-88b8-42fd-84c4-a1a495263493",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "8f693a82-88b8-42fd-84c4-a1a495263493",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Bilirubine"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/8f693a82-88b8-42fd-84c4-a1a495263493"
+      }
+    },
+    {
+      "fullUrl": "Observation/3e8dd190-3938-4d05-8c22-8095f1d602ae",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3e8dd190-3938-4d05-8c22-8095f1d602ae",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Gamma-GT"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "<3",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-serum-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 38,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/3e8dd190-3938-4d05-8c22-8095f1d602ae"
+      }
+    },
+    {
+      "fullUrl": "Observation/f123127d-7755-43ad-a6cf-9008e96cf414",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "f123127d-7755-43ad-a6cf-9008e96cf414",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Basofielen"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 11,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 0.1,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/f123127d-7755-43ad-a6cf-9008e96cf414"
+      }
+    },
+    {
+      "fullUrl": "Observation/3d5d832b-ca81-464a-8dc3-e53d629330a3",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3d5d832b-ca81-464a-8dc3-e53d629330a3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Eosinofielen"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 11,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 0.4,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/3d5d832b-ca81-464a-8dc3-e53d629330a3"
+      }
+    },
+    {
+      "fullUrl": "Observation/2f51ba9b-17fe-4f67-9358-aa24f651d642",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "2f51ba9b-17fe-4f67-9358-aa24f651d642",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Albumine"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 96,
+          "unit": "g/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "g/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 32,
+              "unit": "g/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "g/L"
+            },
+            "high": {
+              "value": 48,
+              "unit": "g/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "g/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/2f51ba9b-17fe-4f67-9358-aa24f651d642"
+      }
+    },
+    {
+      "fullUrl": "Observation/ac5d9aba-d9ae-4ecc-8f30-5e1c74bf2cda",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "ac5d9aba-d9ae-4ecc-8f30-5e1c74bf2cda",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "CRP"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 94,
+          "unit": "mg/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mg/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "high": {
+              "value": 8,
+              "unit": "mg/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mg/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/ac5d9aba-d9ae-4ecc-8f30-5e1c74bf2cda"
+      }
+    },
+    {
+      "fullUrl": "Observation/7eeca4f4-04f2-4546-b8e5-e21281f9efc0",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "7eeca4f4-04f2-4546-b8e5-e21281f9efc0",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Trombocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 243,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 150,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            },
+            "high": {
+              "value": 400,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/7eeca4f4-04f2-4546-b8e5-e21281f9efc0"
+      }
+    },
+    {
+      "fullUrl": "Observation/993e2dab-07f5-43c3-8537-243af2fa34e2",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "993e2dab-07f5-43c3-8537-243af2fa34e2",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "RDW"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 15,
+          "unit": "%",
+          "system": "http://unitsofmeasure.org",
+          "code": "%"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 12,
+              "unit": "%",
+              "system": "http://unitsofmeasure.org",
+              "code": "%"
+            },
+            "high": {
+              "value": 15,
+              "unit": "%",
+              "system": "http://unitsofmeasure.org",
+              "code": "%"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/993e2dab-07f5-43c3-8537-243af2fa34e2"
+      }
+    },
+    {
+      "fullUrl": "Observation/bfda4f95-1ce0-4b93-a837-1f5dc89ceeb4",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "bfda4f95-1ce0-4b93-a837-1f5dc89ceeb4",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Monocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 21,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 0.2,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            },
+            "high": {
+              "value": 0.9,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/bfda4f95-1ce0-4b93-a837-1f5dc89ceeb4"
+      }
+    },
+    {
+      "fullUrl": "Observation/45194e5d-d9f2-4026-bdc6-6f76a48d7aa1",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "45194e5d-d9f2-4026-bdc6-6f76a48d7aa1",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Leukocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 142,
+          "unit": "x10^9/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "x10^9/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 4,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            },
+            "high": {
+              "value": 10,
+              "unit": "x10^9/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "x10^9/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/45194e5d-d9f2-4026-bdc6-6f76a48d7aa1"
+      }
+    },
+    {
+      "fullUrl": "Observation/1221bb10-bd6d-44ee-b283-78b6e34781b6",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "1221bb10-bd6d-44ee-b283-78b6e34781b6",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Leucocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueString": "neg",
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-urine-001"
+        },
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/1221bb10-bd6d-44ee-b283-78b6e34781b6"
+      }
+    },
+    {
+      "fullUrl": "Observation/c7f79fde-2fce-4814-a464-ff72782a21f9",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c7f79fde-2fce-4814-a464-ff72782a21f9",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Glucose"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 2,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 3.5,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 7.8,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/c7f79fde-2fce-4814-a464-ff72782a21f9"
+      }
+    },
+    {
+      "fullUrl": "Observation/3b3ab7a4-cad2-4d84-99f6-2aa153878237",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3b3ab7a4-cad2-4d84-99f6-2aa153878237",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Alkalische fosfatase"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 103,
+          "unit": "U/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "U/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 40,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            },
+            "high": {
+              "value": 120,
+              "unit": "U/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "U/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/3b3ab7a4-cad2-4d84-99f6-2aa153878237"
+      }
+    },
+    {
+      "fullUrl": "Observation/c16c153d-fede-4aec-ab70-a8bd7afcdde3",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "c16c153d-fede-4aec-ab70-a8bd7afcdde3",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Bilirubine Totaal"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 21,
+          "unit": "µmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "µmol/L"
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-plasma-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 5,
+              "unit": "µmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "µmol/L"
+            },
+            "high": {
+              "value": 19,
+              "unit": "µmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "µmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/c16c153d-fede-4aec-ab70-a8bd7afcdde3"
+      }
+    },
+    {
+      "fullUrl": "Observation/4c1e62ac-5af3-4456-ac3f-d3e0332066ac",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "4c1e62ac-5af3-4456-ac3f-d3e0332066ac",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "MCHC"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 20,
+          "unit": "mmol/L",
+          "system": "http://unitsofmeasure.org",
+          "code": "mmol/L"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 19.9,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            },
+            "high": {
+              "value": 21.5,
+              "unit": "mmol/L",
+              "system": "http://unitsofmeasure.org",
+              "code": "mmol/L"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/4c1e62ac-5af3-4456-ac3f-d3e0332066ac"
+      }
+    },
+    {
+      "fullUrl": "Observation/163ba4fb-a696-47fa-b547-74d816b249de",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "163ba4fb-a696-47fa-b547-74d816b249de",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "MCH"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 1.882,
+          "unit": "fmol",
+          "system": "http://unitsofmeasure.org",
+          "code": "fmol"
+        },
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 1.7,
+              "unit": "fmol",
+              "system": "http://unitsofmeasure.org",
+              "code": "fmol"
+            },
+            "high": {
+              "value": 2.1,
+              "unit": "fmol",
+              "system": "http://unitsofmeasure.org",
+              "code": "fmol"
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/163ba4fb-a696-47fa-b547-74d816b249de"
+      }
+    },
+    {
+      "fullUrl": "Observation/838ed0bc-fbc8-4f70-8be9-8be1c20d7c84",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "838ed0bc-fbc8-4f70-8be9-8be1c20d7c84",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Lymfocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 9
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281302008",
+                "display": "boven referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "H",
+                "display": "High"
+              }
+            ],
+            "text": "Boven referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 1
+            },
+            "high": {
+              "value": 3.5
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/838ed0bc-fbc8-4f70-8be9-8be1c20d7c84"
+      }
+    },
+    {
+      "fullUrl": "Observation/3a143e3a-2b73-45d5-8d52-952e13bdc9cb",
+      "resource": {
+        "resourceType": "Observation",
+        "id": "3a143e3a-2b73-45d5-8d52-952e13bdc9cb",
+        "status": "final",
+        "category": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "49581000146104",
+                "display": "bevinding betreffende laboratoriumonderzoek"
+              }
+            ]
+          }
+        ],
+        "code": {
+          "coding": [
+            {
+              "system": "http://hl7.org/fhir/v3/NullFlavor",
+              "code": "OTH",
+              "display": "Anders"
+            }
+          ],
+          "text": "Erytrocyten"
+        },
+        "subject": {
+          "reference": "Patient/pat-lab-uncoded-001"
+        },
+        "effectiveDateTime": "2025-11-09T16:10:00+01:00",
+        "valueQuantity": {
+          "value": 3
+        },
+        "interpretation": [
+          {
+            "coding": [
+              {
+                "system": "http://snomed.info/sct",
+                "code": "281300000",
+                "display": "onder referentiebereik"
+              },
+              {
+                "system": "http://hl7.org/fhir/v2/0078",
+                "code": "L",
+                "display": "Low"
+              }
+            ],
+            "text": "Onder referentiewaarde"
+          }
+        ],
+        "specimen": {
+          "reference": "Specimen/spec-uncoded-blood-001"
+        },
+        "referenceRange": [
+          {
+            "low": {
+              "value": 3.8
+            },
+            "high": {
+              "value": 5
+            }
+          }
+        ],
+        "meta": {
+          "tag": [
+            {
+              "system": "http://terminology.viscosiety.com/fixture",
+              "code": "uncodedLabMeasurements"
+            }
+          ]
+        }
+      },
+      "request": {
+        "method": "PUT",
+        "url": "Observation/3a143e3a-2b73-45d5-8d52-952e13bdc9cb"
+      }
+    }
+  ]
+}
