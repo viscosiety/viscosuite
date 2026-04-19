@@ -35,6 +35,6 @@ public class ViscoLinkModule implements Module {
 
     @Override
     public List<String> getSpringConfigurationFiles() {
-        return List.of("springMllp.xml");
+        return List.of("springMllp.xml", "springFhir.xml");
     }
 }

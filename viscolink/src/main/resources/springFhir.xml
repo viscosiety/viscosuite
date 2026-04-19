@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Loaded by ViscoLinkModule.getSpringConfigurationFiles() — merged into the F!F
+    IbisApplicationContext before the initial refresh().
+
+    FhirServletRegistrar resolves the ServletContext during its InitializingBean callback and
+    registers one FhirFacadeServlet per (fhirVersion, facadeName) pair as F!F configurations
+    are loaded.  Each FhirListener in the fhir-to-fhir configuration calls the static
+    FhirServletRegistrar.notifyFacadeDeclared() method from its configure() hook, triggering
+    lazy servlet registration — no Java changes are needed when adding a new FHIR facade.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
+
+    <bean id="fhirFfBridge" class="com.viscosiety.fhir.FhirFfBridge"/>
+
+    <!--
+        Stores the ServletContext at startup and registers one FhirFacadeServlet per facade
+        declared via FhirListener elements in the loaded F!F configurations.
+    -->
+    <bean id="fhirServletRegistrar" class="com.viscosiety.fhir.FhirServletRegistrar">
+        <constructor-arg ref="fhirFfBridge"/>
+    </bean>
+
+</beans>

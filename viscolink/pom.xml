@@ -27,6 +27,7 @@
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
 		<h2.version>2.4.240</h2.version>
 		<junit.version>5.14.1</junit.version>
+		<mockito.version>5.14.2</mockito.version>
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -46,7 +47,36 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-</dependencies>
+			<!--
+				The F!F BOM pins junit-jupiter-engine and junit-jupiter-params to 6.0.3
+				(JUnit 6), which conflicts with our JUnit 5 API jar.  Override here to
+				keep all JUnit artifacts on 5.x.
+			-->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-engine</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-params</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-engine</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-launcher</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+		</dependencies>
 	</dependencyManagement>
 
 	<dependencies>
@@ -105,7 +135,7 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- HAPI FHIR — server runtime and R4 structures -->
+		<!-- HAPI FHIR — server runtime and version-specific structures -->
 		<dependency>
 			<groupId>ca.uhn.hapi.fhir</groupId>
 			<artifactId>hapi-fhir-server</artifactId>
@@ -114,6 +144,16 @@
 		<dependency>
 			<groupId>ca.uhn.hapi.fhir</groupId>
 			<artifactId>hapi-fhir-structures-r4</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-r5</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-dstu3</artifactId>
 			<version>${hapi.version}</version>
 		</dependency>
 
@@ -179,6 +219,12 @@
 			<groupId>org.junit.jupiter</groupId>
 			<artifactId>junit-jupiter</artifactId>
 			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>${mockito.version}</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
