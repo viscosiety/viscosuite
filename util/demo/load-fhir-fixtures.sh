@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# seed.sh — POST FHIR fixture bundles directly to the viscostore CDR.
+# load-fhir-fixtures.sh — POST FHIR fixture bundles directly to the viscostore CDR.
 #
 # Each fixture is a FHIR R5 transaction Bundle (PUT entries with stable IDs)
 # so the script is safe to re-run — existing resources are updated in place.
