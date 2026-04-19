@@ -1,0 +1,9 @@
+<!DOCTYPE Configuration [
+        <!ENTITY fake-emr        SYSTEM "Configuration-fake-emr.xml">
+        <!ENTITY emr-to-fhir     SYSTEM "Configuration-emr-to-fhir.xml">
+        ]>
+
+<Configuration name="fake-emr">
+    &fake-emr;
+    &emr-to-fhir;
+</Configuration>

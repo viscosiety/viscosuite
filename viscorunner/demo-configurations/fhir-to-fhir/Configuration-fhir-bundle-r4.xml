@@ -1,0 +1,54 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <!--
+        FHIR R4 Bundle transaction pipeline.
+
+        Entry point : POST /viscolink/fhir/r4/fhir-to-fhir
+                      HAPI deserialises the Bundle, serialises it to XML, and calls
+                      R4BundleTransactionListener via FhirFfBridge.
+
+        Transforms  : xslt/bundle-transaction-r4.xslt (identity by default — override
+                      templates there to rewrite resources).
+
+        Response    : transformed Bundle XML — HAPI deserialises it back to R4 Bundle
+                      and sends it to the caller.
+
+        XSLT params (static values):
+          fhirVersion   = "R4"
+          fhirOperation = "bundle-transaction"
+    -->
+    <Adapter name="FhirBundleTransactionR4"
+             description="Receives a FHIR R4 Bundle transaction from the HAPI facade, applies XSLT, and returns the transformed Bundle">
+
+        <Receiver name="R4BundleTransactionReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="R4BundleTransactionListener"
+                      fhirVersion="R4"
+                      facadeName="fhir-to-fhir"
+                      resourceType="Bundle"
+                      operation="bundle-transaction"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- ── 0. Flow metadata for Ladybug ── -->
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR R4 bundle-transaction → fhir-to-fhir">
+                <Forward name="success" path="TransformBundle"/>
+            </PutInSessionPipe>
+
+            <!-- ── 1. Transform the Bundle ── -->
+            <XsltPipe name="TransformBundle"
+                      styleSheetName="xslt/bundle-transaction-r4.xslt">
+                <Param name="fhirVersion"   value="R4"/>
+                <Param name="fhirOperation" value="bundle-transaction"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>

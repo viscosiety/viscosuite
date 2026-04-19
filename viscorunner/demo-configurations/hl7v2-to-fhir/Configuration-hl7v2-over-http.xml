@@ -17,6 +17,7 @@
                 <Exit name="Exit" state="SUCCESS"/>
                 <Exit name="Error" state="ERROR"/>
             </Exits>
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 ingest HTTP"/>
             <SenderPipe getInputFromSessionKey="originalMessage" name="requestProxyPipe">
                 <IbisLocalSender javaListener="HL7v2ToFHIRListener">
                     <Param name="headerAccept" sessionKey="headers" xpathExpression="/headers/header[@name = 'Accept']/text()"/>

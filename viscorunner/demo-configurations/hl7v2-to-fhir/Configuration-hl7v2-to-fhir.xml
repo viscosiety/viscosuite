@@ -28,9 +28,8 @@
                      Route by MSG.2 (trigger event, e.g. A01/A08) rather than MSG.3
                      (message structure), because A04/A08/A13 all share the ADT_A01
                      structure name but need distinct XSLT files. -->
-                <Param type="STRING" name="patientId"       xpathExpression="//h:PID/h:PID.3/h:CX.1"       namespaceDefs="h=urn:hl7-org:v2xml" />
-                <Param type="STRING" name="messageSender"   xpathExpression="//h:MSH/h:MSH.3/h:HD.1"       namespaceDefs="h=urn:hl7-org:v2xml" />
-                <Param type="STRING" name="messageReceiver" xpathExpression="//h:MSH/h:MSH.5/h:HD.1"       namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="patientId"       xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]"   namespaceDefs="h=urn:hl7-org:v2xml" />
+                <Param type="STRING" name="flow"            xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' → hl7v2-to-fhir')" namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="hl7TriggerEvent" xpathExpression="//h:MSH/h:MSH.9/h:MSG.2"      namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/${fhir.target.version}/ADT_', //h:MSH/h:MSH.9/h:MSG.2, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
             </PutInSessionPipe>
@@ -40,10 +39,11 @@
             </XsltPipe>
 
             <!-- Validate the produced FHIR Bundle against the version-specific XSD.
-                 fhir-single.xsd must be present in xsd/${fhir.target.version}/.
-                 Run xsd/${fhir.target.version}/fetch-schemas.sh once to download it. -->
+                 fhir-single.xsd is resolved from the shared resources directory
+                 (/opt/frank/resources/fhir-xsd/) via the Tomcat shared.loader classpath.
+                 Run viscorunner/scripts/update-fhir-xsd.sh to regenerate the XSD files. -->
             <XmlValidatorPipe name="ValidateFhirBundle"
-                              schema="xsd/${fhir.target.version}/fhir-single.xsd"
+                              schema="fhir-xsd/${fhir.target.version}/fhir-single.xsd"
                               root="Bundle">
                 <Forward name="success"   path="postToViscostore"/>
                 <Forward name="failure"   path="BadRequest"/>

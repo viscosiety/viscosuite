@@ -29,6 +29,8 @@
                 <Exit name="Error" state="ERROR"/>
             </Exits>
 
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 send MLLP"/>
+
             <!-- Step 1: XML input → pipe-delimited HL7v2 -->
             <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe"
                   name="encodeHl7" hl7Version="2.5" />

@@ -40,9 +40,8 @@
                  Use //h: wildcards so XPaths work regardless of the root element name
                  (ADT_A01, ADT_A02, ADT_A03, ADT_A09, …). -->
             <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml">
-                <Param type="STRING" name="sender"    xpathExpression="//h:MSH/h:MSH.3/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="receiver"  xpathExpression="//h:MSH/h:MSH.5/h:HD.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="patientId" xpathExpression="//h:PID/h:PID.3/h:CX.1" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="flow"      xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' MLLP')" namespaceDefs="h=urn:hl7-org:v2xml"/>
+<Param type="STRING" name="patientId" xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]" namespaceDefs="h=urn:hl7-org:v2xml"/>
                 <Param type="STRING" name="event"     xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1,' ',//h:MSH/h:MSH.9/h:MSG.2)" namespaceDefs="h=urn:hl7-org:v2xml"/>
             </PutInSessionPipe>
 

@@ -1,0 +1,54 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <!--
+        FHIR R5 Patient read pipeline.
+
+        Entry point : GET /viscolink/fhir/r5/fhir-to-fhir/Patient/{id}
+                      HAPI extracts the ID, wraps it as <id value="..."/>, and calls
+                      R5PatientReadListener via FhirFfBridge.
+
+        Transforms  : xslt/patient-read-r5.xslt — receives the <id> element and must
+                      return a complete FHIR R5 Patient XML document.
+
+        Response    : Patient XML — HAPI deserialises it back to R5 Patient and sends
+                      it to the caller.
+
+        XSLT params (static values):
+          fhirVersion   = "R5"
+          fhirOperation = "patient-read"
+    -->
+    <Adapter name="FhirPatientReadR5"
+             description="Receives a FHIR R5 Patient read-by-id request from the HAPI facade, applies XSLT, and returns a Patient">
+
+        <Receiver name="R5PatientReadReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="R5PatientReadListener"
+                      fhirVersion="R5"
+                      facadeName="fhir-to-fhir"
+                      resourceType="Patient"
+                      operation="read"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- ── 0. Flow metadata for Ladybug ── -->
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR R5 patient-read → fhir-to-fhir">
+                <Forward name="success" path="LookupPatient"/>
+            </PutInSessionPipe>
+
+            <!-- ── 1. Look up / build the Patient ── -->
+            <XsltPipe name="LookupPatient"
+                      styleSheetName="xslt/patient-read-r5.xslt">
+                <Param name="fhirVersion"   value="R5"/>
+                <Param name="fhirOperation" value="patient-read"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>

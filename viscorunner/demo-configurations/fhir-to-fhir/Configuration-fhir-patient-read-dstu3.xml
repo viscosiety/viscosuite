@@ -1,0 +1,54 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <!--
+        FHIR DSTU3 Patient read pipeline.
+
+        Entry point : GET /viscolink/fhir/dstu3/fhir-to-fhir/Patient/{id}
+                      HAPI extracts the ID, wraps it as <id value="..."/>, and calls
+                      Dstu3PatientReadListener via FhirFfBridge.
+
+        Transforms  : xslt/patient-read-dstu3.xslt — receives the <id> element and must
+                      return a complete FHIR DSTU3 Patient XML document.
+
+        Response    : Patient XML — HAPI deserialises it back to DSTU3 Patient and sends
+                      it to the caller.
+
+        XSLT params (static values):
+          fhirVersion   = "DSTU3"
+          fhirOperation = "patient-read"
+    -->
+    <Adapter name="FhirPatientReadDstu3"
+             description="Receives a FHIR DSTU3 Patient read-by-id request from the HAPI facade, applies XSLT, and returns a Patient">
+
+        <Receiver name="Dstu3PatientReadReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="Dstu3PatientReadListener"
+                      fhirVersion="DSTU3"
+                      facadeName="fhir-to-fhir"
+                      resourceType="Patient"
+                      operation="read"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- ── 0. Flow metadata for Ladybug ── -->
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR DSTU3 patient-read → fhir-to-fhir">
+                <Forward name="success" path="LookupPatient"/>
+            </PutInSessionPipe>
+
+            <!-- ── 1. Look up / build the Patient ── -->
+            <XsltPipe name="LookupPatient"
+                      styleSheetName="xslt/patient-read-dstu3.xslt">
+                <Param name="fhirVersion"   value="DSTU3"/>
+                <Param name="fhirOperation" value="patient-read"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>

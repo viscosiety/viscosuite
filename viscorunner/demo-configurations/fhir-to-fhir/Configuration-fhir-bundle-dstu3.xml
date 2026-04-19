@@ -1,0 +1,54 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <!--
+        FHIR DSTU3 Bundle transaction pipeline.
+
+        Entry point : POST /viscolink/fhir/dstu3/fhir-to-fhir
+                      HAPI deserialises the Bundle, serialises it to XML, and calls
+                      Dstu3BundleTransactionListener via FhirFfBridge.
+
+        Transforms  : xslt/bundle-transaction-dstu3.xslt (identity by default — override
+                      templates there to rewrite or upgrade resources, e.g. DSTU3 → R4).
+
+        Response    : transformed Bundle XML — HAPI deserialises it back to DSTU3 Bundle
+                      and sends it to the caller.
+
+        XSLT params (static values):
+          fhirVersion   = "DSTU3"
+          fhirOperation = "bundle-transaction"
+    -->
+    <Adapter name="FhirBundleTransactionDstu3"
+             description="Receives a FHIR DSTU3 Bundle transaction from the HAPI facade, applies XSLT, and returns the transformed Bundle">
+
+        <Receiver name="Dstu3BundleTransactionReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="Dstu3BundleTransactionListener"
+                      fhirVersion="DSTU3"
+                      facadeName="fhir-to-fhir"
+                      resourceType="Bundle"
+                      operation="bundle-transaction"/>
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS"/>
+                <Exit name="Exception" state="ERROR"/>
+            </Exits>
+
+            <!-- ── 0. Flow metadata for Ladybug ── -->
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR DSTU3 bundle-transaction → fhir-to-fhir">
+                <Forward name="success" path="TransformBundle"/>
+            </PutInSessionPipe>
+
+            <!-- ── 1. Transform the Bundle ── -->
+            <XsltPipe name="TransformBundle"
+                      styleSheetName="xslt/bundle-transaction-dstu3.xslt">
+                <Param name="fhirVersion"   value="DSTU3"/>
+                <Param name="fhirOperation" value="bundle-transaction"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>

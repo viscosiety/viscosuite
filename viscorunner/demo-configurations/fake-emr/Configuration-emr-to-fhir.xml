@@ -1,0 +1,102 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        EMR → FHIR pipeline.
+
+        HTTP endpoint:  GET /emr/patient/{patientId}
+        Example:        GET /emr/patient/PAT-2020001
+
+        F!F extracts {patientId} from the URI and places it in session
+        automatically, so no body or extra pipes are needed to store it.
+
+        Queries sp_patient_gegevens and sp_diagnoses_patient, combines both
+        resultsets in a single XSLT 3.0 transform, and POSTs the resulting
+        FHIR R4 transaction Bundle to viscostore.
+
+        Extend by adding more SP queries + session stores between
+        StorePatientXml and TransformToBundle, passing each additional
+        resultset as an extra <Param> to the XsltPipe.
+    -->
+    <Adapter name="EmrPatientToFhir"
+             description="Reads patient demographics and diagnoses from the fake-EMR and upserts them into viscostore as a FHIR R4 transaction Bundle">
+
+        <Receiver name="EmrPatientToFhirReceiver">
+            <ApiListener name="EmrPatientToFhirListener"
+                         uriPattern="emr/patient/{patientId}"
+                         method="GET"
+                         allowAllParams="true" />
+        </Receiver>
+
+        <Pipeline firstPipe="SetFlow">
+            <Exits>
+                <Exit name="Exit"      state="SUCCESS" />
+                <Exit name="Exception" state="ERROR" />
+            </Exits>
+
+            <!-- ── 0. Set Ladybug flow metadata ── -->
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="fake-emr → viscostore">
+                <Forward name="success" path="QueryPatientData" />
+            </PutInSessionPipe>
+
+            <!-- ── 1. Query demographics ── -->
+            <SenderPipe name="QueryPatientData">
+                <FixedQuerySender
+                    name="PatientDataSender"
+                    datasourceName="jdbc/fake-emr"
+                    query="SELECT * FROM emr.sp_patient_gegevens(?)"
+                    queryType="SELECT"
+                    outputFormat="XML">
+                    <Param name="p_pat_nr" sessionKey="patientId" />
+                </FixedQuerySender>
+                <Forward name="success"   path="StorePatientXml" />
+                <Forward name="exception" path="Exception" />
+            </SenderPipe>
+
+            <!-- ── 2. Keep the demographics XML in session ── -->
+            <PutInSessionPipe name="StorePatientXml" sessionKey="patientXml">
+                <Forward name="success" path="QueryDiagnoses" />
+            </PutInSessionPipe>
+
+            <!-- ── 3. Query diagnoses ── -->
+            <SenderPipe name="QueryDiagnoses">
+                <FixedQuerySender
+                    name="DiagnosesQuerySender"
+                    datasourceName="jdbc/fake-emr"
+                    query="SELECT * FROM emr.sp_diagnoses_patient(?, FALSE)"
+                    queryType="SELECT"
+                    outputFormat="XML">
+                    <Param name="p_pat_nr" sessionKey="patientId" />
+                </FixedQuerySender>
+                <Forward name="success"   path="TransformToBundle" />
+                <Forward name="exception" path="Exception" />
+            </SenderPipe>
+
+            <!--
+                ── 4. Transform to FHIR Bundle ──
+                Current message   = diagnoses resultset XML (from step 3)
+                patient-xml param = patient resultset XML string (from session)
+                pat-nr param      = raw patient number (from session)
+            -->
+            <XsltPipe name="TransformToBundle"
+                      styleSheetName="xslt/emr-to-fhir-bundle.xslt">
+                <Param name="patient-xml" sessionKey="patientXml" />
+                <Param name="pat-nr"      sessionKey="patientId" />
+                <Forward name="success"   path="PostToViscostore" />
+                <Forward name="exception" path="Exception" />
+            </XsltPipe>
+
+            <!-- ── 5. Upsert into viscostore ── -->
+            <SenderPipe name="PostToViscostore">
+                <HttpSender
+                    url="${viscostore.fhir.base.url}"
+                    methodType="POST"
+                    postType="RAW"
+                    contentType="application/fhir+xml;charset=UTF-8" />
+                <Forward name="success"   path="Exit" />
+                <Forward name="exception" path="Exception" />
+            </SenderPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>
