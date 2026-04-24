@@ -3,10 +3,13 @@
 #
 # Downloads FHIR XSD schemas from HAPI FHIR validation-resources JARs whose version is
 # declared in viscolink/pom.xml and writes the three schema files for each supported FHIR
-# version (DSTU3, R4, R5) to:
-#   viscorunner/resources/fhir-xsd/{dstu3,r4,r5}/fhir-single.xsd
-#   viscorunner/resources/fhir-xsd/{dstu3,r4,r5}/fhir-xhtml.xsd
-#   viscorunner/resources/fhir-xsd/{dstu3,r4,r5}/xml.xsd
+# version (DSTU3, R4) to:
+#   viscorunner/resources/fhir-xsd/{dstu3,r4}/fhir-single.xsd
+#   viscorunner/resources/fhir-xsd/{dstu3,r4}/fhir-xhtml.xsd
+#   viscorunner/resources/fhir-xsd/{dstu3,r4}/xml.xsd
+#
+# Note: R5 is intentionally excluded — FHIR R5 dropped XML Schema support; the
+# hapi-fhir-validation-resources-r5 JAR ships only .tgz package bundles, no XSD files.
 #
 # The target directory is on Tomcat's shared.loader classpath (/opt/frank/resources/), making
 # the schemas accessible to all F!F configurations as fhir-xsd/{version}/fhir-single.xsd.
@@ -37,26 +40,14 @@ echo "HAPI FHIR version : $HAPI_VERSION"
 
 # ── 2. Process each FHIR version ─────────────────────────────────────────────
 
-# Maps fhir_version → (artifact_suffix, jar_internal_path)
-declare -A ARTIFACT_SUFFIX=(
-    [dstu3]="dstu3"
-    [r4]="r4"
-    [r5]="r5"
-)
-
-declare -A JAR_PATH=(
-    [dstu3]="org/hl7/fhir/dstu3/model/schema"
-    [r4]="org/hl7/fhir/r4/model/schema"
-    [r5]="org/hl7/fhir/r5/model/schema"
-)
-
 XSD_FILES=("fhir-single.xsd" "fhir-xhtml.xsd" "xml.xsd")
 
 TMPDIR="$(mktemp -d)"
 trap 'rm -rf "$TMPDIR"' EXIT
 
-for FHIR_VER in dstu3 r4 r5; do
-    ARTIFACT="ca.uhn.hapi.fhir:hapi-fhir-validation-resources-${ARTIFACT_SUFFIX[$FHIR_VER]}:${HAPI_VERSION}"
+# R5 dropped XML Schema support — validation-resources-r5 contains only .tgz packages.
+for FHIR_VER in dstu3 r4; do
+    ARTIFACT="ca.uhn.hapi.fhir:hapi-fhir-validation-resources-${FHIR_VER}:${HAPI_VERSION}"
     echo ""
     echo "Downloading $ARTIFACT ..."
 
@@ -78,7 +69,7 @@ for FHIR_VER in dstu3 r4 r5; do
     OUT_DIR="$TARGET_DIR/$FHIR_VER"
     mkdir -p "$OUT_DIR"
 
-    INNER_PATH="${JAR_PATH[$FHIR_VER]}"
+    INNER_PATH="org/hl7/fhir/${FHIR_VER}/model/schema"
 
     for XSD in "${XSD_FILES[@]}"; do
         ENTRY="$INNER_PATH/$XSD"
