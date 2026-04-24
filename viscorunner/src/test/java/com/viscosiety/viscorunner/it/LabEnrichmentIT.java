@@ -73,51 +73,27 @@ class LabEnrichmentIT {
     // any Spring or logback jars — those come from the viscolink WAR's own WEB-INF/lib via
     // Tomcat's webapp classloader, completely isolated from the test JVM.
 
-    // Resolved from the system property injected by maven-failsafe-plugin (see pom.xml).
-    // Falls back to the default ~/.m2/repository for IDE / direct test runs.
-    private static final String M2 = System.getProperty("maven.repo.local",
-        Paths.get(System.getProperty("user.home"), ".m2/repository").toString());
-
-    /** Tomcat 11 embedded core. */
-    private static final String TOMCAT_EMBED_JAR =
-        M2 + "/org/apache/tomcat/embed/tomcat-embed-core/11.0.18/tomcat-embed-core-11.0.18.jar";
-
-    /** Tomcat 11 DBCP2 DataSource factory (for JNDI datasource resources). */
-    private static final String TOMCAT_DBCP_JAR =
-        M2 + "/org/apache/tomcat/tomcat-dbcp/11.0.18/tomcat-dbcp-11.0.18.jar";
-
-    /**
-     * Tomcat 11 embedded WebSocket implementation.
-     * Also bundles the {@code jakarta.websocket} API classes (e.g. {@code Endpoint}) that
-     * Spring's STOMP/WebSocket configuration references at startup.
-     */
-    private static final String TOMCAT_WEBSOCKET_JAR =
-        M2 + "/org/apache/tomcat/embed/tomcat-embed-websocket/11.0.18/tomcat-embed-websocket-11.0.18.jar";
-
-    /** Tomcat 11 embedded Expression Language implementation. */
-    private static final String TOMCAT_EL_JAR =
-        M2 + "/org/apache/tomcat/embed/tomcat-embed-el/11.0.18/tomcat-embed-el-11.0.18.jar";
-
-    /** Tomcat 11 Jasper JSP engine — provides {@code JspServlet} declared in the F!F web.xml. */
-    private static final String TOMCAT_JASPER_JAR =
-        M2 + "/org/apache/tomcat/embed/tomcat-embed-jasper/11.0.18/tomcat-embed-jasper-11.0.18.jar";
-
-    /** Jakarta Annotation API 3.0 — required by Tomcat 11's WebAnnotationSet at startup. */
-    private static final String JAKARTA_ANNOTATION_JAR =
-        M2 + "/jakarta/annotation/jakarta.annotation-api/3.0.0/jakarta.annotation-api-3.0.0.jar";
-
-    /** H2 driver — shared by the test JVM (seeding) and the launcher JVM (FixedQuerySender). */
-    private static final String H2_JAR =
-        M2 + "/com/h2database/h2/2.4.240/h2-2.4.240.jar";
-
+    // maven-dependency-plugin copies these to target/launcher-libs/ (version-stripped) at
+    // pre-integration-test phase, so the path is stable regardless of the .m2/ location.
+    private static final Path   LAUNCHER_LIBS        = Paths.get("target/launcher-libs").toAbsolutePath();
+    private static final String TOMCAT_EMBED_JAR     = lib("tomcat-embed-core");
+    private static final String TOMCAT_WEBSOCKET_JAR = lib("tomcat-embed-websocket");
+    private static final String TOMCAT_EL_JAR        = lib("tomcat-embed-el");
+    private static final String TOMCAT_JASPER_JAR    = lib("tomcat-embed-jasper");
+    private static final String TOMCAT_DBCP_JAR      = lib("tomcat-dbcp");
+    private static final String JAKARTA_ANNOTATION_JAR = lib("jakarta.annotation-api");
+    private static final String H2_JAR               = lib("h2");
     /**
      * spring-security-web 6.5.7 — provides {@code FilterSecurityInterceptor} which
      * spring-security-config 7.0.4 references in its bytecode constant pool for a backwards-compat
      * check, but spring-security-web 7.0.4 has already removed the class.  Copied to the WAR's
      * {@code WEB-INF/lib/} by {@link ViscolinkLauncher} before Tomcat initialises the webapp.
      */
-    private static final String SS_COMPAT_JAR =
-        M2 + "/org/springframework/security/spring-security-web/6.5.7/spring-security-web-6.5.7.jar";
+    private static final String SS_COMPAT_JAR        = lib("spring-security-web");
+
+    private static String lib(String artifactId) {
+        return LAUNCHER_LIBS.resolve(artifactId + ".jar").toString();
+    }
 
     // ── Server processes ──────────────────────────────────────────────────────────────────────────
     private Process viscoStoreProcess;

@@ -85,20 +85,52 @@
 			<scope>test</scope>
 		</dependency>
 
-		<!-- Tomcat 11 embedded — compile-time only for ViscolinkLauncher.
-		     The launcher runs in a separate JVM; this dependency never loads into the test JVM. -->
+		<!-- ── Launcher JVM classpath JARs ───────────────────────────────────────────────
+		     These are declared here so Maven resolves and caches them in .m2/.
+		     maven-dependency-plugin copies them to target/launcher-libs/ at
+		     pre-integration-test so LabEnrichmentIT can reference them by path
+		     without depending on the .m2/ location. None are loaded by the test JVM:
+		     tomcat-embed-core is the only one needed for compile (ViscolinkLauncher). -->
 		<dependency>
 			<groupId>org.apache.tomcat.embed</groupId>
 			<artifactId>tomcat-embed-core</artifactId>
 			<version>11.0.18</version>
 			<scope>test</scope>
 		</dependency>
-		<!-- Jasper JSP engine — ensures tomcat-embed-jasper is present in .m2 so the launcher
-		     JVM can load JspServlet (declared in the F!F web.xml). Not loaded by the test JVM. -->
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-websocket</artifactId>
+			<version>11.0.18</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-el</artifactId>
+			<version>11.0.18</version>
+			<scope>test</scope>
+		</dependency>
 		<dependency>
 			<groupId>org.apache.tomcat.embed</groupId>
 			<artifactId>tomcat-embed-jasper</artifactId>
 			<version>11.0.18</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-dbcp</artifactId>
+			<version>11.0.18</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.annotation</groupId>
+			<artifactId>jakarta.annotation-api</artifactId>
+			<version>3.0.0</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.security</groupId>
+			<artifactId>spring-security-web</artifactId>
+			<version>6.5.7</version>
 			<scope>test</scope>
 		</dependency>
 	</dependencies>
@@ -120,14 +152,6 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>3.5.2</version>
-				<configuration>
-					<systemPropertyVariables>
-						<!-- Inject the actual local repo path so LabEnrichmentIT can locate
-						     launcher JARs regardless of how maven.repo.local was overridden
-						     (e.g. via MAVEN_OPTS in CI). -->
-						<maven.repo.local>${settings.localRepository}</maven.repo.local>
-					</systemPropertyVariables>
-				</configuration>
 				<executions>
 					<execution>
 						<goals>
@@ -143,6 +167,62 @@
 				<artifactId>maven-dependency-plugin</artifactId>
 				<version>3.8.0</version>
 				<executions>
+					<!-- Copy launcher JARs to target/launcher-libs/ so LabEnrichmentIT can build
+					     the ViscolinkLauncher classpath without depending on the .m2/ location.
+					     Runs at pre-integration-test so the JARs are ready before failsafe fires. -->
+					<execution>
+						<id>copy-launcher-libs</id>
+						<phase>pre-integration-test</phase>
+						<goals>
+							<goal>copy</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/launcher-libs</outputDirectory>
+							<stripVersion>true</stripVersion>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.apache.tomcat.embed</groupId>
+									<artifactId>tomcat-embed-core</artifactId>
+									<version>11.0.18</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.tomcat.embed</groupId>
+									<artifactId>tomcat-embed-websocket</artifactId>
+									<version>11.0.18</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.tomcat.embed</groupId>
+									<artifactId>tomcat-embed-el</artifactId>
+									<version>11.0.18</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.tomcat.embed</groupId>
+									<artifactId>tomcat-embed-jasper</artifactId>
+									<version>11.0.18</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.apache.tomcat</groupId>
+									<artifactId>tomcat-dbcp</artifactId>
+									<version>11.0.18</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>jakarta.annotation</groupId>
+									<artifactId>jakarta.annotation-api</artifactId>
+									<version>3.0.0</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>com.h2database</groupId>
+									<artifactId>h2</artifactId>
+									<version>2.4.240</version>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.springframework.security</groupId>
+									<artifactId>spring-security-web</artifactId>
+									<version>6.5.7</version>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
 					<!-- Copy both WARs to target/ (stripped of version suffix for predictable Dockerfile COPY paths) -->
 					<execution>
 						<id>copy-wars</id>
