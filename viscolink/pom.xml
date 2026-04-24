@@ -21,7 +21,7 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.1.0-20260402.042330</frankframework.version>
+		<frankframework.version>10.1.0</frankframework.version>
 		<hapi.version>7.4.0</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
@@ -269,5 +269,11 @@
 			</plugin>
 		</plugins>
 	</build>
-
+	<repositories>
+		<repository>
+			<id>frankframework</id>
+			<name>Frank!Framework</name>
+			<url>https://nexus.frankframework.org/content/repositories/public</url>
+		</repository>
+	</repositories>
 </project>
