@@ -73,8 +73,10 @@ class LabEnrichmentIT {
     // any Spring or logback jars — those come from the viscolink WAR's own WEB-INF/lib via
     // Tomcat's webapp classloader, completely isolated from the test JVM.
 
-    private static final String M2 =
-        Paths.get(System.getProperty("user.home"), ".m2/repository").toString();
+    // Resolved from the system property injected by maven-failsafe-plugin (see pom.xml).
+    // Falls back to the default ~/.m2/repository for IDE / direct test runs.
+    private static final String M2 = System.getProperty("maven.repo.local",
+        Paths.get(System.getProperty("user.home"), ".m2/repository").toString());
 
     /** Tomcat 11 embedded core. */
     private static final String TOMCAT_EMBED_JAR =
