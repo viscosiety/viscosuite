@@ -14,6 +14,7 @@
 stages:
   - test
   - package
+  - integration-test
   - docker
   - manifest
 
@@ -50,14 +51,12 @@ test:
 
 # ---------------------------------------------------------------------------
 # Stage: package
-# Installs viscolink + viscostore to the local repository (tests already ran
-# in the test stage, so -DskipTests avoids repeating them), then runs
-# viscorunner's integration tests (LabEnrichmentIT) via 'verify', which also
-# executes the package phase and copies the WARs into viscorunner/target/.
+# Pure artifact production — no tests.  Installs viscolink + viscostore to
+# .m2/ so that viscorunner's copy-dependencies can resolve them, then packages
+# viscorunner (copies WARs + drivers into target/).
 #
-# NOTE: 'install' for viscolink/viscostore before 'verify' for viscorunner is
-# required because maven-dependency-plugin's copy-dependencies resolves from
-# .m2/ rather than the reactor — see CLAUDE.md.
+# NOTE: install before package is required because copy-dependencies resolves
+# from .m2/ rather than the reactor — see CLAUDE.md.
 # ---------------------------------------------------------------------------
 package:
   stage: package
@@ -65,13 +64,31 @@ package:
   tags: [docker]
   script:
     - mvn $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
-    - mvn $MAVEN_CLI_OPTS verify   -pl viscorunner
+    - mvn $MAVEN_CLI_OPTS package -pl viscorunner -DskipTests
   artifacts:
     paths:
       - viscorunner/target/viscolink.war
       - viscorunner/target/viscostore.war
       - viscorunner/target/drivers/
     expire_in: 1 hour
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: integration-test
+# Runs viscorunner's LabEnrichmentIT (starts real viscostore + viscolink
+# processes).  Re-installs viscolink/viscostore from cache so the launcher
+# JARs are in .m2/, then runs verify which repackages and fires failsafe.
+# Docker build depends on both this job and package, so a failing IT blocks
+# the image push.
+# ---------------------------------------------------------------------------
+integration-test:
+  stage: integration-test
+  image: maven:3.9-eclipse-temurin-21
+  tags: [docker]
+  script:
+    - mvn $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - mvn $MAVEN_CLI_OPTS verify   -pl viscorunner
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
@@ -92,6 +109,8 @@ docker:amd64:
   needs:
     - job: package
       artifacts: true
+    - job: integration-test
+      artifacts: false
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
@@ -111,6 +130,8 @@ docker:arm64:
   needs:
     - job: package
       artifacts: true
+    - job: integration-test
+      artifacts: false
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:

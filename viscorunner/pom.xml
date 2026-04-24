@@ -120,6 +120,14 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-failsafe-plugin</artifactId>
 				<version>3.5.2</version>
+				<configuration>
+					<systemPropertyVariables>
+						<!-- Inject the actual local repo path so LabEnrichmentIT can locate
+						     launcher JARs regardless of how maven.repo.local was overridden
+						     (e.g. via MAVEN_OPTS in CI). -->
+						<maven.repo.local>${settings.localRepository}</maven.repo.local>
+					</systemPropertyVariables>
+				</configuration>
 				<executions>
 					<execution>
 						<goals>
