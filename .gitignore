@@ -20,3 +20,5 @@ ${ff:log.dir}/
 ._*
 .Spotlight-V100
 .Trashes
+
+viscorunner/configurations/*

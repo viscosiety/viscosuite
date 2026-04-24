@@ -55,9 +55,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * <h3>Why separate JVMs for both servers?</h3>
  * <p>Frank!Framework 10.x ships Spring Boot 4 / Spring 7, while ViscoStore uses Spring Boot 3 /
  * Spring 6.  Deploying both in the same JVM causes classloader constraint violations
- * (SLF4J {@code Marker} identity, {@code FilterSecurityInterceptor} removal in spring-security-web
- * 7, duplicate {@code META-INF/spring.factories}).  Separate JVMs provide complete classpath
- * isolation.  The test JVM itself carries no Spring dependency at all.</p>
+ * (SLF4J {@code Marker} identity, duplicate {@code META-INF/spring.factories}).  Separate JVMs
+ * provide complete classpath isolation.  The test JVM itself carries no Spring dependency at
+ * all.</p>
  *
  * <h3>Database sharing</h3>
  * <p>H2's {@code AUTO_SERVER=TRUE} mode starts an embedded TCP server on the first connection
@@ -83,13 +83,6 @@ class LabEnrichmentIT {
     private static final String TOMCAT_DBCP_JAR      = lib("tomcat-dbcp");
     private static final String JAKARTA_ANNOTATION_JAR = lib("jakarta.annotation-api");
     private static final String H2_JAR               = lib("h2");
-    /**
-     * spring-security-web 6.5.7 — provides {@code FilterSecurityInterceptor} which
-     * spring-security-config 7.0.4 references in its bytecode constant pool for a backwards-compat
-     * check, but spring-security-web 7.0.4 has already removed the class.  Copied to the WAR's
-     * {@code WEB-INF/lib/} by {@link ViscolinkLauncher} before Tomcat initialises the webapp.
-     */
-    private static final String SS_COMPAT_JAR        = lib("spring-security-web");
 
     private static String lib(String artifactId) {
         return LAUNCHER_LIBS.resolve(artifactId + ".jar").toString();
@@ -201,8 +194,7 @@ class LabEnrichmentIT {
             viscolinkWar.toString(),
             demoConfigs.toString(),
             viscoStoreUrl,
-            h2Url,
-            SS_COMPAT_JAR
+            h2Url
         );
         pb.redirectErrorStream(false);
         viscolinkProcess = pb.start();

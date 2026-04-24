@@ -36,8 +36,6 @@ import java.util.zip.ZipInputStream;
  *   <li>Absolute path to the F!F configurations directory (demo-configurations)</li>
  *   <li>ViscoStore FHIR base URL, e.g. {@code http://localhost:8080/fhir/}</li>
  *   <li>H2 JDBC URL (file-based with AUTO_SERVER=TRUE)</li>
- *   <li>Absolute path to the spring-security-web-6.x compat JAR (provides
- *       {@code FilterSecurityInterceptor} for Spring Security 7 backwards-compat check)</li>
  * </ol>
  *
  * <h3>Output protocol</h3>
@@ -47,8 +45,8 @@ import java.util.zip.ZipInputStream;
 public class ViscolinkLauncher {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 5) {
-            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url> <ssCompatJar>");
+        if (args.length < 4) {
+            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url>");
             System.exit(1);
         }
 
@@ -56,7 +54,6 @@ public class ViscolinkLauncher {
         Path configsDir    = Paths.get(args[1]);
         String viscoStoreUrl = args[2];
         String h2Url       = args[3];
-        Path ssCompatJar   = Paths.get(args[4]);
 
         // ── Temp working directory ───────────────────────────────────────────────────────
         Path baseDir = Files.createTempDirectory("viscolink-launcher-");
@@ -96,14 +93,6 @@ public class ViscolinkLauncher {
         // ── Extract WAR and patch WEB-INF/ ───────────────────────────────────────────────
         Path webappDir = baseDir.resolve("webapps/viscolink");
         extractWar(warPath, webappDir);
-
-        // Add spring-security-web-6.x so Spring Security 7's backwards-compat check for
-        // FilterSecurityInterceptor does not fail with NoClassDefFoundError
-        if (Files.exists(ssCompatJar)) {
-            Files.copy(ssCompatJar,
-                webappDir.resolve("WEB-INF/lib/spring-security-web-compat.jar"),
-                StandardCopyOption.REPLACE_EXISTING);
-        }
 
         // Override DeploymentSpecifics.properties by writing to WEB-INF/classes/ — Tomcat's
         // WebappClassLoader searches WEB-INF/classes/ before WEB-INF/lib/*.jar, so this file

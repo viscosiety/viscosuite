@@ -127,12 +127,6 @@
 			<version>3.0.0</version>
 			<scope>test</scope>
 		</dependency>
-		<dependency>
-			<groupId>org.springframework.security</groupId>
-			<artifactId>spring-security-web</artifactId>
-			<version>6.5.7</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>
@@ -214,11 +208,6 @@
 									<groupId>com.h2database</groupId>
 									<artifactId>h2</artifactId>
 									<version>2.4.240</version>
-								</artifactItem>
-								<artifactItem>
-									<groupId>org.springframework.security</groupId>
-									<artifactId>spring-security-web</artifactId>
-									<version>6.5.7</version>
 								</artifactItem>
 							</artifactItems>
 						</configuration>
