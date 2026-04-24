@@ -35,6 +35,7 @@ default:
 
 # ---------------------------------------------------------------------------
 # Stage: test
+# Unit and integration tests for viscolink and viscostore.
 # Runs on every push and every merge request.
 # ---------------------------------------------------------------------------
 test:
@@ -42,22 +43,29 @@ test:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn $MAVEN_CLI_OPTS verify -pl viscostore
+    - mvn $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
 # ---------------------------------------------------------------------------
 # Stage: package
-# Full reactor build. Produces viscorunner/target/ (WARs + drivers)
-# needed by both Docker build jobs.
+# Installs viscolink + viscostore to the local repository (tests already ran
+# in the test stage, so -DskipTests avoids repeating them), then runs
+# viscorunner's integration tests (LabEnrichmentIT) via 'verify', which also
+# executes the package phase and copies the WARs into viscorunner/target/.
+#
+# NOTE: 'install' for viscolink/viscostore before 'verify' for viscorunner is
+# required because maven-dependency-plugin's copy-dependencies resolves from
+# .m2/ rather than the reactor — see CLAUDE.md.
 # ---------------------------------------------------------------------------
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn $MAVEN_CLI_OPTS package -DskipTests
+    - mvn $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - mvn $MAVEN_CLI_OPTS verify   -pl viscorunner
   artifacts:
     paths:
       - viscorunner/target/viscolink.war
