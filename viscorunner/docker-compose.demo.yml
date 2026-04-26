@@ -29,8 +29,13 @@ services:
       FAKE_EMR_JDBC_URL: "jdbc:postgresql://fake-emr.k8s.viscosiety.com:5433/fake_emr?sslmode=require"
       FAKE_EMR_JDBC_USERNAME: emr_user
       FAKE_EMR_JDBC_PASSWORD: emr_lokaal_2024
+      # credentials used by viscostore
+      VISCOSTORE_USERNAME: demo
+      VISCOSTORE_PASSWORD: demo
 
     volumes:
+      # Demo Credentials
+      - ./demo-secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
       # Shadow the base configurations mount with the demo reference implementation.
       # Docker applies bind mounts in order; this entry (being last) wins for
       # /opt/frank/configurations, giving F!F the demo configurations to auto-discover.
