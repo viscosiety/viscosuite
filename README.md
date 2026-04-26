@@ -3,7 +3,7 @@
 ViscoSuite is a self-hosted healthcare integration platform. It combines two components:
 
 - **ViscoLink** — a Frank!Framework integration middleware that accepts messages in any protocol (HL7v2 MLLP, HL7v2 over HTTP, REST, FHIR, database queries, …) and routes or transforms them into FHIR resources. You extend it by dropping Frank!Framework XML configurations into a mounted directory and reloading — no rebuild required.
-- **ViscoStore** — a HAPI FHIR JPA Server that acts as the canonical FHIR R4 repository. It exposes a standard FHIR REST API, a browser-based tester UI, Swagger docs, and an MCP endpoint for AI/LLM integration.
+- **ViscoStore** — a HAPI FHIR JPA Server that acts as the canonical FHIR repository. It exposes a standard FHIR REST API, a browser-based tester UI, Swagger docs, and an MCP endpoint for AI/LLM integration.
 
 Both run as WARs inside a single Tomcat instance, packaged by **ViscoRunner**.
 
@@ -12,7 +12,7 @@ Both run as WARs inside a single Tomcat instance, packaged by **ViscoRunner**.
 ```
 viscoSuite/
 ├── viscolink/               Frank!Framework integration middleware
-├── viscostore/              HAPI FHIR JPA Server (persistent FHIR R4 storage + MCP)
+├── viscostore/              HAPI FHIR JPA Server (persistent FHIR storage + MCP)
 └── viscorunner/             Docker packaging and configuration hub
     ├── configurations/          empty scaffold — mount your own integrations here
     ├── demo-configurations/     reference configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
@@ -57,13 +57,7 @@ The application is available at `http://localhost:8180`. See `viscorunner/README
 | Endpoint | Description |
 |---|---|
 | `/viscolink/iaf/` | Frank!Console / Ladybug flow debugger |
-| `POST /viscolink/fhir/r4/{facadeName}` | FHIR R4 bundle transaction |
-| `GET /viscolink/fhir/r4/{facadeName}/Patient/{id}` | FHIR R4 patient read |
-| `POST /viscolink/fhir/r5/{facadeName}` | FHIR R5 bundle transaction |
-| `GET /viscolink/fhir/r5/{facadeName}/Patient/{id}` | FHIR R5 patient read |
-| `POST /viscolink/fhir/dstu3/{facadeName}` | FHIR DSTU3 bundle transaction |
-| `GET /viscolink/fhir/dstu3/{facadeName}/Patient/{id}` | FHIR DSTU3 patient read |
-| `/viscostore/fhir` | FHIR R4 REST API (HAPI JPA Server) |
+| `/viscostore/fhir` | FHIR REST API (HAPI JPA Server) |
 | `/viscostore/tester/` | Interactive FHIR Tester UI |
 | `/viscostore/fhir/swagger-ui/` | Swagger API docs |
 | `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
