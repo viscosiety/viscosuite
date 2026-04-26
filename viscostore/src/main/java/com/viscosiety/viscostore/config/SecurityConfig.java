@@ -37,7 +37,8 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     new AntPathRequestMatcher("/fhir/metadata"),
-                    new AntPathRequestMatcher("/actuator/health"))
+                    new AntPathRequestMatcher("/actuator/health"),
+                    new AntPathRequestMatcher("/tester/**"))
                 .permitAll()
                 .anyRequest().authenticated()
             )
@@ -46,7 +47,9 @@ public class SecurityConfig {
             .sessionManagement(session -> session
                 .sessionCreationPolicy(
                     org.springframework.security.config.http.SessionCreationPolicy.STATELESS))
-            .csrf(csrf -> csrf.disable());
+            .csrf(csrf -> csrf.disable())
+            .headers(headers -> headers
+                .frameOptions(frameOptions -> frameOptions.sameOrigin()));
 
         return http.build();
     }

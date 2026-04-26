@@ -10,6 +10,7 @@ import ca.uhn.fhir.rest.client.api.IHttpRequest;
 import ca.uhn.fhir.rest.client.api.IHttpResponse;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.impl.GenericClient;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import ca.uhn.fhir.rest.server.IncomingRequestAddressStrategy;
 import ca.uhn.fhir.rest.server.util.ITestingUiClientFactory;
 import com.viscosiety.contrib.tester.Controller;
@@ -54,6 +55,8 @@ public class HomeRequest {
 	private String myResource;
 	private String myServerId;
 	private String mySummary;
+	private String myUsername;
+	private String myPassword;
 
 
 	@ModelAttribute("encoding")
@@ -149,6 +152,22 @@ public class HomeRequest {
 		myServerId = theServerId;
 	}
 
+	public String getUsername() {
+		return myUsername;
+	}
+
+	public void setUsername(String theUsername) {
+		myUsername = theUsername;
+	}
+
+	public String getPassword() {
+		return myPassword;
+	}
+
+	public void setPassword(String thePassword) {
+		myPassword = thePassword;
+	}
+
 	public GenericClient newClient(
 			HttpServletRequest theRequest,
 			FhirContext theContext,
@@ -171,6 +190,9 @@ public class HomeRequest {
 		purgeExpiredClients();
 		CLIENT_CACHE.add(new CachedClient(retVal));
 
+		if (isNotBlank(myUsername) && isNotBlank(myPassword)) {
+			retVal.registerInterceptor(new BasicAuthInterceptor(myUsername, myPassword));
+		}
 
 		retVal.registerInterceptor(new BufferResponseInterceptor());
 

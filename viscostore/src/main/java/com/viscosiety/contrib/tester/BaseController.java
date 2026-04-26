@@ -81,6 +81,8 @@ public class BaseController {
 		theModel.put("pretty", sanitizeInput(theRequest.getPretty()));
 		theModel.put("_summary", sanitizeInput(theRequest.get_summary()));
 		theModel.put("serverEntries", myConfig.getIdToServerName());
+		theModel.put("username", sanitizeInput(theRequest.getUsername()));
+		theModel.put("password", defaultString(theRequest.getPassword()));
 
 		// doesn't need sanitizing
 		theModel.put("base", serverBase);

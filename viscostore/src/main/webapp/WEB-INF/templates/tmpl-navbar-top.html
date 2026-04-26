@@ -42,6 +42,35 @@
          </ul>
 
          <!--
+         Credentials Dropdown
+         -->
+         <ul class="navbar-nav">
+            <li class="nav-item dropdown">
+               <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                  <span th:class="${username != null and !#strings.isEmpty(username)} ? 'fa fa-lock-open topbarIcon text-warning' : 'fa fa-lock topbarIcon text-danger'"></span>
+                  &nbsp;Credentials&nbsp;<span class="caret"/>
+               </a>
+               <div class="dropdown-menu dropdown-menu-end p-3" style="min-width: 280px;">
+                  <div class="mb-2">
+                     <label for="credUsername" class="form-label small mb-1">Username</label>
+                     <input type="text" class="form-control form-control-sm" name="username" id="credUsername"
+                            th:value="${username}" autocomplete="username"/>
+                  </div>
+                  <div class="mb-0">
+                     <label for="credPassword" class="form-label small mb-1">Password</label>
+                     <input type="password" class="form-control form-control-sm" name="password" id="credPassword"
+                            th:value="${password}" autocomplete="current-password"/>
+                  </div>
+                  <script type="text/javascript">
+                     $('#credUsername, #credPassword').on('click keydown', function(event) {
+                        event.stopPropagation();
+                     });
+                  </script>
+               </div>
+            </li>
+         </ul>
+
+         <!--
          Security Dropdown
          -->
          <th:block th:if="${apiKey != null}">
