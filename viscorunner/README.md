@@ -39,7 +39,9 @@ The demo overlay:
 | F!F Configuration | Description |
 |---|---|
 | `hl7v2-to-fhir` | Receives HL7v2 ADT messages over HTTP or MLLP and converts them to FHIR R4 Bundles |
-| `fhir-to-fhir` | FHIR R4 and DSTU3 endpoints (bundle transactions, patient reads) bridged to F!F pipelines |
+| `fhir-to-fhir` | FHIR R4 / DSTU3 / R5 facade endpoints (bundle transactions, patient reads) bridged to F!F pipelines |
+| `fhir-store-proxy` | Transparent reverse proxy from a ViscoLink FHIR endpoint to ViscoStore, with credential injection |
+| `loinc-mapping-api` | Looks up LOINC codes from a CSV file and returns enriched FHIR Observations |
 | `fake-emr` | Demonstrates querying a PostgreSQL-backed EMR and emitting FHIR Bundles |
 
 ### Key endpoints (all at `http://localhost:8180`)
@@ -95,10 +97,10 @@ Add a `<Resource>` entry to `conf/context.xml` and restart the container. The ba
 
 ```
 conf/                       Base Tomcat context — JNDI datasources for viscolink and viscostore
-conf-demo/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
+demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
 configurations/             Mount point for user-created F!F configurations
 │                           Empty by default; contains FrankConfig.xsd for IDE support
-demo-configurations/        Reference implementation F!F configurations (hl7v2-to-fhir, fhir-to-fhir, fake-emr)
+demo-configurations/        Reference implementation F!F configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
 resources/                  Shared resources on Tomcat's shared.loader classpath (/opt/frank/resources/)
 │   fhir-xsd/               FHIR XSD schemas — regenerate with scripts/update-fhir-xsd.sh
 │   ├── dstu3/              fhir-single.xsd, fhir-xhtml.xsd, xml.xsd
@@ -109,7 +111,7 @@ secrets/                    Runtime credentials (gitignored; copy from .example)
 src/scripts/                Build-time scripts baked into the Docker image (entrypoint, Tomcat settings)
 ```
 
-The `conf` / `conf-demo` and `configurations` / `demo-configurations` pairs follow the same pattern: the base directory is for your own work; the `-demo` counterpart contains the reference implementation and is activated by the demo overlay.
+The `conf` / `demo-conf` and `configurations` / `demo-configurations` pairs follow the same pattern: the base directory is for your own work; the `demo-` counterpart contains the reference implementation and is activated by the demo overlay.
 
 ---
 
