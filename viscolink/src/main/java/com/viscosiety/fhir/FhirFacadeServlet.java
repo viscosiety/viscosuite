@@ -11,14 +11,18 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.frankframework.util.CredentialFactory;
+
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.List;
 import java.util.Objects;
 
@@ -228,6 +232,14 @@ public class FhirFacadeServlet extends AbstractFhirServlet {
         String contentType = req.getHeader("Content-Type");
         if (accept      != null) rb.header("Accept",       accept);
         if (contentType != null) rb.header("Content-Type", contentType);
+
+        String credAlias = proxyListener != null ? proxyListener.getProxyCdrCredentialAlias() : null;
+        if (credAlias != null && !credAlias.isBlank()) {
+            CredentialFactory cf = new CredentialFactory(credAlias, null, null);
+            String encoded = Base64.getEncoder().encodeToString(
+                    (cf.getUsername() + ":" + cf.getPassword()).getBytes(StandardCharsets.UTF_8));
+            rb.header("Authorization", "Basic " + encoded);
+        }
 
         log.debug("{}: proxy {} {} → {}", getName(), req.getMethod(), req.getRequestURI(), targetUrl);
 

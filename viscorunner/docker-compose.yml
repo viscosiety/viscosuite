@@ -31,6 +31,10 @@ services:
       VISCOSTORE_JDBC_USERNAME: visco
       VISCOSTORE_JDBC_PASSWORD: visco
       VISCOSTORE_JDBC_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+
+      # ViscoStore HTTP Basic auth — credentials used by ViscoLink to call ViscoStore
+      VISCOSTORE_USERNAME: viscolink
+      VISCOSTORE_PASSWORD: viscolink
       # Tester backend makes server-side HTTP calls to this address; must be reachable from within
       # the container (port 8080, not the host-mapped 8180)
       HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir

@@ -36,6 +36,7 @@ import java.util.zip.ZipInputStream;
  *   <li>Absolute path to the F!F configurations directory (demo-configurations)</li>
  *   <li>ViscoStore FHIR base URL, e.g. {@code http://localhost:8080/fhir/}</li>
  *   <li>H2 JDBC URL (file-based with AUTO_SERVER=TRUE)</li>
+ *   <li>ViscoStore password for the {@code viscostore} credential alias</li>
  * </ol>
  *
  * <h3>Output protocol</h3>
@@ -45,15 +46,16 @@ import java.util.zip.ZipInputStream;
 public class ViscolinkLauncher {
 
     public static void main(String[] args) throws Exception {
-        if (args.length < 4) {
-            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url>");
+        if (args.length < 5) {
+            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url> <vsPassword>");
             System.exit(1);
         }
 
-        Path warPath       = Paths.get(args[0]);
-        Path configsDir    = Paths.get(args[1]);
+        Path warPath         = Paths.get(args[0]);
+        Path configsDir      = Paths.get(args[1]);
         String viscoStoreUrl = args[2];
-        String h2Url       = args[3];
+        String h2Url         = args[3];
+        String vsPassword    = args[4];
 
         // ── Temp working directory ───────────────────────────────────────────────────────
         Path baseDir = Files.createTempDirectory("viscolink-launcher-");
@@ -65,10 +67,11 @@ public class ViscolinkLauncher {
         System.setProperty("dtap.stage", "LOC");
 
         // Credential factory: match the production configuration (PropertyFileCredentialFactory
-        // reading from a properties file).  An empty file means no credentials are defined;
-        // F!F falls back to the credentials already set on the JNDI ContextResource entries.
+        // reading from a properties file).
         Path credentialsFile = baseDir.resolve("credentials.properties");
-        Files.writeString(credentialsFile, "");
+        Files.writeString(credentialsFile,
+            "viscostore/username=viscolink\n" +
+            "viscostore/password=" + vsPassword + "\n");
         System.setProperty("credentialFactory.class",
             "org.frankframework.credentialprovider.PropertyFileCredentialFactory");
         System.setProperty("credentialFactory.map.properties", credentialsFile.toString());

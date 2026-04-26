@@ -1,0 +1,7 @@
+<!DOCTYPE Configuration [
+        <!ENTITY store-proxy SYSTEM "Configuration-store-proxy.xml">
+        ]>
+
+<Configuration name="fhir-store-proxy">
+    &store-proxy;
+</Configuration>

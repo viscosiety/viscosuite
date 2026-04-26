@@ -53,6 +53,8 @@ public class FhirListener extends JavaListener<String> {
     private String operation;
     /** Base URL of the upstream CDR; required only for {@code operation="proxy"}. */
     private String proxyCdrBaseUrl;
+    /** F!F credential alias for HTTP Basic auth to the upstream CDR; optional. */
+    private String proxyCdrCredentialAlias;
 
     @Override
     public void configure() throws ConfigurationException {
@@ -135,5 +137,20 @@ public class FhirListener extends JavaListener<String> {
      */
     public String getProxyCdrBaseUrl() {
         return proxyCdrBaseUrl;
+    }
+
+    /**
+     * F!F credential alias used to look up the username and password for HTTP Basic
+     * authentication to the upstream CDR.  The alias must be present in the configured
+     * credential store (e.g. {@code credentials.properties}).  Optional — when absent,
+     * proxy requests are forwarded without an {@code Authorization} header.
+     */
+    public void setProxyCdrCredentialAlias(String proxyCdrCredentialAlias) {
+        this.proxyCdrCredentialAlias = proxyCdrCredentialAlias;
+    }
+
+    /** Returns the credential alias, or {@code null} if not configured. */
+    public String getProxyCdrCredentialAlias() {
+        return proxyCdrCredentialAlias;
     }
 }

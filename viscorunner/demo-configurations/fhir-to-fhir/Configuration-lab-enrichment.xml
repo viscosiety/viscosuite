@@ -41,7 +41,8 @@
                       fhirVersion="R4"
                       facadeName="loinc-enriched"
                       operation="proxy"
-                      proxyCdrBaseUrl="${viscostore.fhir.base.url}"/>
+                      proxyCdrBaseUrl="${viscostore.fhir.base.url}"
+                      proxyCdrCredentialAlias="viscostore"/>
         </Receiver>
 
         <Pipeline>
@@ -79,7 +80,7 @@
 
             <!-- 2. Fetch Observations (+ _include-d Specimens) from viscostore -->
             <SenderPipe name="callViscostore">
-                <HttpSender urlParam="searchUrl" methodType="GET">
+                <HttpSender urlParam="searchUrl" methodType="GET" authAlias="viscostore">
                     <Param name="searchUrl" sessionKey="searchUrl"/>
                 </HttpSender>
                 <Forward name="success"   path="saveViscoBundle"/>

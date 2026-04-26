@@ -37,6 +37,11 @@ management:
         enabled: true
 
 spring:
+  security:
+    user:
+      name: ${VISCOSTORE_USERNAME:viscolink}
+      password: ${VISCOSTORE_PASSWORD}
+
   mvc:
     servlet:
       path: /tester    # DispatcherServlet handles /tester/*; FHIR server at /fhir/* is unaffected
@@ -87,8 +92,12 @@ spring:
     allow-circular-references: true
 
   autoconfigure:
-    # This exclude is only needed for setups not using Elasticsearch where the elasticsearch sniff is not needed.
-    exclude: org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+    # Elasticsearch sniff not needed when not using ES.
+    # Reactive security auto-configurations fail condition evaluation on this servlet-only stack.
+    exclude:
+      - org.springframework.boot.autoconfigure.elasticsearch.ElasticsearchRestClientAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveSecurityAutoConfiguration
+      - org.springframework.boot.autoconfigure.security.reactive.ReactiveUserDetailsServiceAutoConfiguration
 
   flyway:
     enabled: false

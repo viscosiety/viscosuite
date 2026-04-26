@@ -1,0 +1,39 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        Full transparent proxy to ViscoStore.
+
+        All FHIR R4 requests routed to this facade are forwarded unmodified to the
+        ViscoStore FHIR base URL.  No transformation or validation is applied.
+
+        Entry point : /viscolink/fhir/r4/fhir-store-proxy/{any FHIR path}
+        Forwards to : ${viscostore.fhir.base.url}/{path}
+
+        Proxying is handled at servlet level by FhirFacadeServlet; this pipeline
+        is never invoked.
+    -->
+    <Adapter name="FhirStoreProxy"
+             description="Transparent proxy — forwards all FHIR R4 requests to ViscoStore">
+
+        <Receiver name="FhirStoreProxyReceiver">
+            <Listener className="com.viscosiety.fhir.FhirListener"
+                      name="FhirStoreProxyListener"
+                      fhirVersion="R4"
+                      facadeName="fhir-store-proxy"
+                      operation="proxy"
+                      proxyCdrBaseUrl="${viscostore.fhir.base.url}"
+                      proxyCdrCredentialAlias="viscostore"/>
+        </Receiver>
+
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS"/>
+            </Exits>
+            <EchoPipe name="Echo">
+                <Forward name="success" path="Exit"/>
+            </EchoPipe>
+        </Pipeline>
+    </Adapter>
+
+</Module>

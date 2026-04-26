@@ -3,6 +3,7 @@ package com.viscosiety.viscorunner.it;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
+import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
 import org.hl7.fhir.r4.model.Observation;
 import org.hl7.fhir.r4.model.Patient;
 import org.hl7.fhir.r4.model.Reference;
@@ -68,6 +69,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
 class LabEnrichmentIT {
 
+    private static final String TEST_VS_PASSWORD = "test-viscostore-it";
+
     // ── Maven local repository paths ──────────────────────────────────────────────────────────────
     // These jars form the minimal classpath for the ViscolinkLauncher JVM. They must not include
     // any Spring or logback jars — those come from the viscolink WAR's own WEB-INF/lib via
@@ -131,7 +134,7 @@ class LabEnrichmentIT {
         //    viscostore.war is an executable Spring Boot WAR — `java -jar` starts it directly.
         //    We pre-select the port so we can build the FHIR base URL before starting ViscoLink.
         viscoStorePort = findFreePort();
-        startViscoStore(javaExe, viscoStoreWar, viscoStorePort);
+        startViscoStore(javaExe, viscoStoreWar, viscoStorePort, TEST_VS_PASSWORD);
 
         // 2. Create a file-based H2 database that both JVMs can access concurrently.
         //    AUTO_SERVER=TRUE lets H2 start a background TCP listener automatically so the
@@ -194,7 +197,8 @@ class LabEnrichmentIT {
             viscolinkWar.toString(),
             demoConfigs.toString(),
             viscoStoreUrl,
-            h2Url
+            h2Url,
+            TEST_VS_PASSWORD
         );
         pb.redirectErrorStream(false);
         viscolinkProcess = pb.start();
@@ -237,6 +241,7 @@ class LabEnrichmentIT {
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         ctx.getRestfulClientFactory().setSocketTimeout(60_000);
         storeClient = ctx.newRestfulGenericClient("http://localhost:" + viscoStorePort + "/fhir/");
+        storeClient.registerInterceptor(new BasicAuthInterceptor("viscolink", TEST_VS_PASSWORD));
 
         inboundObsId = seedInboundObservation();
     }
@@ -312,7 +317,8 @@ class LabEnrichmentIT {
      * The process is stored in {@link #viscoStoreProcess}; its stdout and stderr are drained in
      * background threads to prevent pipe-buffer blocking.
      */
-    private void startViscoStore(String javaExe, Path viscoStoreWar, int port) throws Exception {
+    private void startViscoStore(String javaExe, Path viscoStoreWar, int port, String vsPassword)
+            throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
             javaExe,
             "-jar", viscoStoreWar.toString(),
@@ -327,7 +333,9 @@ class LabEnrichmentIT {
             "--hapi.fhir.search_index_full_text_enabled=false",
             "--spring.ai.mcp.server.enabled=false",
             "--spring.main.allow-bean-definition-overriding=true",
-            "--spring.jpa.properties.hibernate.search.backend.directory.type=local-heap"
+            "--spring.jpa.properties.hibernate.search.backend.directory.type=local-heap",
+            "--spring.security.user.name=viscolink",
+            "--spring.security.user.password=" + vsPassword
         );
         pb.redirectErrorStream(false);
         viscoStoreProcess = pb.start();
