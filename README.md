@@ -6,9 +6,13 @@ A healthcare integration platform that bridges HL7v2 and FHIR R4. Deployed as tw
 
 ```
 viscoSuite/
-├── viscolink/     Frank!Framework integration middleware (HL7v2 → FHIR transformation)
-├── viscostore/    HAPI FHIR JPA Server (persistent FHIR R4 storage + MCP)
-└── viscorunner/   Docker packaging module (assembles image, docker-compose)
+├── viscolink/               Frank!Framework integration middleware
+├── viscostore/              HAPI FHIR JPA Server (persistent FHIR R4 storage + MCP)
+└── viscorunner/             Docker packaging and configuration hub
+    ├── configurations/          empty scaffold — mount your own integrations here
+    ├── demo-configurations/     reference configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
+    ├── docker-compose.yml       base service definitions
+    └── docker-compose.demo.yml  demo overlay (activates demo-configurations)
 ```
 
 Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunner`.
@@ -47,7 +51,8 @@ The application is available at `http://localhost:8180`. See `viscorunner/README
 
 | Endpoint | Description |
 |---|---|
-| `POST /viscolink/hl7v2` | HL7v2 message ingestion |
+| `POST /viscolink/hl7v2` | HL7v2 message ingestion (HTTP) |
+| `TCP :2575` | HL7v2 message ingestion (MLLP) |
 | `/viscolink/iaf/` | Frank!Console / Ladybug debugger (auth disabled in LOC) |
 | `POST /viscolink/fhir/r4/{facadeName}` | FHIR R4 bundle transaction (demo: `fhir-to-fhir`) |
 | `GET /viscolink/fhir/r4/{facadeName}/Patient/{id}` | FHIR R4 patient read |
@@ -66,11 +71,13 @@ A Maven wrapper is included so you don't need Maven installed locally — `./mvn
 
 ```bash
 # Build all modules
-./mvnw package
+# viscorunner's copy-dependencies reads from .m2/, so viscolink and viscostore
+# must be installed before viscorunner is packaged.
+./mvnw install -pl viscolink,viscostore && ./mvnw package -pl viscorunner
 
-# Build a single module
-./mvnw package -pl viscolink
-./mvnw package -pl viscostore
+# Build a single module (viscolink or viscostore only)
+./mvnw install -pl viscolink
+./mvnw install -pl viscostore
 
 # Run tests
 ./mvnw test -pl viscostore          # unit tests
@@ -79,9 +86,9 @@ A Maven wrapper is included so you don't need Maven installed locally — `./mvn
 
 ## HL7v2 → FHIR Flow
 
-1. HTTP `POST /hl7v2` received by `HL7v2-over-http-to-FHIR` adapter
+1. HTTP `POST /hl7v2` received by `HL7v2-over-HTTP` adapter (or MLLP on port 2575 via `HL7v2-over-MLLP`)
 2. Message type extracted from MSH.9 (e.g. `ADT_A01`)
-3. XSLT applied from `demo-configurations/hl7v2-to-fhir/xslt/<MSG_TYPE>.xslt`
+3. XSLT applied from `demo-configurations/hl7v2-to-fhir/xslt/r4/<MSG_TYPE>.xslt`
 4. Output: FHIR R4 Bundle (MessageHeader + Patient + Encounter)
 
 Currently supported: `ADT_A01` (Admit/Visit Notification). Requires the demo overlay (see Quick Start 2a).
@@ -120,13 +127,13 @@ Then add two **Before launch** steps to your IntelliJ Remote JVM Debug configura
 | `viscorunner/docker-compose.demo.yml` | Demo overlay — mounts reference configurations and enables auto-discovery |
 | `viscorunner/src/scripts/catalinaAdditional.properties` | Tomcat / Frank!Framework settings |
 | `viscorunner/conf/context.xml` | Tomcat JNDI datasources (viscolink + viscostore) |
-| `viscorunner/conf-demo/context.xml` | Demo context — adds `jdbc/fake-emr` on top of base |
+| `viscorunner/demo-conf/context.xml` | Demo context — adds `jdbc/fake-emr` on top of base |
 | `viscolink/src/main/resources/DeploymentSpecifics.properties` | Frank!Framework base properties |
 | `viscostore/src/main/resources/application.yaml` | HAPI FHIR / Spring Boot settings |
 
 Frank!Framework configurations:
 - `viscorunner/configurations/` — empty scaffold for your own integrations; mounted at `/opt/frank/configurations/` in the base compose
-- `viscorunner/demo-configurations/` — reference implementation (`hl7v2-to-fhir`, `fhir-to-fhir`, `fake-emr`); activated by the demo overlay
+- `viscorunner/demo-configurations/` — reference implementation (`hl7v2-to-fhir`, `fhir-to-fhir`, `fhir-store-proxy`, `loinc-mapping-api`, `fake-emr`); activated by the demo overlay
 
 Configurations can be edited and reloaded via the Frank!Console without rebuilding.
 
