@@ -4,9 +4,13 @@ import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.rest.client.api.IGenericClient;
 import ca.uhn.fhir.rest.client.api.ServerValidationModeEnum;
 import ca.uhn.fhir.rest.client.interceptor.BasicAuthInterceptor;
-import org.hl7.fhir.r4.model.Observation;
+import ca.uhn.hl7v2.DefaultHapiContext;
+import ca.uhn.hl7v2.parser.CanonicalModelClassFactory;
+import ca.uhn.hl7v2.parser.PipeParser;
+import ca.uhn.hl7v2.parser.XMLParser;
+import org.hl7.fhir.r4.model.Bundle;
+import org.hl7.fhir.r4.model.Encounter;
 import org.hl7.fhir.r4.model.Patient;
-import org.hl7.fhir.r4.model.Reference;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -22,8 +26,6 @@ import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.sql.Connection;
-import java.sql.DriverManager;
 import java.time.Duration;
 import java.time.LocalTime;
 import java.util.concurrent.TimeUnit;
@@ -34,48 +36,54 @@ import static org.awaitility.Awaitility.await;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Integration test for the ViscoLink loinc-enriched FHIR facade.
+ * Integration test for the HL7v2-to-FHIR pipeline.
  *
  * <p>Starts two real servers side-by-side:</p>
  * <ol>
  *   <li><strong>ViscoStore</strong> — HAPI FHIR JPA R4 server started as a separate JVM
  *       ({@code java -jar target/viscostore.war}) with an in-memory H2 database.</li>
- *   <li><strong>ViscoLink</strong> — Frank!Framework WAR launched in a <em>separate JVM</em> via
- *       {@link ProcessBuilder} + {@link ViscolinkLauncher}, connected to a file-based H2 database
- *       that is shared with the test JVM via {@code AUTO_SERVER=TRUE}.</li>
+ *   <li><strong>ViscoLink</strong> — Frank!Framework WAR launched in a <em>separate JVM</em>
+ *       via {@link ProcessBuilder} + {@link ViscolinkLauncher}, loading the
+ *       {@code hl7v2-to-fhir} configuration.</li>
  * </ol>
  *
- * <p>The test exercises the full loinc-enriched pipeline without invoking any XSLT directly:</p>
+ * <p>The test exercises the full ingest pipeline without invoking any XSLT directly:</p>
  * <pre>
- *   FhirReadProvider  →  LabEnrichmentObservationRead adapter
- *     → XsltPipe (build-read-url.xslt)
- *     → IbisLocalSender → FetchAndEnrichBundle adapter
- *         → HttpSender (fetches Bundle from ViscoStore)
- *         → FixedQuerySender (loads loinc_mapping from H2)
- *         → XsltPipe (enrich-loinc.xslt: replaces NullFlavor/OTH with LOINC)
- *     → enriched Observation returned to caller
+ *   HTTP POST (HL7v2 XML) → HL7v2-over-HTTP adapter
+ *     → IbisLocalSender → HL7v2ToFHIR adapter
+ *         → PutInSessionPipe (extracts trigger event)
+ *         → UUIDGeneratorPipe
+ *         → XsltPipe (ADT_Axx.xslt → FHIR R4 transaction Bundle)
+ *         → FhirValidatorPipe
+ *         → HttpSender (POST transaction Bundle to ViscoStore)
+ *     → Patient + Encounter stored in ViscoStore
  * </pre>
  *
- * <h3>Why separate JVMs for both servers?</h3>
- * <p>Frank!Framework 10.x ships Spring Boot 4 / Spring 7, while ViscoStore uses Spring Boot 3 /
- * Spring 6.  Deploying both in the same JVM causes classloader constraint violations
- * (SLF4J {@code Marker} identity, duplicate {@code META-INF/spring.factories}).  Separate JVMs
- * provide complete classpath isolation.  The test JVM itself carries no Spring dependency at
- * all.</p>
- *
- * <h3>Database sharing</h3>
- * <p>H2's {@code AUTO_SERVER=TRUE} mode starts an embedded TCP server on the first connection
- * and allows subsequent connections from other JVMs to attach to the same file-based database.
- * The test JVM seeds the {@code loinc_mapping} table; the launcher JVM's {@code FixedQuerySender}
- * reads from it.</p>
+ * <h3>Why HL7v2 XML and not pipe-delimited?</h3>
+ * <p>The HTTP adapter forwards the raw request body directly to the HL7v2ToFHIR pipeline,
+ * which immediately applies XPath on the {@code urn:hl7-org:v2xml} namespace.  Only the MLLP
+ * adapter contains an {@code Hl7v2ToXmlPipe} step.  The test JVM therefore converts
+ * pipe-delimited messages to HL7v2 XML using HAPI before posting.</p>
  */
 @TestInstance(TestInstance.Lifecycle.PER_CLASS)
-class LabEnrichmentIT {
+class Hl7v2ToFhirIT {
 
     private static final String TEST_VS_PASSWORD = "test-viscostore-it";
 
-    // maven-dependency-plugin copies these to target/launcher-libs/ (version-stripped) at
-    // pre-integration-test phase, so the path is stable regardless of the .m2/ location.
+    // PV1: visit V001 at field 19 — 17 pipes after patient class 'I'
+    // PV1: admit (PV1.44) 25 pipes after V001; discharge (PV1.45) one pipe after admit
+    private static final String ADT_A01_PIPE =
+            "MSH|^~\\&|HIS|HOSPITAL|VISCO|DEST|20240315143000||ADT^A01^ADT_A01|MSG-IT-001|P|2.5\r" +
+            "EVN|A01|20240315143000\r" +
+            "PID|1||PAT001^^^HOSPITAL^MR||SMITH^JANE^M||19751020|F\r" +
+            "PV1|1|I|||||||||||||||||V001\r";
+
+    private static final String ADT_A03_PIPE =
+            "MSH|^~\\&|HIS|HOSPITAL|VISCO|DEST|20240318160000||ADT^A03^ADT_A03|MSG-IT-003|P|2.5\r" +
+            "EVN|A03|20240318160000\r" +
+            "PID|1||PAT001^^^HOSPITAL^MR||SMITH^JANE^M||19751020|F\r" +
+            "PV1|1|I|||||||||||||||||V001|||||||||||||||||||||||||20240315143000|20240318160000\r";
+
     private static final Path LAUNCHER_LIBS = Paths.get("target/launcher-libs").toAbsolutePath();
 
     private static String lib(String artifactId) {
@@ -89,11 +97,14 @@ class LabEnrichmentIT {
     private Process viscolinkProcess;
     private int     viscolinkPort;
 
-    // ── HAPI FHIR client ─────────────────────────────────────────────────────────────────────────
+    // ── Clients ───────────────────────────────────────────────────────────────────────────────────
     private IGenericClient storeClient;
+    private HttpClient     http;
 
-    // ── Test data ─────────────────────────────────────────────────────────────────────────────────
-    private String inboundObsId;
+    // ── HAPI HL7v2 parsers (test JVM only — convert pipe-delimited to XML before posting) ─────────
+    private DefaultHapiContext hapiContext;
+    private PipeParser         pipeParser;
+    private XMLParser          xmlParser;
 
     // ─────────────────────────────────────────────────────────────────────────────────────────────
     // One-time setup
@@ -113,53 +124,50 @@ class LabEnrichmentIT {
             "viscolink WAR not found at " + viscolinkWar +
             " — run `mvn install -pl viscolink` first");
 
+        http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
+
         String javaExe = ProcessHandle.current().info().command()
             .orElse(Paths.get(System.getProperty("java.home"), "bin/java").toString());
-
-        HttpClient http = HttpClient.newBuilder().connectTimeout(Duration.ofSeconds(5)).build();
 
         // 1. Start ViscoStore.
         viscoStorePort = findFreePort();
         log("Step 1: starting ViscoStore on port " + viscoStorePort);
         startViscoStore(javaExe, viscoStoreWar, viscoStorePort, TEST_VS_PASSWORD);
 
-        // 2. Create a shared file-based H2 database.
-        Path h2Dir = Files.createTempDirectory("viscolink-it-h2-");
+        // 2. Throw-away H2 for JNDI datasources the launcher always binds.
+        //    hl7v2-to-fhir does not use JDBC, but Tomcat JNDI resources must be bound before
+        //    webapp init to avoid lookup errors on the jdbc/viscolink and jdbc/viscostore entries.
+        Path h2Dir = Files.createTempDirectory("viscolink-hl7-it-h2-");
         String h2Url = "jdbc:h2:file:" + h2Dir.resolve("db") + ";AUTO_SERVER=TRUE;DB_CLOSE_DELAY=-1";
-        log("Step 2: H2 database at " + h2Url);
+        log("Step 2: stub H2 for JNDI at " + h2Url);
 
         // 3. Poll ViscoStore until the FHIR metadata endpoint responds 200.
         String storeHealthUrl = "http://localhost:" + viscoStorePort + "/fhir/metadata";
         log("Step 3: polling ViscoStore metadata at " + storeHealthUrl);
-        AtomicInteger lastStatus = new AtomicInteger(0);
-        AtomicReference<String> lastError = new AtomicReference<>("");
+        AtomicInteger vsStatus = new AtomicInteger(0);
+        AtomicReference<String> vsError = new AtomicReference<>("");
         await().atMost(120, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
-                if (!c.isSatisfied()) log("  ViscoStore not ready yet: status=" + lastStatus.get()
-                    + (lastError.get().isEmpty() ? "" : " error=" + lastError.get()));
+                if (!c.isSatisfied()) log("  ViscoStore not ready: status=" + vsStatus.get()
+                    + (vsError.get().isEmpty() ? "" : " error=" + vsError.get()));
             })
             .until(() -> {
                 try {
                     HttpResponse<String> resp = http.send(
                         HttpRequest.newBuilder().uri(URI.create(storeHealthUrl)).GET().build(),
                         HttpResponse.BodyHandlers.ofString());
-                    lastStatus.set(resp.statusCode());
-                    lastError.set("");
+                    vsStatus.set(resp.statusCode());
+                    vsError.set("");
                     return resp.statusCode() == 200;
                 } catch (Exception e) {
-                    lastStatus.set(0);
-                    lastError.set(e.getClass().getSimpleName() + ": " + e.getMessage());
+                    vsStatus.set(0);
+                    vsError.set(e.getClass().getSimpleName() + ": " + e.getMessage());
                     return false;
                 }
             });
         log("Step 3: ViscoStore ready (status 200)");
 
-        // 4. Seed the loinc_mapping table before ViscoLink starts.
-        log("Step 4: seeding loinc_mapping table in H2");
-        seedLoincMapping(h2Url);
-        log("Step 4: loinc_mapping seeded");
-
-        // 5. Build the minimal classpath for the ViscolinkLauncher JVM.
+        // 4. Build the launcher classpath.
         String pathSep   = System.getProperty("path.separator");
         String classpath = String.join(pathSep,
             lib("tomcat-embed-core"),
@@ -172,9 +180,12 @@ class LabEnrichmentIT {
             testClasses.toString()
         );
 
-        // 6. Launch ViscoLink (fhir-to-fhir configuration).
+        // 5. Launch ViscoLink with the hl7v2-to-fhir configuration.
+        //    ViscolinkLauncher writes a custom resources.yml to WEB-INF/classes/ so the MLLP
+        //    adapters bind free ports and all adapters reach STARTED state (required for the
+        //    health endpoint to return 200).
         String viscoStoreUrl = "http://localhost:" + viscoStorePort + "/fhir/";
-        log("Step 6: launching ViscoLink (fhir-to-fhir) → ViscoStore at " + viscoStoreUrl);
+        log("Step 5: launching ViscoLink (hl7v2-to-fhir) → ViscoStore at " + viscoStoreUrl);
         ProcessBuilder pb = new ProcessBuilder(
             javaExe, "-cp", classpath,
             "com.viscosiety.viscorunner.it.ViscolinkLauncher",
@@ -182,26 +193,30 @@ class LabEnrichmentIT {
             demoConfigs.toString(),
             viscoStoreUrl,
             h2Url,
-            TEST_VS_PASSWORD
+            TEST_VS_PASSWORD,
+            "hl7v2-to-fhir"
         );
         pb.redirectErrorStream(false);
         viscolinkProcess = pb.start();
         drainStream(viscolinkProcess.getErrorStream(), "[viscolink-stderr]");
 
-        // 7. Read stdout until READY:{port}.
-        log("Step 7: waiting for ViscoLink READY signal");
+        // 6. Read stdout until READY:{port}.
+        log("Step 6: waiting for ViscoLink READY signal");
         viscolinkPort = readReadyPort(viscolinkProcess, 120);
-        log("Step 7: ViscoLink ready on port " + viscolinkPort);
+        log("Step 6: ViscoLink ready on port " + viscolinkPort);
 
-        // 8. Poll the F!F health endpoint until all adapters have started.
+        // 7. Poll the F!F health endpoint until all adapters are started.
+        //    ViscolinkLauncher writes a custom resources.yml defining all MLLP resources
+        //    (inbound on a dynamically allocated port, outbound-ris as a stub) so no adapter
+        //    ends up in ERROR state and the health endpoint reaches 200.
         String viscolinkHealthUrl = "http://localhost:" + viscolinkPort + "/viscolink/iaf/api/server/health";
-        log("Step 8: polling ViscoLink health at " + viscolinkHealthUrl);
+        log("Step 7: polling ViscoLink health at " + viscolinkHealthUrl);
         AtomicInteger healthStatus = new AtomicInteger(0);
         AtomicReference<String> healthBody = new AtomicReference<>("");
         await().atMost(90, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
-                if (!c.isSatisfied()) log("  ViscoLink not healthy yet: status=" + healthStatus.get()
-                    + (healthBody.get().isEmpty() ? "" : " body=" + truncate(healthBody.get(), 300)));
+                if (!c.isSatisfied()) log("  ViscoLink not healthy: status=" + healthStatus.get()
+                    + (healthBody.get().isEmpty() ? "" : " body=" + truncate(healthBody.get(), 400)));
             })
             .until(() -> {
                 try {
@@ -218,22 +233,28 @@ class LabEnrichmentIT {
                     return false;
                 }
             });
-        log("Step 8: ViscoLink healthy");
+        log("Step 7: ViscoLink healthy");
 
-        // 9. Set up HAPI FHIR client and seed the test Observation.
-        log("Step 9: setting up FHIR client and seeding test Observation");
+        // 8. Set up HAPI FHIR client for ViscoStore.
+        log("Step 8: setting up FHIR client");
         FhirContext ctx = FhirContext.forR4();
         ctx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
         ctx.getRestfulClientFactory().setSocketTimeout(60_000);
         storeClient = ctx.newRestfulGenericClient("http://localhost:" + viscoStorePort + "/fhir/");
         storeClient.registerInterceptor(new BasicAuthInterceptor("viscolink", TEST_VS_PASSWORD));
-        inboundObsId = seedInboundObservation();
-        log("Step 9: seeded Observation id=" + inboundObsId);
+
+        // 9. Set up HAPI HL7v2 parsers (pipe-delimited → HL7v2 XML for the HTTP endpoint).
+        log("Step 9: initialising HAPI HL7v2 parsers");
+        hapiContext = new DefaultHapiContext(new CanonicalModelClassFactory("2.5"));
+        pipeParser  = hapiContext.getPipeParser();
+        xmlParser   = hapiContext.getXMLParser();
+        log("Setup complete — Frank!Console: http://localhost:" + viscolinkPort + "/viscolink/iaf/");
     }
 
     @AfterAll
-    void tearDown() {
+    void tearDown() throws Exception {
         log("Tear-down: stopping ViscoLink and ViscoStore");
+        if (hapiContext != null) hapiContext.close();
         if (viscolinkProcess  != null) viscolinkProcess.destroyForcibly();
         if (viscoStoreProcess != null) viscoStoreProcess.destroyForcibly();
     }
@@ -243,64 +264,103 @@ class LabEnrichmentIT {
     // ─────────────────────────────────────────────────────────────────────────────────────────────
 
     /**
-     * Reads the inbound Observation through the loinc-enriched ViscoLink facade and verifies that:
-     * <ul>
-     *   <li>The NullFlavor/OTH placeholder coding is replaced by LOINC 2000-8</li>
-     *   <li>{@code code.text} "Calcium" is preserved</li>
-     *   <li>The {@code loinc-enriched} enrichment meta tag is present</li>
-     * </ul>
+     * Exercises the full admit → discharge scenario over the HL7v2-over-HTTP route:
+     * <ol>
+     *   <li>ADT^A01 (admit) — a Patient and an in-progress Encounter must appear in ViscoStore</li>
+     *   <li>ADT^A03 (discharge) — the same Encounter must be updated to "finished" with period.end</li>
+     * </ol>
      */
     @Test
-    void whenObservationReadThroughLoincEnrichedFacade_loincCodingReplacesNullFlavor() {
-        log("Test: reading Observation " + inboundObsId + " through loinc-enriched facade");
-        FhirContext facadeCtx = FhirContext.forR4();
-        facadeCtx.getRestfulClientFactory().setServerValidationMode(ServerValidationModeEnum.NEVER);
-        facadeCtx.getRestfulClientFactory().setSocketTimeout(30_000);
-        IGenericClient facadeClient = facadeCtx.newRestfulGenericClient(
-            "http://localhost:" + viscolinkPort + "/viscolink/fhir/r4/loinc-enriched/");
+    void hl7v2AdtScenario_admitFollowedByDischargeStoredCorrectlyInViscoStore() throws Exception {
+        // ── Admit ────────────────────────────────────────────────────────────────────────────────
+        log("Test: sending ADT^A01 (admit) for patient PAT001 / visit V001");
+        int status = postHl7v2Xml(ADT_A01_PIPE);
+        log("Test: ADT^A01 response status=" + status);
+        assertEquals(200, status,
+            "HL7v2-over-HTTP must return 200 for ADT^A01; " +
+            "check Frank!Console at http://localhost:" + viscolinkPort + "/viscolink/iaf/");
 
-        Observation enriched = facadeClient.read()
-            .resource(Observation.class)
-            .withId(inboundObsId)
-            .execute();
+        log("Test: searching ViscoStore for Patient identifier=PAT001");
+        Patient patient = findPatient("PAT001");
+        assertNotNull(patient, "ADT^A01 must create Patient PAT001 in ViscoStore");
+        log("Test: Patient found — family=" + patient.getNameFirstRep().getFamily()
+            + " gender=" + patient.getGender().toCode());
+        assertEquals("SMITH", patient.getNameFirstRep().getFamily(), "Patient family name must match PID.5");
+        assertEquals("female", patient.getGender().toCode(), "Patient gender must map PID.8 F → female");
 
-        assertNotNull(enriched, "Facade must return an Observation");
-        log("Test: received enriched Observation with " + enriched.getCode().getCoding().size() + " coding(s)");
+        log("Test: searching ViscoStore for Encounter identifier=V001");
+        Encounter encounter = findEncounter("V001");
+        assertNotNull(encounter, "ADT^A01 must create Encounter V001 in ViscoStore");
+        log("Test: Encounter found — status=" + encounter.getStatus().toCode());
+        assertEquals("in-progress", encounter.getStatus().toCode(), "ADT^A01 Encounter status must be in-progress");
 
-        assertTrue(
-            enriched.getCode().getCoding().stream()
-                .anyMatch(c -> "http://loinc.org".equals(c.getSystem()) && "2000-8".equals(c.getCode())),
-            "Enriched Observation must carry LOINC code 2000-8");
-        log("Test: LOINC 2000-8 coding present — OK");
+        // ── Discharge ────────────────────────────────────────────────────────────────────────────
+        log("Test: sending ADT^A03 (discharge) for visit V001");
+        status = postHl7v2Xml(ADT_A03_PIPE);
+        log("Test: ADT^A03 response status=" + status);
+        assertEquals(200, status, "HL7v2-over-HTTP must return 200 for ADT^A03");
 
-        assertFalse(
-            enriched.getCode().getCoding().stream()
-                .anyMatch(c -> "http://terminology.hl7.org/CodeSystem/v3-NullFlavor".equals(c.getSystem())),
-            "Enriched Observation must not retain the NullFlavor/OTH coding");
-        log("Test: NullFlavor coding absent — OK");
+        log("Test: re-fetching Encounter V001 after discharge");
+        encounter = findEncounter("V001");
+        assertNotNull(encounter, "Encounter V001 must still be in ViscoStore after ADT^A03");
+        log("Test: Encounter status=" + encounter.getStatus().toCode()
+            + " period.end=" + encounter.getPeriod().getEnd());
+        assertEquals("finished", encounter.getStatus().toCode(),
+            "ADT^A03 must update Encounter status to finished");
+        assertNotNull(encounter.getPeriod().getEnd(), "ADT^A03 must set period.end from PV1.45");
 
-        assertEquals("Calcium", enriched.getCode().getText(), "code.text must be preserved");
-        log("Test: code.text='Calcium' preserved — OK");
-
-        assertTrue(
-            enriched.getMeta().getTag().stream()
-                .anyMatch(t -> "http://terminology.viscosiety.com/enrichment".equals(t.getSystem())
-                               && "loinc-enriched".equals(t.getCode())),
-            "Enriched Observation must carry the loinc-enriched provenance tag");
-        log("Test: loinc-enriched meta tag present — OK");
+        log("Test: all assertions passed");
     }
 
     // ─────────────────────────────────────────────────────────────────────────────────────────────
-    // Setup helpers
+    // Helpers
     // ─────────────────────────────────────────────────────────────────────────────────────────────
 
-    private void startViscoStore(String javaExe, Path viscoStoreWar, int port, String vsPassword)
+    /**
+     * Converts a pipe-delimited HL7v2 message to HL7v2 XML and POSTs it to the
+     * HL7v2-over-HTTP endpoint, returning the HTTP response status code.
+     */
+    private int postHl7v2Xml(String pipeDelimited) throws Exception {
+        String hl7Xml = xmlParser.encode(pipeParser.parse(pipeDelimited));
+        HttpResponse<String> resp = http.send(
+            HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + viscolinkPort + "/viscolink/api/hl7v2"))
+                .header("Content-Type", "application/xml")
+                .POST(HttpRequest.BodyPublishers.ofString(hl7Xml))
+                .timeout(Duration.ofSeconds(30))
+                .build(),
+            HttpResponse.BodyHandlers.ofString());
+        if (resp.statusCode() != 200) {
+            log("  POST /api/hl7v2 returned " + resp.statusCode() + ": " + truncate(resp.body(), 300));
+        }
+        return resp.statusCode();
+    }
+
+    private Patient findPatient(String identifierValue) {
+        Bundle bundle = storeClient.search()
+            .forResource(Patient.class)
+            .where(Patient.IDENTIFIER.exactly().identifier(identifierValue))
+            .returnBundle(Bundle.class)
+            .execute();
+        return bundle.getEntry().isEmpty() ? null : (Patient) bundle.getEntryFirstRep().getResource();
+    }
+
+    private Encounter findEncounter(String identifierValue) {
+        Bundle bundle = storeClient.search()
+            .forResource(Encounter.class)
+            .where(Encounter.IDENTIFIER.exactly().identifier(identifierValue))
+            .returnBundle(Bundle.class)
+            .execute();
+        return bundle.getEntry().isEmpty() ? null : (Encounter) bundle.getEntryFirstRep().getResource();
+    }
+
+    private void startViscoStore(String javaExe, Path war, int port, String vsPassword)
             throws Exception {
         ProcessBuilder pb = new ProcessBuilder(
             javaExe,
-            "-jar", viscoStoreWar.toString(),
+            "-jar", war.toString(),
             "--server.port=" + port,
-            "--spring.datasource.url=jdbc:h2:mem:dbenrichment;DB_CLOSE_DELAY=-1",
+            "--spring.datasource.url=jdbc:h2:mem:dbhl7it;DB_CLOSE_DELAY=-1",
             "--hapi.fhir.fhir_version=R4",
             "--hapi.fhir.custom-bean-packages=com.viscosiety.viscostore",
             "--hapi.fhir.cr.enabled=false",
@@ -329,43 +389,6 @@ class LabEnrichmentIT {
         }, prefix);
         t.setDaemon(true);
         t.start();
-    }
-
-    private void seedLoincMapping(String h2Url) throws Exception {
-        try (Connection conn = DriverManager.getConnection(h2Url, "sa", "")) {
-            conn.createStatement().execute("""
-                CREATE TABLE IF NOT EXISTS loinc_mapping (
-                    text     TEXT NOT NULL,
-                    specimen TEXT NOT NULL DEFAULT '',
-                    code     TEXT NOT NULL,
-                    display  TEXT NOT NULL,
-                    PRIMARY KEY (text, specimen)
-                )
-                """);
-            conn.createStatement().execute("""
-                MERGE INTO loinc_mapping (text, specimen, code, display)
-                KEY (text, specimen)
-                VALUES ('Calcium', '', '2000-8', 'Calcium [Mass/volume] in Serum or Plasma')
-                """);
-        }
-    }
-
-    private String seedInboundObservation() {
-        Patient patient = new Patient();
-        patient.setActive(true);
-        String patientId = storeClient.create().resource(patient).execute().getId().getIdPart();
-        log("  seeded Patient id=" + patientId);
-
-        Observation obs = new Observation();
-        obs.setStatus(Observation.ObservationStatus.FINAL);
-        obs.getCode()
-            .addCoding()
-            .setSystem("http://terminology.hl7.org/CodeSystem/v3-NullFlavor")
-            .setCode("OTH")
-            .setDisplay("Other");
-        obs.getCode().setText("Calcium");
-        obs.setSubject(new Reference("Patient/" + patientId));
-        return storeClient.create().resource(obs).execute().getId().getIdPart();
     }
 
     private int readReadyPort(Process process, int timeoutSeconds) throws Exception {
@@ -398,7 +421,7 @@ class LabEnrichmentIT {
     }
 
     private static void log(String msg) {
-        System.out.printf("[%s][LabEnrichmentIT] %s%n", LocalTime.now().toString().substring(0, 12), msg);
+        System.out.printf("[%s][Hl7v2ToFhirIT] %s%n", LocalTime.now().toString().substring(0, 12), msg);
         System.out.flush();
     }
 

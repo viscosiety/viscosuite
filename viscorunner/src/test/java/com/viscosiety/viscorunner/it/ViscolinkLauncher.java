@@ -47,15 +47,16 @@ public class ViscolinkLauncher {
 
     public static void main(String[] args) throws Exception {
         if (args.length < 5) {
-            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url> <vsPassword>");
+            System.err.println("Usage: ViscolinkLauncher <warPath> <configsDir> <viscoStoreUrl> <h2Url> <vsPassword> [configurationName]");
             System.exit(1);
         }
 
-        Path warPath         = Paths.get(args[0]);
-        Path configsDir      = Paths.get(args[1]);
-        String viscoStoreUrl = args[2];
-        String h2Url         = args[3];
-        String vsPassword    = args[4];
+        Path warPath              = Paths.get(args[0]);
+        Path configsDir           = Paths.get(args[1]);
+        String viscoStoreUrl      = args[2];
+        String h2Url              = args[3];
+        String vsPassword         = args[4];
+        String configurationName  = args.length > 5 ? args[5] : "fhir-to-fhir";
 
         // ── Temp working directory ───────────────────────────────────────────────────────
         Path baseDir = Files.createTempDirectory("viscolink-launcher-");
@@ -76,7 +77,7 @@ public class ViscolinkLauncher {
             "org.frankframework.credentialprovider.PropertyFileCredentialFactory");
         System.setProperty("credentialFactory.map.properties", credentialsFile.toString());
         System.setProperty("configurations.directory",       configsDir.toString());
-        System.setProperty("configurations.names",           "fhir-to-fhir");
+        System.setProperty("configurations.names",           configurationName);
         System.setProperty("configurations.directory.autoLoad", "false");
         System.setProperty("classloader.type",               "DirectoryClassLoader");
         System.setProperty("viscostore.fhir.base.url",       viscoStoreUrl);
@@ -113,16 +114,52 @@ public class ViscolinkLauncher {
         Files.writeString(classesDir.resolve("DeploymentSpecifics.properties"),
             "instance.name=viscolink\n" +
             "configurations.directory=" + configsDirPath + "\n" +
-            "configurations.names=fhir-to-fhir\n" +
+            "configurations.names=" + configurationName + "\n" +
             "configurations.directory.autoLoad=false\n" +
             // Per-configuration classloader type — F!F reads configurations.{name}.classLoaderType
-            "configurations.fhir-to-fhir.classLoaderType=DirectoryClassLoader\n" +
+            "configurations." + configurationName + ".classLoaderType=DirectoryClassLoader\n" +
             "viscostore.fhir.base.url=" + viscoStoreUrl + "\n" +
+            // Properties consumed by hl7v2-to-fhir XSLTs; harmless for other configurations
+            "fhir.target.version=r4\n" +
+            "mr.system.base=https://ig.viscosiety.com/fhir/NamingSystem/\n" +
             "manageDatabase.active=false\n" +
             "jdbc.migrator.active=true\n" +
             "ladybug.jdbc.datasource=jdbc/ladybug\n" +
-            "ladybug.jdbc.migrator.active=true\n" +
-            "ibistesttool.custom=Custom\n"
+            "ladybug.jdbc.migrator.active=true\n"
+        );
+
+        // Override resources.yml so that all MLLP adapters can start successfully:
+        //   - inbound-2575: bind a dynamically allocated free port (avoids port-conflict with
+        //     any running production server)
+        //   - outbound-ris:  the production resources.yml has this commented out; without it
+        //     MllpSender cannot find its resource and SendHL7v2OverMLLP goes to ERROR state,
+        //     which makes the F!F health endpoint return non-200 indefinitely.
+        //     We point it at localhost on a stub port — the connection is lazy so the adapter
+        //     starts cleanly even though nothing is listening there.
+        int mllpInboundPort  = findFreePort();
+        int mllpOutboundPort = findFreePort();
+        Files.writeString(classesDir.resolve("resources.yml"),
+            "jdbc:\n" +
+            "  - name: \"ladybug\"\n" +
+            "    type: \"org.h2.Driver\"\n" +
+            "    url: \"" + h2Url + "\"\n" +
+            "    username: \"sa\"\n" +
+            "    password: \"\"\n" +
+            "\n" +
+            "mllp:\n" +
+            "  - name: \"inbound-2575\"\n" +
+            "    url: \"mllp://0.0.0.0:" + mllpInboundPort + "\"\n" +
+            "    properties:\n" +
+            "      charset: \"UTF-8\"\n" +
+            "      backlog: \"10\"\n" +
+            "      socketTimeout: \"60000\"\n" +
+            "\n" +
+            "  - name: \"outbound-ris\"\n" +
+            "    url: \"mllp://localhost:" + mllpOutboundPort + "\"\n" +
+            "    properties:\n" +
+            "      charset: \"UTF-8\"\n" +
+            "      connectTimeout: \"5000\"\n" +
+            "      socketTimeout: \"30000\"\n"
         );
 
         // ── Embedded Tomcat ───────────────────────────────────────────────────────────────
