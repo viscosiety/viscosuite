@@ -50,10 +50,6 @@ services:
       # them via the Frank!Console without rebuilding.  The directory is empty by default;
       # add subdirectories and set configurations.names to activate them.
       - ./configurations:/opt/frank/configurations
-      # Shared resources on the Tomcat shared.loader classpath — available to all F!F
-      # configurations.  Contains FHIR XSD schemas under fhir-xsd/{r4,r5,dstu3}/.
-      # Regenerate with: viscorunner/scripts/update-fhir-xsd.sh
-      - ./resources/fhir-xsd:/opt/frank/resources/fhir-xsd:ro
 
   postgres:
     image: postgres:16

@@ -23,12 +23,16 @@ set -euo pipefail
 
 HOST="localhost"
 PORT=8180
+STORE_USER="demo"
+STORE_PASS="demo"
 SETS=()
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -h|--host) HOST="$2"; shift 2 ;;
-        -p|--port) PORT="$2"; shift 2 ;;
+        -h|--host)     HOST="$2";       shift 2 ;;
+        -p|--port)     PORT="$2";       shift 2 ;;
+        -u|--user)     STORE_USER="$2"; shift 2 ;;
+        -P|--password) STORE_PASS="$2"; shift 2 ;;
         *) SETS+=("$1"); shift ;;
     esac
 done
@@ -36,6 +40,7 @@ done
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES_DIR="${SCRIPT_DIR}/fixtures"
 CDR_URL="http://${HOST}:${PORT}/viscostore/fhir"
+CURL_AUTH=(-u "${STORE_USER}:${STORE_PASS}")
 
 # post_fixture <file>
 post_fixture() {
@@ -65,6 +70,7 @@ post_bundle_fixture() {
     printf '→ Seeding %-45s ' "[${name}]"
 
     response=$(curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -X POST "${CDR_URL}/" \
         -H "Content-Type: ${content_type}" \
         -H "Accept: ${content_type}" \
@@ -101,6 +107,7 @@ post_fml_fixture() {
     tmp=$(mktemp)
 
     http_code=$(curl --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -o "$tmp" \
         -w "%{http_code}" \
         -X POST "${CDR_URL}/StructureMap/\$compile" \

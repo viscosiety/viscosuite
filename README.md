@@ -40,13 +40,11 @@ The Maven **wrapper** (`./mvnw`) is included and downloads the correct Maven ver
 ## Quick Start
 
 ```bash
-# 1. Create credentials file (required before first run)
-cp viscorunner/secrets/credentials.properties.example viscorunner/secrets/credentials.properties
-
-# 2a. Run the demo (loads all reference configurations out of the box)
+# Demo mode — no setup required, all reference configurations load automatically
 cd viscorunner && docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 
-# 2b. Or start blank — bring your own integrations
+# Base mode — create the credentials file first, then start blank
+cp viscorunner/secrets/credentials.properties.example viscorunner/secrets/credentials.properties
 cd viscorunner && docker compose up --build
 ```
 
@@ -123,4 +121,4 @@ Then add two **Before launch** steps to your IntelliJ Remote JVM Debug configura
 
 ## Smoke Tests
 
-Integration smoke tests are IntelliJ HTTP Client `.rest` files in `viscostore/src/test/smoketest/`. They must be run sequentially. Requires IntelliJ Ultimate; configure the target server in `http-client.env.json`.
+Integration smoke tests are IntelliJ HTTP Client `.rest` files in `viscostore/src/test/smoketest/`. They must be run sequentially. Configure the target server in `http-client.env.json`.

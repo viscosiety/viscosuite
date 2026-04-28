@@ -11,6 +11,8 @@
 # ViscoStore (FHIR CDR) options:
 #   --store-host HOST    Viscostore hostname          (default: localhost)
 #   --store-port PORT    Viscostore port              (default: 8180)
+#   --store-user USER    Viscostore username          (default: demo)
+#   --store-pass PASS    Viscostore password          (default: demo)
 #
 # ViscoLink database options:
 #   --db-host HOST       PostgreSQL hostname          (default: localhost)
@@ -26,6 +28,8 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 STORE_HOST="localhost"
 STORE_PORT=8180
+STORE_USER="demo"
+STORE_PASS="demo"
 DB_HOST="localhost"
 DB_PORT=5432
 DB_NAME="viscolink"
@@ -37,6 +41,8 @@ while [[ $# -gt 0 ]]; do
     case "$1" in
         --store-host) STORE_HOST="$2"; shift 2 ;;
         --store-port) STORE_PORT="$2"; shift 2 ;;
+        --store-user) STORE_USER="$2"; shift 2 ;;
+        --store-pass) STORE_PASS="$2"; shift 2 ;;
         --db-host)    DB_HOST="$2";    shift 2 ;;
         --db-port)    DB_PORT="$2";    shift 2 ;;
         --db-name)    DB_NAME="$2";    shift 2 ;;
@@ -50,7 +56,7 @@ done
 LOINC_ARGS=(-h "$DB_HOST" -p "$DB_PORT" -d "$DB_NAME" -U "$DB_USER" -W "$DB_PASS")
 [[ -n "$DOCKER_SERVICE" ]] && LOINC_ARGS+=(--docker "$DOCKER_SERVICE")
 
-FHIR_ARGS=(-h "$STORE_HOST" -p "$STORE_PORT")
+FHIR_ARGS=(-h "$STORE_HOST" -p "$STORE_PORT" -u "$STORE_USER" -P "$STORE_PASS")
 
 echo "=== Step 1/2: Loading LOINC mapping (${DB_NAME}@${DB_HOST}:${DB_PORT}) ==="
 "$SCRIPT_DIR/load-loinc-mapping.sh" "${LOINC_ARGS[@]}"

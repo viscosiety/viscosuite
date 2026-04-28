@@ -7,18 +7,11 @@ Docker packaging module for ViscoSuite. Assembles both WAR files into a single T
 **To run the application:**
 
 - Docker ≥ 24 with Compose V2 (`docker compose` as a subcommand, not the standalone `docker-compose`)
-- A `secrets/credentials.properties` file (required before first run):
 
-```bash
-cp secrets/credentials.properties.example secrets/credentials.properties
-```
+**To run the schema update script** (`scripts/update-frankconfig-xsd.sh`):
 
-The file can stay empty for the demo mode; it only needs values when you add configurations that reference credential aliases.
-
-**To run the schema update scripts** (`scripts/update-frankconfig-xsd.sh`, `scripts/update-fhir-xsd.sh`):
-
-- `mvn` (Maven 3.9+) — the scripts call `mvn` directly to download artifacts from Maven Central. Install via [maven.apache.org](https://maven.apache.org/download.cgi) or a package manager (`brew install maven`, `apt-get install maven`).
-- `unzip` — used to extract XSD files from downloaded JARs. Pre-installed on most systems; on Debian/Ubuntu: `apt-get install unzip`.
+- `mvn` (Maven 3.9+) — the script calls `mvn` directly to download artifacts from Maven Central. Install via [maven.apache.org](https://maven.apache.org/download.cgi) or a package manager (`brew install maven`, `apt-get install maven`).
+- `unzip` — used to extract the XSD from the downloaded JAR. Pre-installed on most systems; on Debian/Ubuntu: `apt-get install unzip`.
 
 ---
 
@@ -67,6 +60,14 @@ The demo overlay:
 
 Starts the platform with zero F!F configurations loaded. Use this as the starting point when building your own integrations.
 
+Before the first run, create the credentials file:
+
+```bash
+cp secrets/credentials.properties.example secrets/credentials.properties
+```
+
+The file can stay empty initially; add entries when your configurations reference credential aliases.
+
 ```bash
 docker compose up --build
 ```
@@ -101,11 +102,6 @@ demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of
 configurations/             Mount point for user-created F!F configurations
 │                           Empty by default; contains FrankConfig.xsd for IDE support
 demo-configurations/        Reference implementation F!F configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
-resources/                  Shared resources on Tomcat's shared.loader classpath (/opt/frank/resources/)
-│   fhir-xsd/               FHIR XSD schemas — regenerate with scripts/update-fhir-xsd.sh
-│   ├── dstu3/              fhir-single.xsd, fhir-xhtml.xsd, xml.xsd
-│   ├── r4/
-│   └── r5/
 scripts/                    Developer utilities (see below)
 secrets/                    Runtime credentials (gitignored; copy from .example)
 src/scripts/                Build-time scripts baked into the Docker image (entrypoint, Tomcat settings)
@@ -115,9 +111,7 @@ The `conf` / `demo-conf` and `configurations` / `demo-configurations` pairs foll
 
 ---
 
-## Updating schemas
-
-### FrankConfig.xsd
+## Updating FrankConfig.xsd
 
 The `FrankConfig.xsd` files in `configurations/` and `demo-configurations/` are used by IDEs to validate and autocomplete Frank!Framework XML. When the F!F version is bumped in `viscolink/pom.xml`, regenerate them:
 
@@ -126,18 +120,6 @@ The `FrankConfig.xsd` files in `configurations/` and `demo-configurations/` are 
 ```
 
 The script reads the version from `viscolink/pom.xml`, downloads the matching `frankframework-core` JAR via Maven, and extracts the XSD into both directories.
-
-### FHIR XSDs
-
-The FHIR XSD schemas in `resources/fhir-xsd/` are used at runtime by the `hl7v2-to-fhir` configuration to validate produced FHIR Bundles. They are sourced from HAPI FHIR's `hapi-fhir-validation-resources-*` artifacts. When the HAPI version is bumped in `viscolink/pom.xml`, regenerate them:
-
-```bash
-./scripts/update-fhir-xsd.sh
-```
-
-The script reads `hapi.version` from `viscolink/pom.xml`, downloads the matching validation-resources JAR for each FHIR version (DSTU3, R4, R5) via Maven, and extracts `fhir-single.xsd`, `fhir-xhtml.xsd`, and `xml.xsd` into `resources/fhir-xsd/{dstu3,r4,r5}/`.
-
-The `resources/` directory is mounted at `/opt/frank/resources/` in the container, which is on Tomcat's `shared.loader` classpath — making the schemas accessible to all F!F configurations by the path `fhir-xsd/{version}/fhir-single.xsd`.
 
 ---
 

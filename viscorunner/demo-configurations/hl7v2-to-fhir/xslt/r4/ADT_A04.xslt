@@ -22,6 +22,7 @@
 
     <xsl:import href="hl7v2-fhir-functions.xslt"/>
 
+    <xsl:param name="transactionUuid" as="xs:string"/>
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 
     <xsl:template match="/hl7:ADT_A01">
@@ -33,13 +34,19 @@
                                                else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
         <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
+        <xsl:variable name="patientFullUrl"
+                      select="concat('urn:uuid:', fn:derivePlaceholderUuid($transactionUuid, 'Patient', $patientId))"/>
+
+        <xsl:variable name="encounterFullUrl"
+                      select="concat('urn:uuid:', fn:derivePlaceholderUuid($transactionUuid, 'Encounter', $visitId))"/>
+
         <Bundle xmlns="http://hl7.org/fhir">
             <id value="{$messageId}"/>
             <type value="transaction"/>
 
             <!-- Patient -->
             <entry>
-                <fullUrl value="urn:uuid:patient-{$patientId}"/>
+                <fullUrl value="{$patientFullUrl}"/>
                 <resource>
                     <xsl:apply-templates select="hl7:PID" mode="Patient">
                         <xsl:with-param name="patientId"    select="$patientId"/>
@@ -54,11 +61,11 @@
 
             <!-- Encounter -->
             <entry>
-                <fullUrl value="urn:uuid:encounter-{$visitId}"/>
+                <fullUrl value="{$encounterFullUrl}"/>
                 <resource>
                     <xsl:apply-templates select="hl7:PV1" mode="Encounter">
-                        <xsl:with-param name="visitId"   select="$visitId"/>
-                        <xsl:with-param name="patientId" select="$patientId"/>
+                        <xsl:with-param name="visitId"          select="$visitId"/>
+                        <xsl:with-param name="patientReference" select="$patientFullUrl"/>
                     </xsl:apply-templates>
                 </resource>
                 <request>
@@ -71,8 +78,8 @@
     </xsl:template>
 
     <xsl:template match="hl7:PV1" mode="Encounter">
-        <xsl:param name="visitId"   as="xs:string?"/>
-        <xsl:param name="patientId" as="xs:string?"/>
+        <xsl:param name="visitId"          as="xs:string?"/>
+        <xsl:param name="patientReference" as="xs:string?"/>
 
         <!-- A04 = outpatient registration; force AMB if the sending system
              sent PV1.2=O, but also accept whatever class is present. -->
@@ -114,7 +121,7 @@
             </xsl:if>
 
             <subject>
-                <reference value="urn:uuid:patient-{$patientId}"/>
+                <reference value="{$patientReference}"/>
             </subject>
 
             <!-- Attending physician from PV1.7 -->

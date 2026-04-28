@@ -31,17 +31,22 @@ set -euo pipefail
 HOST="localhost"
 PORT=8180
 WAIT=5
+STORE_USER="demo"
+STORE_PASS="demo"
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
-        -h|--host) HOST="$2"; shift 2 ;;
-        -p|--port) PORT="$2"; shift 2 ;;
-        --wait)    WAIT="$2"; shift 2 ;;
-        *) echo "Unknown option: $1  (supported: -h, -p, --wait)" >&2; exit 2 ;;
+        -h|--host)     HOST="$2";       shift 2 ;;
+        -p|--port)     PORT="$2";       shift 2 ;;
+        --wait)        WAIT="$2";       shift 2 ;;
+        -u|--user)     STORE_USER="$2"; shift 2 ;;
+        -P|--password) STORE_PASS="$2"; shift 2 ;;
+        *) echo "Unknown option: $1  (supported: -h, -p, --wait, -u/--user, -P/--password)" >&2; exit 2 ;;
     esac
 done
 
 CDR="http://${HOST}:${PORT}/viscostore/fhir"
+CURL_AUTH=(-u "${STORE_USER}:${STORE_PASS}")
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -52,6 +57,7 @@ info() { printf '  %s\n' "$*"; }
 post_xml() {
     local url="$1" body="$2"
     curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -X POST "$url" \
         -H "Content-Type: application/fhir+xml" \
         -H "Accept: application/fhir+xml" \
@@ -61,6 +67,7 @@ post_xml() {
 put_xml() {
     local url="$1" body="$2"
     curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -X PUT "$url" \
         -H "Content-Type: application/fhir+xml" \
         -H "Accept: application/fhir+xml" \
@@ -69,6 +76,7 @@ put_xml() {
 
 get_xml() {
     curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -H "Accept: application/fhir+xml" \
         "$1"
 }

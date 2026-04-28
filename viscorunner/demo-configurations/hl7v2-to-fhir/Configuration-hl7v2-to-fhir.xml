@@ -1,7 +1,7 @@
 <Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
     <Adapter name="HL7v2ToFHIR"
-             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR ${fhir.target.version} transaction Bundle, validates it against the FHIR ${fhir.target.version} XSD, and POSTs it to viscostore">
+             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR ${fhir.target.version} transaction Bundle, validates it, and POSTs it to viscostore">
 
         <Receiver name="HL7v2ToFHIRReceiver">
             <JavaListener name="HL7v2ToFHIRListener" />
@@ -34,27 +34,25 @@
                 <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/${fhir.target.version}/ADT_', //h:MSH/h:MSH.9/h:MSG.2, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
             </PutInSessionPipe>
 
+            <UUIDGeneratorPipe name="generateTransactionUuid" preserveInput="true" storeResultInSessionKey="transactionUuid">
+
+            </UUIDGeneratorPipe>
             <XsltPipe name="TransformHL7ToFHIR" styleSheetNameSessionKey="mappingStyleSheet">
                 <Param name="mrSystemBase" value="${mr.system.base}"/>
+                <Param name="transactionUuid" sessionKey="transactionUuid"/>
             </XsltPipe>
 
-            <!-- Validate the produced FHIR Bundle against the version-specific XSD.
-                 fhir-single.xsd is resolved from the shared resources directory
-                 (/opt/frank/resources/fhir-xsd/) via the Tomcat shared.loader classpath.
-                 Run viscorunner/scripts/update-fhir-xsd.sh to regenerate the XSD files. -->
-            <XmlValidatorPipe name="ValidateFhirBundle"
-                              schema="fhir-xsd/${fhir.target.version}/fhir-single.xsd"
-                              root="Bundle">
-                <Forward name="success"   path="postToViscostore"/>
-                <Forward name="failure"   path="BadRequest"/>
-                <Forward name="exception" path="ServerError"/>
-            </XmlValidatorPipe>
+            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="ValidateFhirBundle" fhirVersion="${fhir.target.version}">
+                <Forward name="success"  path="postToViscostore"/>
+                <Forward name="failure"  path="BadRequest"/>
+            </Pipe>
 
             <SenderPipe name="postToViscostore">
                 <HttpSender
                     url="${viscostore.fhir.base.url}"
                     methodType="POST"
                     postType="RAW"
+                    authAlias="viscostore"
                     contentType="application/fhir+xml;charset=UTF-8"
                 />
                 <Forward name="success"   path="Exit"/>

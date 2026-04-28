@@ -22,6 +22,7 @@
 
     <xsl:import href="hl7v2-fhir-functions.xslt"/>
 
+    <xsl:param name="transactionUuid" as="xs:string"/>
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 
     <xsl:template match="/hl7:ADT_A01">
@@ -32,13 +33,16 @@
                                                then concat('urn:oid:', hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.2)
                                                else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
 
+        <xsl:variable name="patientFullUrl"
+                      select="concat('urn:uuid:', fn:derivePlaceholderUuid($transactionUuid, 'Patient', $patientId))"/>
+
         <Bundle xmlns="http://hl7.org/fhir">
             <id value="{$messageId}"/>
             <type value="transaction"/>
 
             <!-- Patient only — demographics update, no Encounter change -->
             <entry>
-                <fullUrl value="urn:uuid:patient-{$patientId}"/>
+                <fullUrl value="{$patientFullUrl}"/>
                 <resource>
                     <xsl:apply-templates select="hl7:PID" mode="Patient">
                         <xsl:with-param name="patientId"    select="$patientId"/>

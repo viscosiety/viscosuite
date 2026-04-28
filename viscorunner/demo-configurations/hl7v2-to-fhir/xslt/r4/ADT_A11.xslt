@@ -23,6 +23,7 @@
 
     <xsl:import href="hl7v2-fhir-functions.xslt"/>
 
+    <xsl:param name="transactionUuid" as="xs:string"/>
     <xsl:output method="xml" indent="yes" encoding="UTF-8"/>
 
     <xsl:template match="/hl7:ADT_A09">
@@ -34,13 +35,16 @@
                                                else concat($mrSystemBase, hl7:PID/hl7:PID.3[hl7:CX.5='MR'][1]/hl7:CX.4/hl7:HD.1)"/>
         <xsl:variable name="visitId"   select="(hl7:PV1/hl7:PV1.19/hl7:CX.1, '')[1]"/>
 
+        <xsl:variable name="encounterFullUrl"
+                      select="concat('urn:uuid:', fn:derivePlaceholderUuid($transactionUuid, 'Encounter', $visitId))"/>
+
         <Bundle xmlns="http://hl7.org/fhir">
             <id value="{$messageId}"/>
             <type value="transaction"/>
 
             <!-- Encounter — mark as cancelled; no Patient entry -->
             <entry>
-                <fullUrl value="urn:uuid:encounter-{$visitId}"/>
+                <fullUrl value="{$encounterFullUrl}"/>
                 <resource>
                     <Encounter xmlns="http://hl7.org/fhir">
                         <identifier>
