@@ -1,10 +1,10 @@
 package com.viscosiety.fhir;
 
-import org.frankframework.receivers.JavaListener;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.Set;
@@ -14,7 +14,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @ExtendWith(MockitoExtension.class)
 class FhirOperationRegistryTest {
 
-    @Mock JavaListener<?> listener;
+    @Mock FhirListener listener;
 
     @BeforeEach
     void clearRegistry() {
@@ -59,7 +59,7 @@ class FhirOperationRegistryTest {
         FhirOperation op = new FhirOperation("R4", "my-facade", "Patient", "read");
         FhirOperationRegistry.register(op, listener);
 
-        JavaListener<?> replacement = org.mockito.Mockito.mock(JavaListener.class);
+        FhirListener replacement = Mockito.mock(FhirListener.class);
         FhirOperationRegistry.register(op, replacement);
 
         assertSame(replacement, FhirOperationRegistry.getListener(op));

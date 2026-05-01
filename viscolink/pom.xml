@@ -259,6 +259,53 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.0</version>
 			</plugin>
+			<!-- Extract F!F console index.html so we can patch it at build time -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-console-index</id>
+						<phase>generate-resources</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-console-frontend</artifactId>
+									<version>${frankframework.version}</version>
+									<includes>console/index.html</includes>
+									<outputDirectory>${project.build.directory}/console-original</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>patch-console-index</id>
+						<phase>prepare-package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.directory}/console-patched/console"/>
+								<copy file="${project.build.directory}/console-original/console/index.html"
+								      tofile="${project.build.directory}/console-patched/console/index.html"/>
+								<replace file="${project.build.directory}/console-patched/console/index.html">
+									<replacetoken><![CDATA[</body>]]></replacetoken>
+									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
+								</replace>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- Redirect F!F's log directory to target/ during the build so the ff: lookup
 			     fallback does not create a literal "${ff:log.dir}" folder in the source tree. -->
 			<plugin>
@@ -288,6 +335,16 @@
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 						</manifest>
 					</archive>
+					<!-- Place the patched index.html at WEB-INF/classes/console/index.html.
+					     Tomcat's WebappClassLoader searches WEB-INF/classes/ before any JAR
+					     in WEB-INF/lib/, so this file takes precedence over the copy in
+					     frankframework-console-frontend-*.jar regardless of alphabetical order. -->
+					<webResources>
+						<resource>
+							<directory>${project.build.directory}/console-patched</directory>
+							<targetPath>WEB-INF/classes</targetPath>
+						</resource>
+					</webResources>
 				</configuration>
 			</plugin>
 		</plugins>

@@ -1,7 +1,5 @@
 package com.viscosiety.fhir;
 
-import org.frankframework.receivers.JavaListener;
-
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -17,12 +15,12 @@ import java.util.stream.Collectors;
  */
 public final class FhirOperationRegistry {
 
-    private static final Map<FhirOperation, JavaListener<?>> REGISTRY = new ConcurrentHashMap<>();
+    private static final Map<FhirOperation, FhirListener> REGISTRY = new ConcurrentHashMap<>();
 
     private FhirOperationRegistry() {}
 
     /** Called by {@link FhirListener#configure()} to publish the listener. */
-    static void register(FhirOperation operation, JavaListener<?> listener) {
+    static void register(FhirOperation operation, FhirListener listener) {
         REGISTRY.put(operation, listener);
     }
 
@@ -30,13 +28,23 @@ public final class FhirOperationRegistry {
      * Returns the listener registered for {@code operation}, or {@code null} if none is
      * configured.
      */
-    public static JavaListener<?> getListener(FhirOperation operation) {
+    public static FhirListener getListener(FhirOperation operation) {
         return REGISTRY.get(operation);
     }
 
     /** Removes all entries — for use in unit tests only. */
     static void clearForTesting() {
         REGISTRY.clear();
+    }
+
+    /** Returns all registered operation→listener pairs, for display in the console webservices block. */
+    public static Map<FhirOperation, FhirListener> getAllRegistrations() {
+        return Map.copyOf(REGISTRY);
+    }
+
+    /** Returns all registered operations (keys only). */
+    public static Set<FhirOperation> getAllOperations() {
+        return Set.copyOf(REGISTRY.keySet());
     }
 
     /**
@@ -53,6 +61,23 @@ public final class FhirOperationRegistry {
     }
 
     /**
+     * Returns the {@link FhirListener} declared with {@code operation="metadata"} for the given
+     * facade, or {@code null} if no custom metadata handler is configured.
+     *
+     * <p>When non-null the servlet delegates {@code /metadata} requests to the F!F pipeline
+     * instead of generating the capability statement automatically.</p>
+     */
+    public static FhirListener getMetadataListener(String fhirVersion, String facadeName) {
+        return REGISTRY.entrySet().stream()
+                .filter(e -> e.getKey().fhirVersion().equals(fhirVersion)
+                        && e.getKey().facadeName().equals(facadeName)
+                        && "metadata".equals(e.getKey().operation()))
+                .map(Map.Entry::getValue)
+                .findFirst()
+                .orElse(null);
+    }
+
+    /**
      * Returns the {@link FhirListener} declared with {@code operation="proxy"} for the given
      * facade, or {@code null} if no proxy is configured.
      *
@@ -64,7 +89,7 @@ public final class FhirOperationRegistry {
                 .filter(e -> e.getKey().fhirVersion().equals(fhirVersion)
                         && e.getKey().facadeName().equals(facadeName)
                         && "proxy".equals(e.getKey().operation()))
-                .map(e -> (FhirListener) e.getValue())
+                .map(Map.Entry::getValue)
                 .findFirst()
                 .orElse(null);
     }

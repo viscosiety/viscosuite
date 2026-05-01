@@ -76,6 +76,8 @@ public class FhirListener extends JavaListener<String> {
             if (resourceType == null || resourceType.isBlank()) {
                 resourceType = "*"; // sentinel — the proxy covers all unhandled resource types
             }
+        } else if ("metadata".equals(operation)) {
+            resourceType = "$metadata"; // sentinel — no real FHIR resource type, handled at servlet level
         } else {
             if (resourceType == null || resourceType.isBlank()) {
                 throw new ConfigurationException("resourceType is required on FhirListener [" + getName() + "]");
@@ -86,6 +88,7 @@ public class FhirListener extends JavaListener<String> {
         FhirOperation op = new FhirOperation(fhirVersion, facadeName, resourceType, operation);
         FhirOperationRegistry.register(op, this);
         FhirServletRegistrar.notifyFacadeDeclared(fhirVersion, facadeName);
+
         log.info("FhirListener [{}] registered for operation [{}]", getName(), op);
     }
 

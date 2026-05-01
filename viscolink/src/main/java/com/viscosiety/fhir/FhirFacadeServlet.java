@@ -69,6 +69,13 @@ public class FhirFacadeServlet extends AbstractFhirServlet {
      */
     private volatile FhirListener proxyListener;
 
+    /**
+     * Set during {@link #initialize()} from {@link FhirOperationRegistry}.
+     * When non-null, {@code /metadata} requests are delegated to this F!F pipeline instead of
+     * being generated automatically by {@link FhirMetadataBuilder}.
+     */
+    private volatile FhirListener metadataListener;
+
     public FhirFacadeServlet(String fhirVersion, String facadeName, FhirFfBridge bridge) {
         this.fhirVersion = fhirVersion;
         this.facadeName  = facadeName;
@@ -113,16 +120,30 @@ public class FhirFacadeServlet extends AbstractFhirServlet {
             log.info("{}: CDR proxy active — unhandled routes forwarded to [{}]",
                     getName(), proxyListener.getProxyCdrBaseUrl());
         }
+        metadataListener = FhirOperationRegistry.getMetadataListener(fhirVersion, facadeName);
+        if (metadataListener != null) {
+            log.info("{}: custom /metadata handler active — pipeline [{}] takes priority",
+                    getName(), metadataListener.getName());
+        }
     }
 
     /**
-     * Intercepts requests that no registered provider can satisfy and forwards them to the
-     * upstream CDR when a proxy listener is configured.  All other requests are handled
-     * normally by HAPI.
+     * Intercepts {@code /metadata} to serve a custom {@link org.hl7.fhir.r4.model.CapabilityStatement}
+     * (proxy-augmented or freshly built) before HAPI gets a chance to generate a generic one.
+     * All other requests are either proxied to the CDR or handled normally by HAPI.
      */
     @Override
     protected void service(HttpServletRequest req, HttpServletResponse resp)
             throws ServletException, IOException {
+        if ("/metadata".equals(req.getPathInfo())) {
+            if (metadataListener != null) {
+                handleMetadataViaPipeline(resp);
+            } else {
+                FhirMetadataBuilder.handle(req, resp, getFhirContext(), fhirVersion, facadeName,
+                        proxyListener, HTTP_CLIENT);
+            }
+            return;
+        }
         if (proxyListener != null && shouldProxy(req)) {
             proxyRequest(req, resp, proxyListener.getProxyCdrBaseUrl());
             return;
@@ -204,6 +225,31 @@ public class FhirFacadeServlet extends AbstractFhirServlet {
         final Class<? extends Annotation> ann = annotation;
         return Arrays.stream(provider.getClass().getMethods())
                 .anyMatch(m -> m.isAnnotationPresent(ann));
+    }
+
+    /**
+     * Delegates a {@code /metadata} request to the F!F pipeline registered for this facade and
+     * writes its output directly to the response.
+     *
+     * <p>The pipeline receives an empty message and is expected to return a serialised FHIR
+     * CapabilityStatement.  The Content-Type is inferred from the first non-whitespace character
+     * of the response: {@code {} → {@code application/fhir+json}, otherwise
+     * {@code application/fhir+xml}.</p>
+     */
+    private void handleMetadataViaPipeline(HttpServletResponse resp) throws IOException {
+        FhirOperation op = new FhirOperation(fhirVersion, facadeName, "$metadata", "metadata");
+        try {
+            String result = bridge.processRequest(op, "");
+            String ct = result.stripLeading().startsWith("{")
+                    ? "application/fhir+json" : "application/fhir+xml";
+            resp.setContentType(ct + "; charset=UTF-8");
+            resp.setCharacterEncoding("UTF-8");
+            resp.getWriter().write(result);
+        } catch (Exception e) {
+            log.error("{}: /metadata pipeline failed", getName(), e);
+            resp.sendError(HttpServletResponse.SC_INTERNAL_SERVER_ERROR,
+                    "Metadata pipeline failed: " + e.getMessage());
+        }
     }
 
     /**
