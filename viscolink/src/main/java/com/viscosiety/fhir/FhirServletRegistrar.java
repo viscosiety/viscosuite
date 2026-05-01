@@ -1,5 +1,7 @@
 package com.viscosiety.fhir;
 
+import jakarta.servlet.DispatcherType;
+import jakarta.servlet.FilterRegistration;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.http.HttpServletRequest;
@@ -18,14 +20,14 @@ import org.springframework.security.web.FilterChainProxy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.web.context.WebApplicationContext;
 
-import java.util.ArrayList;
+import java.util.EnumSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Dynamically registers per-facade HAPI FHIR servlets with Tomcat's {@link ServletContext} and
- * applies the same authentication to {@code /fhir/**} as F!F's console applies to {@code /iaf/api/**}.
+ * enforces authentication on {@code /fhir/**} via a dedicated Tomcat filter.
  *
  * <p>F!F's {@code ServletRegisteringPostProcessor} lives in the parent "Frank EnvironmentContext"
  * and only processes beans in that context. Beans declared in module Spring files
@@ -39,31 +41,21 @@ import java.util.concurrent.ConcurrentHashMap;
  * unique {@code (fhirVersion, facadeName)} pair.</p>
  *
  * <h3>Security for {@code /fhir/**}</h3>
- * <p>F!F's {@code SecurityChainConfigurer} runs in the parent context and builds a
- * {@link FilterChainProxy} that protects {@code /iaf/api/**} and {@code /iaf/gui/**}.  Because our
- * beans are in the child {@code IbisApplicationContext}, we cannot contribute additional
- * {@code SecurityFilterChain} beans to that proxy at configuration time.</p>
- *
- * <p>The workaround: in {@link #afterPropertiesSet()} we call {@link AuthenticatorUtils} with the
- * same property prefix ({@code application.security.console.authentication.}) that F!F's console
- * chain uses, creating an identical {@link IAuthenticator}.  We then build two
- * {@code SecurityFilterChain}s and splice them into the parent context's existing
- * {@link FilterChainProxy} at positions 0 and 1:</p>
+ * <p>Because our beans live in the child {@code IbisApplicationContext} we cannot contribute
+ * {@code SecurityFilterChain} beans to F!F's parent-context {@link FilterChainProxy} at
+ * configuration time.  Instead, {@link #registerFhirSecurityChain()} builds two
+ * {@code SecurityFilterChain}s and registers its own {@link FilterChainProxy} as a plain Tomcat
+ * filter mapped to {@code /fhir/*}.  Spring Security's existing proxy has no matcher for
+ * {@code /fhir/**} and passes those requests straight through; our filter then enforces auth:</p>
  * <ol>
- *   <li><b>Position 0 — metadata chain</b>: permit-all for any path matched by
- *       {@link #isPublicFhirMetadataPath(jakarta.servlet.http.HttpServletRequest)}, so that FHIR
- *       {@code /metadata} endpoints are publicly accessible per the FHIR specification.</li>
- *   <li><b>Position 1 — auth chain</b>: enforces the same authentication as F!F's console for all
- *       other {@code /fhir/**} requests.  Built via {@link IAuthenticator#build()}, which registers
- *       the chain in the parent {@code BeanFactory} under the name
- *       {@code HttpSecurityChain-{class}-{hash}} (an internal F!F convention verified against
- *       10.1.0 source).  Both chains use {@code STATELESS} sessions, appropriate for FHIR REST
- *       clients that authenticate per-request via Basic Auth or Bearer tokens.</li>
+ *   <li><b>Metadata chain (position 0)</b> — permits {@code /metadata} without authentication.
+ *       FHIR CapabilityStatements must be publicly accessible per the FHIR specification.
+ *       The path predicate is {@link #isPublicFhirMetadataPath(HttpServletRequest)}.</li>
+ *   <li><b>Auth chain (position 1)</b> — enforces authentication configured via
+ *       {@code application.security.fhir.authentication.*} for all other {@code /fhir/**}
+ *       requests.  Built via {@link IAuthenticator#build()} and using {@code STATELESS} sessions,
+ *       appropriate for FHIR REST clients that authenticate per-request.</li>
  * </ol>
- *
- * <p>This approach reads the exact same configuration properties as F!F and delegates all
- * authentication logic — Basic Auth, session management, authority mapping — to the same
- * {@link IAuthenticator} implementation, without duplicating a single line of auth code.</p>
  */
 public class FhirServletRegistrar implements InitializingBean, ApplicationContextAware {
 
@@ -119,38 +111,6 @@ public class FhirServletRegistrar implements InitializingBean, ApplicationContex
         }
     }
 
-    /**
-     * Applies two {@link SecurityFilterChain}s to the {@code /fhir/} URL space and splices them
-     * into the parent context's existing {@link FilterChainProxy}:
-     *
-     * <ol>
-     *   <li><b>Metadata chain (position 0)</b> — permits {@code /metadata} without authentication.
-     *       FHIR CapabilityStatements must be publicly accessible per the FHIR specification.</li>
-     *   <li><b>Auth chain (position 1)</b> — applies the same authentication as F!F's console
-     *       ({@code /iaf/api/**}) to all other {@code /fhir/**} requests, reading the same
-     *       {@code application.security.console.authentication.*} properties via
-     *       {@link AuthenticatorUtils}.</li>
-     * </ol>
-     *
-     * <p>URL pattern note: {@code ServletConfiguration.setUrlMapping("/fhir/*")} is intentional.
-     * {@code URLRequestMatcher} strips the trailing {@code *}, storing {@code /fhir/} as the prefix,
-     * which correctly matches all real FHIR request paths via {@code path.startsWith("/fhir/")}.
-     * Using {@code /fhir/**} would strip to {@code /fhir/*} (with a literal asterisk), which never
-     * matches any real path.</p>
-     *
-     * <p>The bean name {@code HttpSecurityChain-{simpleClassName}-{hashCode}} is an internal F!F
-     * convention from {@code AbstractServletAuthenticator.build()} (verified against 10.1.0
-     * bytecode).  If a future F!F version changes this naming scheme, startup will log an error
-     * and {@code /fhir/**} will remain unprotected rather than failing hard.</p>
-     *
-     * <p>Spring Security 7 removed {@code FilterChainProxy.setFilterChains()}.  Furthermore,
-     * Spring Security 7 wraps the real proxy in a
-     * {@code WebSecurityConfiguration$CompositeFilterChainProxy} (a subclass that stores its chains
-     * in a private {@code springSecurityFilterChain} field rather than the inherited
-     * {@code FilterChainProxy.filterChains} field).  We reach through to the inner instance
-     * and write its {@code filterChains} field via reflection.  All JARs run in the unnamed module
-     * inside Tomcat, so {@code setAccessible(true)} succeeds without {@code --add-opens}.</p>
-     */
     private void registerFhirSecurityChain() {
         ApplicationContext parentCtx = applicationContext.getParent();
         if (parentCtx == null) {
@@ -164,7 +124,7 @@ public class FhirServletRegistrar implements InitializingBean, ApplicationContex
             // bean lifecycle on the new instance, including ApplicationContextAwareProcessor,
             // so the authenticator receives parentCtx as its applicationContext automatically.
             IAuthenticator authenticator = AuthenticatorUtils.createAuthenticator(
-                    parentCtx, "application.security.console.authentication.");
+                    parentCtx, "application.security.fhir.authentication.");
 
             // AbstractServletAuthenticator.addEndpoints() puts a URL into publicEndpoints
             // (no auth required) when config.getSecurityRoles().isEmpty(), and build() returns
@@ -209,37 +169,25 @@ public class FhirServletRegistrar implements InitializingBean, ApplicationContex
                     .sessionManagement(sess -> sess.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                     .build();
 
-            // ── 3. Splice both chains into the FilterChainProxy ───────────────────────
+            // ── 3. Register as an independent Tomcat filter ───────────────────────────
 
-            // In Spring Security 7, parentCtx.getBean(FilterChainProxy.class) returns a
-            // WebSecurityConfiguration$CompositeFilterChainProxy — a subclass that stores its
-            // real chains in a private "springSecurityFilterChain" inner FilterChainProxy, not
-            // in FilterChainProxy's own "filterChains" field.  We must reach through to the
-            // inner instance to update the list that doFilter() and getFilterChains() actually use.
-            FilterChainProxy fcp = parentCtx.getBean(FilterChainProxy.class);
-
-            FilterChainProxy realFcp;
-            try {
-                java.lang.reflect.Field innerField = fcp.getClass().getDeclaredField("springSecurityFilterChain");
-                innerField.setAccessible(true);
-                realFcp = (FilterChainProxy) innerField.get(fcp);
-            } catch (NoSuchFieldException ignored) {
-                // Not a CompositeFilterChainProxy — work with fcp directly.
-                realFcp = fcp;
+            // We create our own FilterChainProxy and register it as a Tomcat filter mapped to
+            // /fhir/*. Spring Security's existing proxy has no matcher for /fhir/** and passes
+            // those requests straight through; our filter then enforces auth. This avoids any
+            // need to reach into the existing proxy via reflection.
+            FilterChainProxy fhirProxy = new FilterChainProxy(List.of(metadataChain, authChain));
+            FilterRegistration.Dynamic filterReg = servletContext.addFilter("fhirSecurity", fhirProxy);
+            if (filterReg != null) {
+                filterReg.setAsyncSupported(true);
+                filterReg.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/fhir/*");
+            } else {
+                log.debug("FhirServletRegistrar: fhirSecurity filter already registered");
             }
 
-            // metadata chain at 0 (checked first — open), auth chain at 1 (everything else).
-            java.lang.reflect.Field filterChainsField = FilterChainProxy.class.getDeclaredField("filterChains");
-            filterChainsField.setAccessible(true);
-            List<SecurityFilterChain> updated = new ArrayList<>(realFcp.getFilterChains());
-            updated.add(0, authChain);
-            updated.add(0, metadataChain);
-            filterChainsField.set(realFcp, updated);
-
-            log.info("FhirServletRegistrar: /fhir/* secured using console authentication ({}); /metadata is public",
+            log.info("FhirServletRegistrar: /fhir/* secured using FHIR authentication ({}); /metadata is public",
                     authenticator.getClass().getSimpleName());
         } catch (Exception e) {
-            log.error("FhirServletRegistrar: failed to apply console security to /fhir/** — endpoints will be unprotected", e);
+            log.error("FhirServletRegistrar: failed to apply FHIR security to /fhir/** — endpoints will be unprotected", e);
         }
     }
 
