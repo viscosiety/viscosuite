@@ -33,13 +33,6 @@ services:
       timeout: 5s
       retries: 10
       start_period: 30s
-
-  ig-package-host:
-    image: nginx:alpine
-    container_name: ig-package-host
-    volumes:
-      - ${IG_OUTPUT_PATH:-./implementation-guide/output}:/usr/share/nginx/html:ro
-    restart: unless-stopped
   viscorunner:
     depends_on:
       rabbitmq:
@@ -50,6 +43,7 @@ services:
       RABBITMQ_USERNAME: viscosuite
       RABBITMQ_PASSWORD: viscosuite
 
+      amqp.events.active: "true"  
       customViews.names: viscoStore,labmapper
       customViews.labmapper.name: "Lab Code Mapper"
       customViews.labmapper.url: /loinc-mapping.html

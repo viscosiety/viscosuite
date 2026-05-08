@@ -45,12 +45,11 @@
                       styleSheetName="xslt/patient-read-r4.xslt">
                 <Param name="fhirVersion"   value="R4"/>
                 <Param name="fhirOperation" value="patient-read"/>
-                <Forward name="success"   path="publishToAmqp"/>
                 <Forward name="exception" path="Exception"/>
             </XsltPipe>
 
             <!-- ── 2. Publish Patient response to event bus ── -->
-            <SenderPipe name="publishToAmqp" preserveInput="true">
+            <SenderPipe name="publishToAmqp" active="${amqp.events.active}" preserveInput="true">
                 <AmqpSender
                     connectionName="viscosuite"
                     address="/queues/viscosuite.events"

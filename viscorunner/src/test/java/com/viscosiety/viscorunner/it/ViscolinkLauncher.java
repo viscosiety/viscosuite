@@ -125,7 +125,9 @@ public class ViscolinkLauncher {
             "manageDatabase.active=false\n" +
             "jdbc.migrator.active=true\n" +
             "ladybug.jdbc.datasource=jdbc/ladybug\n" +
-            "ladybug.jdbc.migrator.active=true\n"
+            "ladybug.jdbc.migrator.active=true\n" +
+            // Disable AMQP publishing — no RabbitMQ in the IT environment.
+            "amqp.events.active=false\n"
         );
 
         // Override resources.yml so that all MLLP adapters can start successfully:

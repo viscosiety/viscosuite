@@ -43,11 +43,10 @@
             </XsltPipe>
 
             <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="ValidateFhirBundle" fhirVersion="${fhir.target.version}">
-                <Forward name="success"  path="publishToAmqp"/>
                 <Forward name="failure"  path="BadRequest"/>
             </Pipe>
 
-            <SenderPipe name="publishToAmqp" preserveInput="true">
+            <SenderPipe name="publishToAmqp" active="${amqp.events.active}" preserveInput="true">
                 <AmqpSender
                     connectionName="viscosuite"
                     address="/queues/viscosuite.events"

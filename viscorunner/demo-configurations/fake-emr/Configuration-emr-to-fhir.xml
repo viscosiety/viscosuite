@@ -82,12 +82,11 @@
                       styleSheetName="xslt/emr-to-fhir-bundle.xslt">
                 <Param name="patient-xml" sessionKey="patientXml" />
                 <Param name="pat-nr"      sessionKey="patientId" />
-                <Forward name="success"   path="PublishToAmqp" />
                 <Forward name="exception" path="Exception" />
             </XsltPipe>
 
             <!-- ── 5. Publish FHIR bundle to event bus ── -->
-            <SenderPipe name="PublishToAmqp" preserveInput="true">
+            <SenderPipe name="PublishToAmqp" active="${amqp.events.active}" preserveInput="true">
                 <AmqpSender
                     connectionName="viscosuite"
                     address="/queues/viscosuite.events"
