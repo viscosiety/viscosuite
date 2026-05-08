@@ -82,11 +82,22 @@
                       styleSheetName="xslt/emr-to-fhir-bundle.xslt">
                 <Param name="patient-xml" sessionKey="patientXml" />
                 <Param name="pat-nr"      sessionKey="patientId" />
-                <Forward name="success"   path="PostToViscostore" />
+                <Forward name="success"   path="PublishToAmqp" />
                 <Forward name="exception" path="Exception" />
             </XsltPipe>
 
-            <!-- ── 5. Upsert into viscostore ── -->
+            <!-- ── 5. Publish FHIR bundle to event bus ── -->
+            <SenderPipe name="PublishToAmqp" preserveInput="true">
+                <AmqpSender
+                    connectionName="viscosuite"
+                    address="/queues/viscosuite.events"
+                    durable="true"
+                    messageProtocol="FF"/>
+                <Forward name="success"   path="PostToViscostore" />
+                <Forward name="exception" path="Exception" />
+            </SenderPipe>
+
+            <!-- ── 6. Upsert into viscostore ── -->
             <SenderPipe name="PostToViscostore">
                 <HttpSender
                     url="${viscostore.fhir.base.url}"

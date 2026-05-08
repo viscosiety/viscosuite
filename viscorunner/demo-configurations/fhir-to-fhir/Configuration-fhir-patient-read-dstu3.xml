@@ -45,9 +45,20 @@
                       styleSheetName="xslt/patient-read-dstu3.xslt">
                 <Param name="fhirVersion"   value="DSTU3"/>
                 <Param name="fhirOperation" value="patient-read"/>
-                <Forward name="success"   path="Exit"/>
+                <Forward name="success"   path="publishToAmqp"/>
                 <Forward name="exception" path="Exception"/>
             </XsltPipe>
+
+            <!-- ── 2. Publish Patient response to event bus ── -->
+            <SenderPipe name="publishToAmqp" preserveInput="true">
+                <AmqpSender
+                    connectionName="viscosuite"
+                    address="/queues/viscosuite.events"
+                    durable="true"
+                    messageProtocol="FF"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
         </Pipeline>
     </Adapter>
 

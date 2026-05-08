@@ -45,9 +45,20 @@
                       styleSheetName="xslt/bundle-transaction-r5.xslt">
                 <Param name="fhirVersion"   value="R5"/>
                 <Param name="fhirOperation" value="bundle-transaction"/>
-                <Forward name="success"   path="Exit"/>
+                <Forward name="success"   path="publishToAmqp"/>
                 <Forward name="exception" path="Exception"/>
             </XsltPipe>
+
+            <!-- ── 2. Publish transformed bundle to event bus ── -->
+            <SenderPipe name="publishToAmqp" preserveInput="true">
+                <AmqpSender
+                    connectionName="viscosuite"
+                    address="/queues/viscosuite.events"
+                    durable="true"
+                    messageProtocol="FF"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
         </Pipeline>
     </Adapter>
 

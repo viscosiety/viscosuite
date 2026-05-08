@@ -115,9 +115,20 @@
             <!-- 7. Inject LOINC codings into NullFlavor/OTH Observations and tag their meta -->
             <XsltPipe name="enrichWithLoinc" styleSheetName="xslt/lab-enrichment/enrich-loinc.xslt">
                 <Param name="loincMapping" sessionKey="loincMapping"/>
-                <Forward name="success"   path="Exit"/>
+                <Forward name="success"   path="publishToAmqp"/>
                 <Forward name="exception" path="Exception"/>
             </XsltPipe>
+
+            <!-- 8. Publish enriched bundle to event bus -->
+            <SenderPipe name="publishToAmqp" preserveInput="true">
+                <AmqpSender
+                    connectionName="viscosuite"
+                    address="/queues/viscosuite.events"
+                    durable="true"
+                    messageProtocol="FF"/>
+                <Forward name="success"   path="Exit"/>
+                <Forward name="exception" path="Exception"/>
+            </SenderPipe>
         </Pipeline>
     </Adapter>
 
