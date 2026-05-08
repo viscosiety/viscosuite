@@ -116,6 +116,19 @@
 			<version>${frankframework.version}</version>
 		</dependency>
 		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-messaging</artifactId>
+			<version>${frankframework.version}</version>
+		</dependency>
+		<!-- jakarta.jms-api is declared provided in the F!F BOM (expecting an EE container),
+		     but Tomcat does not bundle JMS. Override to compile scope so the jar lands in
+		     WEB-INF/lib and SpringJmsConnector can load from springJms.xml. -->
+		<dependency>
+			<groupId>jakarta.jms</groupId>
+			<artifactId>jakarta.jms-api</artifactId>
+			<scope>compile</scope>
+		</dependency>
+		<dependency>
 			<groupId>jakarta.servlet</groupId>
 			<artifactId>jakarta.servlet-api</artifactId>
 			<version>6.1.0</version>
@@ -335,10 +348,8 @@
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
 						</manifest>
 					</archive>
-					<!-- Place the patched index.html at WEB-INF/classes/console/index.html.
-					     Tomcat's WebappClassLoader searches WEB-INF/classes/ before any JAR
-					     in WEB-INF/lib/, so this file takes precedence over the copy in
-					     frankframework-console-frontend-*.jar regardless of alphabetical order. -->
+					<!-- Place files at WEB-INF/classes/ so Tomcat's WebappClassLoader finds them
+					     before any JAR in WEB-INF/lib/ (including frankframework-core-*.jar). -->
 					<webResources>
 						<resource>
 							<directory>${project.build.directory}/console-patched</directory>

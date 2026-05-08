@@ -1,0 +1,32 @@
+{
+  "users": [
+    {
+      "name": "viscosuite",
+      "password_hash": "kB76PTXivEsq6auKocflnsLKaTTQv+rYSGPk5B3U4L7H2+S1",
+      "hashing_algorithm": "rabbit_password_hashing_sha256",
+      "tags": ["administrator"],
+      "limits": {}
+    }
+  ],
+  "vhosts": [{"name": "/"}],
+  "permissions": [
+    {
+      "user": "viscosuite",
+      "vhost": "/",
+      "configure": ".*",
+      "write": ".*",
+      "read": ".*"
+    }
+  ],
+  "queues": [
+    {
+      "name": "viscosuite.events",
+      "vhost": "/",
+      "durable": true,
+      "auto_delete": false,
+      "arguments": {}
+    }
+  ],
+  "exchanges": [],
+  "bindings": []
+}

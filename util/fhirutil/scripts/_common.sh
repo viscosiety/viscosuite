@@ -7,17 +7,23 @@ set -euo pipefail
 # --- defaults ---
 HOST="localhost"
 PORT=8180
+FHIR_USER="ADMIN"
+FHIR_PASS="PASSWORD1234"
 
-# --- parse -h / -p / --id from any script's args ---
+# --- parse -h / -p / --id / -u / -P from any script's args ---
 PATIENT_ID=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--host)      HOST="$2";       shift 2 ;;
         -p|--port)      PORT="$2";       shift 2 ;;
         --id)           PATIENT_ID="$2"; shift 2 ;;
-        *) echo "Unknown option: $1  (supported: -h/--host, -p/--port, --id)" >&2; exit 2 ;;
+        -u|--user)      FHIR_USER="$2";  shift 2 ;;
+        -P|--password)  FHIR_PASS="$2";  shift 2 ;;
+        *) echo "Unknown option: $1  (supported: -h/--host, -p/--port, --id, -u/--user, -P/--password)" >&2; exit 2 ;;
     esac
 done
+
+CURL_AUTH=(-u "${FHIR_USER}:${FHIR_PASS}")
 
 BASE_URL="http://${HOST}:${PORT}/viscolink/fhir"
 
@@ -40,6 +46,7 @@ post_bundle() {
     echo "POST ${url}"
     echo "---"
     curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -X POST "$url" \
         -H "Content-Type: application/fhir+xml" \
         -H "Accept: application/fhir+xml" \
@@ -60,6 +67,7 @@ get_patient() {
     echo "GET ${url}"
     echo "---"
     curl --fail-with-body --silent --show-error \
+        "${CURL_AUTH[@]}" \
         -X GET "$url" \
         -H "Accept: application/fhir+xml"
     echo

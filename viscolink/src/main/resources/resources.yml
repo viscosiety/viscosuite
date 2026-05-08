@@ -1,3 +1,9 @@
+amqp:
+  - name: "viscosuite"
+    url: "amqp://${RABBITMQ_HOST}:5672"
+    username: "${RABBITMQ_USERNAME}"
+    password: "${RABBITMQ_PASSWORD}"
+
 jdbc:
   - name: "ladybug"
     type: "${VISCOLINK_JDBC_DRIVER}"

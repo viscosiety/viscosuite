@@ -15,9 +15,41 @@
 #     jdbc/fake-emr JNDI datasource.
 
 services:
-
-  viscorunner:
+  rabbitmq:
+    image: rabbitmq:4-management-alpine
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
     environment:
+      RABBITMQ_DEFAULT_USER: viscosuite
+      RABBITMQ_DEFAULT_PASS: viscosuite
+    volumes:
+      - ./demo-rabbitmq/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
+      - ./demo-rabbitmq/definitions.json:/etc/rabbitmq/definitions.json:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "check_port_connectivity"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  ig-package-host:
+    image: nginx:alpine
+    container_name: ig-package-host
+    volumes:
+      - ${IG_OUTPUT_PATH:-./implementation-guide/output}:/usr/share/nginx/html:ro
+    restart: unless-stopped
+  viscorunner:
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    environment:
+      # RabbitMQ — AMQP event bus for integration events
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_USERNAME: viscosuite
+      RABBITMQ_PASSWORD: viscosuite
+
       customViews.names: viscoStore,labmapper
       customViews.labmapper.name: "Lab Code Mapper"
       customViews.labmapper.url: /loinc-mapping.html
