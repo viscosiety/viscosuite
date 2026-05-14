@@ -29,9 +29,12 @@ public class BasicAuthFilter implements Filter {
         HttpServletRequest req = (HttpServletRequest) request;
         HttpServletResponse resp = (HttpServletResponse) response;
 
-        String path = req.getServletPath();
-        // F!F owns these paths and applies its own security
-        if (path.startsWith("/iaf/") || path.startsWith("/api/")) {
+        // Use getRequestURI() minus context path — getServletPath() returns "" for /*-mapped servlets.
+        String ctx  = req.getContextPath();
+        String path = req.getRequestURI().substring(ctx.length());
+
+        // F!F owns /iaf/ and /api/; FHIR facade is authenticated by its own layer.
+        if (path.startsWith("/iaf/") || path.startsWith("/api/") || path.startsWith("/fhir/")) {
             chain.doFilter(request, response);
             return;
         }
@@ -45,6 +48,11 @@ public class BasicAuthFilter implements Filter {
     }
 
     private boolean isAuthorized(HttpServletRequest req) {
+        AppConstants props = AppConstants.getInstance();
+        String expectedUser = props.getProperty("application.security.console.authentication.username", "");
+        // No credentials configured (LOC / CI) — auth disabled, pass through.
+        if (expectedUser.isEmpty()) return true;
+
         String header = req.getHeader("Authorization");
         if (header == null || !header.startsWith("Basic ")) return false;
 
@@ -60,10 +68,7 @@ public class BasicAuthFilter implements Filter {
         String username = decoded.substring(0, colon);
         String password = decoded.substring(colon + 1);
 
-        AppConstants props = AppConstants.getInstance();
-        String expectedUser = props.getProperty("application.security.console.authentication.username", "");
         String expectedPass = props.getProperty("application.security.console.authentication.password", "");
-
         return expectedUser.equals(username) && expectedPass.equals(password);
     }
 
