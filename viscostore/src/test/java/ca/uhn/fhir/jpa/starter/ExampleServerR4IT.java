@@ -16,6 +16,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Order;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIfEnvironmentVariable;
+import org.junit.jupiter.api.condition.DisabledIfSystemProperty;
 import org.opencds.cqf.fhir.cr.hapi.config.RepositoryConfig;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -268,6 +269,8 @@ class ExampleServerR4IT implements IServerSupport {
 	@Test
 	@DisabledIfEnvironmentVariable(named = "CI", matches = "true",
 		disabledReason = "Requires outbound access to tx.fhir.org — not available in CI")
+	@DisabledIfSystemProperty(named = "skipExternalTests", matches = "true",
+		disabledReason = "Requires outbound access to tx.fhir.org — skipped via -DskipExternalTests=true")
 	void testValidateRemoteTerminology() {
 
 		String testCodeSystem = "http://foo/cs";

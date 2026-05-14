@@ -1,0 +1,1186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Message Flow — ViscoLink</title>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --teal: #1a6b5a; --teal-light: #e8f4f1; --teal-mid: #c2dfd9;
+  --green: #2a7a3b; --green-bg: #e8f5eb;
+  --red: #c0392b; --red-bg: #fdecea;
+  --gray: #6b7280; --gray-bg: #f3f4f6;
+  --border: #e5e7eb; --text: #111827; --muted: #6b7280;
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}
+html, body { height: 100%; overflow: hidden; font-family: var(--font); font-size: 13px; color: var(--text); background: #fff; }
+
+/* ── top bar ── */
+#topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 46px; flex-shrink: 0;
+  background: var(--teal); color: #fff;
+}
+#topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; margin-right: 4px; }
+#live-badge {
+  display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.15);
+}
+#live-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+#live-badge .dot.paused { background: #fbbf24; }
+#countdown { font-size: 11px; color: rgba(255,255,255,.65); min-width: 30px; }
+#topbar select, #topbar input {
+  height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.12); color: #fff; font-size: 12px; outline: none;
+}
+#topbar input::placeholder { color: rgba(255,255,255,.6); }
+#topbar input:focus, #topbar select:focus { border-color: rgba(255,255,255,.6); }
+#topbar select option { background: var(--teal); }
+#topbar .spacer { flex: 1; }
+#report-count { font-size: 11px; color: rgba(255,255,255,.65); white-space: nowrap; }
+
+/* ── main split ── */
+#main { display: flex; height: calc(100vh - 46px); }
+
+/* ── left pane ── */
+#left { width: 340px; flex-shrink: 0; display: flex; flex-direction: column; overflow: hidden; }
+#divider { width: 5px; flex-shrink: 0; cursor: col-resize; background: var(--border); transition: background .15s; }
+#divider:hover, #divider.dragging { background: var(--teal-mid); }
+#table-wrap { flex: 1; overflow-y: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+thead th { position: sticky; top: 0; background: var(--gray-bg); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: left; }
+tbody tr { cursor: pointer; border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:hover { background: var(--teal-light); }
+tbody tr.selected { background: var(--teal-mid) !important; }
+td { padding: 6px 8px; vertical-align: middle; }
+.td-status { width: 28px; }
+.td-name { overflow: hidden; }
+.td-patient { width: 68px; }
+.td-time { width: 72px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
+.td-dur { width: 48px; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
+.flow-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.pipe-name-small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+.row-cid { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; opacity: .75; }
+.patient-id { font-size: 11px; color: var(--muted); }
+
+/* status pill */
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
+.pill-ok  { background: var(--green-bg); color: var(--green); }
+.pill-err { background: var(--red-bg); color: var(--red); }
+.pill-run { background: var(--gray-bg); color: var(--gray); }
+
+/* ── right pane ── */
+#right { flex: 1; display: flex; flex-direction: column; overflow: hidden; background: #f9fafb; }
+#empty-state { flex: 1; display: flex; align-items: center; justify-content: center; color: var(--muted); font-size: 14px; }
+#detail { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
+
+/* report header */
+#report-header {
+  flex-shrink: 0; padding: 12px 16px; background: #fff; border-bottom: 1px solid var(--border);
+}
+#report-header .rh-flow { font-size: 15px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+#report-header .rh-meta { display: flex; flex-wrap: wrap; gap: 14px; }
+.meta-item { display: flex; flex-direction: column; gap: 1px; }
+.meta-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+.meta-value { font-size: 12px; font-family: var(--mono); color: var(--text); }
+
+/* pipeline tree */
+#pipeline-tree { flex: 1; overflow-y: auto; padding: 8px 12px 24px; }
+
+/* pipeline section header */
+.section-hdr {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 8px 4px; margin-top: 4px;
+  font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .5px; color: var(--muted);
+  border-bottom: 1px solid var(--border); margin-bottom: 2px;
+}
+.section-hdr .arrow { color: var(--teal); }
+
+/* pipe row */
+.pipe-row { margin: 2px 0; }
+.pipe-row-hdr {
+  display: flex; align-items: center; gap: 6px;
+  padding: 5px 8px; border-radius: 5px; cursor: default;
+  background: #fff; border: 1px solid var(--border);
+}
+.pipe-row-hdr:hover { border-color: var(--teal-mid); background: var(--teal-light); }
+.pipe-row.open .pipe-row-hdr { border-color: var(--teal); background: var(--teal-light); }
+.toggle { width: 18px; height: 18px; cursor: pointer; border: none; background: none; color: var(--teal); font-size: 11px; flex-shrink: 0; display: flex; align-items: center; justify-content: center; padding: 0; }
+.pipe-name-col { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+.pname { font-weight: 500; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pclass { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.io-btns { display: flex; gap: 4px; flex-shrink: 0; }
+.fwd-badge { font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; flex-shrink: 0; }
+.fwd-ok    { background: #dcfce7; color: #15803d; border: 1px solid #86efac; }
+.fwd-err   { background: #fdecea; color: #b91c1c; border: 1px solid #fca5a5; }
+.fwd-other { background: #f3f4f6; color: #374151; border: 1px solid #d1d5db; }
+.io-btn {
+  font-size: 10px; font-weight: 600; padding: 1px 6px; border-radius: 3px; cursor: pointer; border: 1px solid;
+  transition: background .1s;
+}
+.io-btn.in-btn  { border-color: #93c5fd; color: #93afd4; background: #eff6ff; }
+.io-btn.out-btn { border-color: #86efac; color: #6dab88; background: #f0fdf4; }
+.io-btn.active.in-btn  { background: #bfdbfe; border-color: #2563eb; color: #1d4ed8; font-weight: 700; box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.io-btn.active.out-btn { background: #bbf7d0; border-color: #16a34a; color: #15803d; font-weight: 700; box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.io-btn.cfg-btn { border-color: #d8b4fe; color: #9333ea; background: #faf5ff; font-family: var(--mono); }
+.io-btn.active.cfg-btn { background: #e9d5ff; border-color: #7c3aed; color: #6d28d9; font-weight: 700; box-shadow: inset 0 1px 3px rgba(0,0,0,.12); }
+.payload-label.cfg-label { color: #c084fc; }
+.io-btn:disabled { opacity: .35; cursor: default; }
+.io-btn:not(:disabled):hover { filter: brightness(.93); }
+.sk-tag.active { filter: brightness(0.78); font-weight: 700; outline: 1.5px solid currentColor; outline-offset: 1px; }
+
+/* payload panel */
+.payload-panel { border: 1px solid var(--border); border-top: none; border-radius: 0 0 5px 5px; background: #1e1e2e; overflow: hidden; }
+.payload-label { font-size: 10px; font-weight: 600; padding: 4px 10px; color: #888; letter-spacing: .5px; text-transform: uppercase; border-bottom: 1px solid #333; }
+.payload-label.in-label  { color: #60a5fa; }
+.payload-label.out-label { color: #4ade80; }
+pre.payload-pre {
+  font-family: var(--mono); font-size: 11px; line-height: 1.5; padding: 10px;
+  overflow-x: auto; color: #cdd6f4; max-height: 320px; overflow-y: auto; white-space: pre;
+}
+.truncated { font-size: 10px; color: #888; padding: 4px 10px 6px; border-top: 1px solid #333; }
+.payload-none { font-size: 11px; color: #666; padding: 10px; font-style: italic; }
+
+/* loading/error in right pane */
+.loading { padding: 20px; color: var(--muted); text-align: center; }
+.err-msg { padding: 12px 16px; background: var(--red-bg); color: var(--red); border-radius: 5px; margin: 12px; font-size: 12px; }
+
+/* ── compact meta line on pipe rows ── */
+.pipe-meta {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px;
+  padding: 2px 8px 5px 30px;
+}
+.sk-group { display: flex; align-items: center; gap: 3px; flex-wrap: wrap; }
+.sk-label { font-size: 10px; font-weight: 700; color: var(--muted); white-space: nowrap; flex-shrink: 0; }
+.sk-tag { font-family: var(--mono); font-size: 10px; padding: 1px 5px; border-radius: 3px; white-space: nowrap; }
+.sk-param { background: #fff7ed; color: #b45309; border: 1px solid #fcd34d; }
+.sk-read  { background: #eff6ff; color: #1d4ed8; border: 1px solid #93c5fd; }
+.sk-write { background: #f0fdf4; color: #15803d; border: 1px solid #86efac; }
+.preserve-badge {
+  font-size: 10px; font-weight: 700; flex-shrink: 0;
+  color: #d97706; background: #fef3c7; border: 1px solid #fcd34d;
+  padding: 1px 5px; border-radius: 3px;
+}
+
+/* ── pipeline-level session context ── */
+.session-ctx {
+  display: flex; flex-wrap: wrap; gap: 3px;
+  padding: 2px 8px 6px; border-bottom: 1px solid var(--border); margin-bottom: 2px;
+}
+.root-ctx {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  padding: 4px 8px 6px; margin-bottom: 4px;
+  background: #f0f7ff; border: 1px solid #dbeafe; border-radius: 4px;
+  font-size: 10px;
+}
+
+/* params / session-writes tables inside payload panel */
+.kv-section-label {
+  font-size: 10px; font-weight: 600; padding: 4px 10px 3px;
+  letter-spacing: .5px; text-transform: uppercase; border-bottom: 1px solid #333;
+}
+.kv-section-label.param-label   { color: #fab387; border-top: 1px solid #333; }
+.kv-section-label.session-label { color: #cba6f7; border-top: 1px solid #333; }
+.kv-table { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 11px; }
+.kv-table td { padding: 3px 10px; vertical-align: top; color: #cdd6f4; }
+.kv-table td:first-child { color: #f9e2af; white-space: nowrap; width: 1%; padding-right: 16px; }
+.kv-table tr + tr td { border-top: 1px solid #2a2a3e; }
+.preserve-notice { font-size: 10px; padding: 5px 10px; color: #fbbf24; border-bottom: 1px solid #333; }
+.sk-tag.clickable { cursor: pointer; }
+.sk-tag.clickable:hover { filter: brightness(0.88); }
+.copy-btn {
+  font-size: 10px; padding: 1px 7px; border-radius: 3px;
+  border: 1px solid #555; background: #2a2a3e; color: #a0a8c0;
+  cursor: pointer; flex-shrink: 0;
+}
+.copy-btn:hover { background: #3a3a5e; color: #cdd6f4; }
+.payload-label-row { display: flex; justify-content: space-between; align-items: center; }
+
+/* pipe-level forwards routing */
+.pipe-forwards { display: flex; flex-wrap: wrap; gap: 4px; padding: 2px 8px 5px 30px; }
+.fwd-route {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: 10px; padding: 1px 7px; border-radius: 3px;
+  border: 1px solid; white-space: nowrap; font-family: var(--mono);
+}
+.fwd-route.taken      { border-color: #6ee7b7; background: #ecfdf5; color: #065f46; font-weight: 600; }
+.fwd-route.skip       { border-color: #e5e7eb; background: #f9fafb; color: #9ca3af; }
+.fwd-route.taken-err  { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; font-weight: 600; }
+.fwd-route.skip-err   { border-color: #fca5a5; background: #fff5f5; color: #ef4444; }
+.fwd-rt-exit { font-style: italic; }
+/* pipeline exit state summary bar */
+.exits-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px 7px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+.exits-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); flex-shrink: 0; margin-right: 2px; }
+.exit-chip { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 4px; border: 1px solid; cursor: pointer; }
+.exit-chip.taken-ok   { background: #dcfce7; color: #15803d; border-color: #86efac; }
+.exit-chip.taken-err  { background: #fdecea; color: #b91c1c; border-color: #fca5a5; }
+.exit-chip.skip-ok    { background: transparent; color: #16a34a; border-color: #86efac; }
+.exit-chip.skip-err   { background: transparent; color: #b91c1c; border-color: #fca5a5; }
+.exit-chip:hover { filter: brightness(0.88); }
+
+/* Sender pipe rows — outbound side-effects, visually distinct from transform pipes */
+.pipe-row.sender-row .pipe-row-hdr {
+  border-left: 3px solid #818cf8;
+  padding-left: 5px;
+  background: #f5f3ff;
+}
+.pipe-row.sender-row .pipe-row-hdr:hover { background: #ede9fe; border-color: #6366f1; }
+.pipe-row.sender-row.open .pipe-row-hdr  { background: #ede9fe; border-color: #4f46e5; }
+.sender-icon { font-size: 10px; color: #6366f1; font-weight: 700; flex-shrink: 0; }
+
+.fwd-route:not(.no-click) { cursor: pointer; }
+.fwd-route:not(.no-click):hover { filter: brightness(0.88); }
+@keyframes fwd-flash {
+  0%, 100% { background: inherit; border-color: inherit; }
+  25%, 65% { background: #fef9c3; border-color: #fbbf24; box-shadow: 0 0 0 2px #fde68a; }
+}
+.fwd-highlight { animation: fwd-flash 1.4s ease; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <h1>◈ Message Flow</h1>
+  <div id="live-badge"><span class="dot" id="dot"></span><span id="live-txt">Live</span></div>
+  <span id="countdown"></span>
+  <select id="flow-filter"><option value="">All flows</option></select>
+  <input id="patient-filter" placeholder="Patient ID…" style="width:120px">
+  <span class="spacer"></span>
+  <span id="report-count"></span>
+</div>
+
+<div id="main">
+  <div id="left">
+    <div id="table-wrap">
+      <table>
+        <thead><tr>
+          <th class="td-status"></th>
+          <th class="td-name">Flow / Pipeline</th>
+          <th class="td-patient">Patient</th>
+          <th class="td-time">Received At</th>
+          <th class="td-dur">ms</th>
+        </tr></thead>
+        <tbody id="report-body"></tbody>
+      </table>
+    </div>
+  </div>
+  <div id="divider"></div>
+  <div id="right">
+    <div id="empty-state">Select a report to view its pipeline flow</div>
+    <div id="detail" style="display:none">
+      <div id="report-header"></div>
+      <div id="pipeline-tree"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── constants ────────────────────────────────────────────────────────────────
+const BASE = (() => {
+  const p = window.location.pathname;
+  return p.substring(0, p.lastIndexOf('/'));
+})();
+const STORAGE_DEFAULT = 'DatabaseDebugStorage';
+const REFRESH_MS = 10_000;
+const MAX_PAYLOAD = 8_000;
+const INDENT_PX = 18;
+const SESSION_META_KEYS = new Set(['cid', 'mid', 'patientId', 'tsReceived']);
+
+// ── state ────────────────────────────────────────────────────────────────────
+let storage = STORAGE_DEFAULT;
+let reports = [];
+let selectedId = null;
+let refreshTimer = null;
+let cdTimer = null;
+let cdLeft = REFRESH_MS / 1000;
+let flowFilter = '';
+let patientFilter = '';
+
+// ── init ─────────────────────────────────────────────────────────────────────
+async function init() {
+  await discoverStorage();
+  await fetchReports();
+  startRefresh();
+
+  document.getElementById('flow-filter').addEventListener('change', e => {
+    flowFilter = e.target.value;
+    fetchReports();
+  });
+  const patInput = document.getElementById('patient-filter');
+  patInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { patientFilter = patInput.value.trim(); fetchReports(); }
+  });
+  patInput.addEventListener('blur', () => { patientFilter = patInput.value.trim(); fetchReports(); });
+}
+
+// ── storage discovery ────────────────────────────────────────────────────────
+async function discoverStorage() {
+  try {
+    const r = await fetch(`${BASE}/iaf/ladybug/api/testtool/views`);
+    if (!r.ok) return;
+    const views = await r.json();
+    const def = Object.values(views).find(v => v.defaultView) ?? Object.values(views)[0];
+    if (def?.storageName) storage = def.storageName;
+  } catch { /* use STORAGE_DEFAULT */ }
+}
+
+// ── report list ──────────────────────────────────────────────────────────────
+async function fetchReports() {
+  const url = new URL(`${BASE}/iaf/ladybug/api/metadata/${storage}`, window.location.origin);
+  ['storageId','endTime','duration','name','flow','patientId','correlationId','status'].forEach(
+    n => url.searchParams.append('metadataNames', n));
+  url.searchParams.set('limit', '50');
+  if (flowFilter) { url.searchParams.set('filterHeader', 'flow'); url.searchParams.set('filter', flowFilter); }
+  if (patientFilter) { url.searchParams.set('filterHeader', 'patientId'); url.searchParams.set('filter', patientFilter); }
+
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error(r.status);
+    reports = await r.json();
+    renderTable();
+    updateFlowDropdown();
+    document.getElementById('report-count').textContent = `${reports.length} reports`;
+  } catch {
+    document.getElementById('report-body').innerHTML =
+      `<tr><td colspan="5" class="loading">Could not load reports</td></tr>`;
+  }
+}
+
+function renderTable() {
+  const tbody = document.getElementById('report-body');
+  if (!reports.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">No reports</td></tr>';
+    return;
+  }
+  tbody.innerHTML = reports.map(row => {
+    const id = row.storageId;
+    const flow = row.flow || shortName(row.name || '');
+    const pat  = row.patientId || '';
+    const time = fmtTime(row.endTime);
+    const dur  = fmtDur(row.duration);
+    const sel  = id === selectedId ? ' class="selected"' : '';
+    return `<tr${sel} onclick="selectRow('${id}')">
+      <td class="td-status">${pill(row.status)}</td>
+      <td class="td-name">
+        <span class="flow-name" title="${esc(row.flow || '')}">${esc(flow)}</span>
+        ${row.flow ? `<span class="pipe-name-small">${esc(shortName(row.name||''))}</span>` : ''}
+        ${row.correlationId ? `<span class="row-cid" title="${esc(row.correlationId)}">${esc(row.correlationId)}</span>` : ''}
+      </td>
+      <td class="td-patient"><span class="patient-id">${esc(pat)}</span></td>
+      <td class="td-time">${esc(time)}</td>
+      <td class="td-dur">${esc(dur)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function updateFlowDropdown() {
+  const sel = document.getElementById('flow-filter');
+  const current = sel.value;
+  const flows = [...new Set(reports.map(r => r.flow).filter(Boolean))].sort();
+  sel.innerHTML = '<option value="">All flows</option>' +
+    flows.map(f => `<option value="${esc(f)}"${f===current?' selected':''}>${esc(f)}</option>`).join('');
+}
+
+// ── row selection ────────────────────────────────────────────────────────────
+function selectRow(id) {
+  if (id === selectedId) { deselectRow(); return; }
+  selectedId = id;
+  stopRefresh();
+  document.getElementById('dot').classList.add('paused');
+  document.getElementById('live-txt').textContent = 'Paused';
+  renderTable();
+  loadDetail(id);
+}
+
+function deselectRow() {
+  selectedId = null;
+  document.getElementById('dot').classList.remove('paused');
+  document.getElementById('live-txt').textContent = 'Live';
+  showEmpty();
+  renderTable();
+  startRefresh();
+}
+
+// ── adapter flow parsing ──────────────────────────────────────────────────────
+function parseAdapterFlow(mermaid) {
+  const lines = mermaid.split('\n');
+
+  // Parse nodes: id → { name, hasClass }
+  // hasClass=false means it's a pipeline exit node (SUCCESS/ERROR/TIMEOUT)
+  const nodes = {};
+  lines.forEach(l => {
+    const m = l.match(/\s+(d\d+e\d+)\(.*?data-html-node="b">([^<]+)<\/text>(?:<text>([^<]*)<\/text>)?/);
+    if (m) nodes[m[1]] = { name: m[2], hasClass: !!m[3] };
+  });
+
+  // Exit node = has no class name OR never appears as edge source
+  const sourceIds = new Set();
+  lines.forEach(l => { const m = l.match(/^\s*(d\d+e\d+)\s+-->/); if (m) sourceIds.add(m[1]); });
+  const isExitId = id => !nodes[id]?.hasClass || !sourceIds.has(id);
+
+  const fwdMap = {}; // pipeName → [{ forwardName, to, isExit }]
+  lines.forEach(l => {
+    const fromM  = l.match(/^\s*(d\d+e\d+)\s+-->/);
+    const toM    = l.match(/-->\s+\|.*?\|\s+(d\d+e\d+)/);
+    const labelM = l.match(/\|<text>(?:<text>)?([^<]+)/);
+    if (!fromM || !toM || !labelM) return;
+    const fromNode = nodes[fromM[1]], toNode = nodes[toM[1]];
+    if (!fromNode || !toNode) return;
+    if (!fwdMap[fromNode.name]) fwdMap[fromNode.name] = [];
+    fwdMap[fromNode.name].push({ forwardName: labelM[1].trim(), to: toNode.name, isExit: isExitId(toM[1]) });
+  });
+
+  return fwdMap;
+}
+
+function extractAdaptersFromReport(reportName, checkpoints) {
+  const seen = new Set();
+  const result = [];
+  const add = name => {
+    const m = name.match(/^([^/]+)\/(.+)$/);
+    if (!m || seen.has(name)) return;
+    seen.add(name);
+    result.push({ config: m[1], adapter: m[2] });
+  };
+  const rm = (reportName || '').match(/^Pipeline (.+)$/);
+  if (rm) add(rm[1]);
+  (checkpoints || []).filter(c => c.type === 1 && c.name.startsWith('Pipeline ')).forEach(c => add(c.name.slice(9)));
+  return result;
+}
+
+function annotateForwardsFromConfig(rows, fwdMap) {
+  for (let i = 0; i < rows.length; i++) {
+    const row = rows[i];
+    if (row.type !== 'pipe') continue;
+    const cfgFwds = fwdMap[row.name];
+    if (!cfgFwds || cfgFwds.length === 0) continue;
+
+    // Next executed pipe at same or lower nesting level
+    let nextPipe = null;
+    for (let j = i + 1; j < rows.length; j++) {
+      if (rows[j].type === 'pipe' && rows[j].level <= row.level) { nextPipe = rows[j]; break; }
+    }
+
+    // Find parent pipeline exitState (set by Ladybug exitState checkpoint)
+    let pipelineExitState = null;
+    for (let k = i - 1; k >= 0; k--) {
+      if ((rows[k].type === 'pipeline' || rows[k].type === 'context') && rows[k].exitState) {
+        pipelineExitState = rows[k].exitState;
+        break;
+      }
+    }
+
+    row.forwards = cfgFwds.map(f => {
+      let taken = false;
+      if (!f.isExit && nextPipe) {
+        taken = f.to === nextPipe.name;
+      } else if (f.isExit && (!nextPipe || nextPipe.level < row.level)) {
+        const exitFwds = cfgFwds.filter(x => x.isExit);
+        if (exitFwds.length === 1) {
+          taken = true;
+        } else {
+          // 1st: use Ladybug forwardName (recorded for SenderPipes, HTTP status codes etc.)
+          const fn = (row.forwardName || '').toLowerCase();
+          const successLike = fn === 'success' || fn === 'pass' || /^2\d\d$/.test(fn);
+          const errorLike   = fn === 'exception' || fn === 'error' || fn === 'failure' || /^[45]\d\d$/.test(fn);
+          const fn2 = f.forwardName.toLowerCase();
+          if (successLike) {
+            taken = fn2 === 'success' || fn2 === 'pass';
+          } else if (errorLike) {
+            taken = fn2 === 'exception' || fn2 === 'error' || fn2 === 'failure';
+          } else if (pipelineExitState) {
+            // 2nd: match forward's target (= XML state attr) against the pipeline's recorded exit state
+            taken = f.to.toUpperCase() === pipelineExitState.toUpperCase();
+          }
+        }
+      }
+      return { ...f, taken };
+    });
+  }
+}
+
+// ── detail load ──────────────────────────────────────────────────────────────
+async function loadDetail(id) {
+  showDetail('<div class="loading">Loading…</div>', '');
+  try {
+    const r = await fetch(`${BASE}/iaf/ladybug/api/report/${storage}/${id}`);
+    if (!r.ok) throw new Error(r.status);
+    const data = await r.json();
+    const report = data.report;
+    const adapters = extractAdaptersFromReport(report.name, report.checkpoints);
+    const fwdMap = {};
+    const exitStateMap = {}; // exit display name (= XML state attr) → state string, e.g. "SUCCESS" → "SUCCESS"
+
+    const configNames = [...new Set(adapters.map(a => a.config))];
+    await Promise.all([
+      ...adapters.map(async ({ config, adapter }) => {
+        try {
+          const fr = await fetch(`${BASE}/iaf/api/configurations/${encodeURIComponent(config)}/adapters/${encodeURIComponent(adapter)}/flow`);
+          if (fr.ok) Object.assign(fwdMap, parseAdapterFlow(await fr.text()));
+        } catch { /* non-fatal */ }
+      }),
+      ...configNames.map(async config => {
+        try {
+          const cr = await fetch(`${BASE}/iaf/api/configurations/${encodeURIComponent(config)}`);
+          if (!cr.ok) return;
+          const dom = new DOMParser().parseFromString(await cr.text(), 'text/xml');
+          dom.querySelectorAll('Exit[state]').forEach(el => {
+            const state = el.getAttribute('state');
+            if (state) exitStateMap[state] = state;
+          });
+        } catch { /* non-fatal */ }
+      }),
+    ]);
+
+    renderDetail(report, reports.find(x => x.storageId === id), fwdMap, exitStateMap);
+  } catch {
+    showDetail('<div class="err-msg">Could not load report detail.</div>', '');
+  }
+}
+
+// ── detail render ────────────────────────────────────────────────────────────
+function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
+  const { rows, sessionMeta } = processCheckpoints(report.checkpoints ?? []);
+  _exitStateMap = exitStateMap;
+  annotateForwardsFromConfig(rows, fwdMap);
+
+  // Collect exit states across all pipe forwards; last taken occurrence wins
+  // (last in execution order = outermost adapter's exit — most relevant)
+  const exitMap = {}; // name → { taken, fromRowIdx }
+  rows.forEach((row, idx) => {
+    if (row.type !== 'pipe' || !row.forwards) return;
+    row.forwards.forEach(f => {
+      if (!f.isExit) return;
+      if (!exitMap[f.to]) exitMap[f.to] = { taken: false, fromRowIdx: -1 };
+      if (f.taken) exitMap[f.to] = { taken: true, fromRowIdx: idx };
+    });
+  });
+  // Seed with all configured exits so unreached exits (e.g. SUCCESS on error path) still appear
+  Object.keys(exitStateMap).forEach(name => {
+    if (!exitMap[name]) exitMap[name] = { taken: false, fromRowIdx: -1 };
+  });
+
+  const flow = meta?.flow || shortName(report.name || '');
+  const patientId = sessionMeta.patientId || meta?.patientId || '—';
+  const cid = report.correlationId || sessionMeta.cid || '—';
+  const received = sessionMeta.tsReceived || fmtTime(meta?.endTime) || '—';
+  const dur = report.endTime && report.startTime
+    ? fmtDur(String(report.endTime - report.startTime))
+    : fmtDur(meta?.duration);
+
+  const header = `
+    <div class="rh-flow">${esc(flow)}</div>
+    <div class="rh-meta">
+      ${metaItem('Patient', patientId)}
+      ${metaItem('Correlation ID', cid)}
+      ${metaItem('Received', received)}
+      ${metaItem('Duration', dur)}
+      ${metaItem('Pipeline', shortName(report.name || ''))}
+    </div>`;
+
+  // Exit state summary bar — at top of pipeline tree
+  let exitsBar = '';
+  const exitEntries = Object.entries(exitMap);
+  if (exitEntries.length > 0) {
+    const chips = exitEntries.map(([name, { taken, fromRowIdx }]) => {
+      const isErr = exitStateMap[name] !== 'SUCCESS';
+      const cls = taken
+        ? (isErr ? 'exit-chip taken-err' : 'exit-chip taken-ok')
+        : (isErr ? 'exit-chip skip-err'  : 'exit-chip skip-ok');
+      const icon = taken ? '✓' : '–';
+      const click = taken
+        ? ` onclick="jumpToExitSource(${fromRowIdx})"`
+        : ` onclick="jumpToExitChip('${esc(name)}')"`;
+      return `<span id="exit-chip-${esc(name)}" class="${cls}"${click}>${icon} ${esc(name)}</span>`;
+    }).join('');
+    exitsBar = `<div class="exits-bar"><span class="exits-label">Exits</span>${chips}</div>`;
+  }
+
+  const tree = exitsBar + rows.map((row, i) => renderRow(row, i)).join('');
+  showDetail(header, tree);
+}
+
+function metaItem(label, val) {
+  return `<div class="meta-item">
+    <span class="meta-label">${esc(label)}</span>
+    <span class="meta-value">${esc(val)}</span>
+  </div>`;
+}
+
+function renderRow(row, idx) {
+  if (row.type === 'context') {
+    if (!row.sessionReads || !row.sessionReads.length) return '';
+    const tags = row.sessionReads.map((r, ri) =>
+      `<span id="tag-${idx}-read-${ri}" class="sk-tag sk-read clickable" onclick="showTagDetail(${idx},'read',${ri})">${esc(r.name)}</span>`).join('');
+    return `<div id="row-${idx}"><div class="root-ctx"><span class="sk-label">SessionKey in:</span>${tags}</div></div>`;
+  }
+  const indent = Math.max(0, (row.level - 1) * INDENT_PX);
+  if (row.type === 'pipeline') {
+    const skTags = (row.sessionReads || []).map((r, ri) =>
+      `<span id="tag-${idx}-read-${ri}" class="sk-tag sk-read clickable" onclick="showTagDetail(${idx},'read',${ri})">${esc(r.name)}</span>`).join('');
+    const ctxLine = skTags
+      ? `<div class="session-ctx" style="margin-left:${row.level * INDENT_PX}px"><span class="sk-label">SessionKey in:</span>${skTags}</div>`
+      : '';
+    const exitBadge = row.exitState ? `<span class="fwd-badge ${fwdClass(row.exitState)}">${esc(row.exitState)}</span>` : '';
+    return `<div id="row-${idx}"><div class="section-hdr" style="margin-left:${indent}px">
+      <span class="arrow">↳</span>${esc(row.name)} ${exitBadge}
+    </div>${ctxLine}</div>`;
+  }
+
+  const inBtn  = `<button class="io-btn in-btn"  onclick="togglePayload(${idx},'in')" >▷ IN</button>`;
+  const outBtn = `<button class="io-btn out-btn" onclick="togglePayload(${idx},'out')">▶ OUT</button>`;
+  const cfgBtn = row.configXml
+    ? `<button class="io-btn cfg-btn" onclick="togglePayload(${idx},'config')" title="Pipe config XML">&lt;/&gt;</button>`
+    : '';
+  const preserveBadge = row.preserveInput ? `<span class="preserve-badge">↩ pass</span>` : '';
+
+  // Compact inline tags: parameters, session reads, session writes
+  const pTags = (row.params       || []).map((p, pi) => `<span id="tag-${idx}-param-${pi}" class="sk-tag sk-param clickable" onclick="showTagDetail(${idx},'param',${pi})">${esc(p.name)}</span>`).join('');
+  const rTags = (row.sessionReads || []).map((r, ri) => `<span id="tag-${idx}-read-${ri}"  class="sk-tag sk-read  clickable" onclick="showTagDetail(${idx},'read',${ri})">${esc(r.name)}</span>`).join('');
+  const wTags = (row.sessionWrites|| []).map((s, si) => `<span id="tag-${idx}-write-${si}" class="sk-tag sk-write clickable" onclick="showTagDetail(${idx},'write',${si})">${esc(s.name)}</span>`).join('');
+  const paramsGroup = pTags ? `<span class="sk-group"><span class="sk-label">Param:</span>${pTags}</span>` : '';
+  const readsGroup  = rTags ? `<span class="sk-group"><span class="sk-label">SessionKey in:</span>${rTags}</span>` : '';
+  const writesGroup = wTags ? `<span class="sk-group"><span class="sk-label">SessionKey out:</span>${wTags}</span>` : '';
+  const metaLine = (paramsGroup || readsGroup || writesGroup)
+    ? `<div class="pipe-meta">${paramsGroup}${readsGroup}${writesGroup}</div>` : '';
+
+  // Badge: HTTP codes always; also show forward name when no forward chips exist (Sender rows)
+  const httpBadge = row.forwardName && (/^\d{3}$/.test(row.forwardName) || !row.forwards?.length)
+    ? `<span class="fwd-badge ${fwdClass(row.forwardName)}">→ ${esc(row.forwardName)}</span>` : '';
+
+  // Forwards section: show all configured forwards with taken/skip indicator
+  // Only shown when there are multiple branches or any exit-pointing forward
+  let forwardsLine = '';
+  if (row.forwards && row.forwards.length > 0 &&
+      (row.forwards.length > 1 || row.forwards.some(f => f.isExit))) {
+    const anyTaken = row.forwards.some(f => f.taken);
+    const items = row.forwards.map(f => {
+      let cls;
+      if (f.isExit) {
+        const isErrExit = _exitStateMap[f.to] !== 'SUCCESS';
+        cls = isErrExit
+          ? (f.taken ? 'fwd-route taken-err' : 'fwd-route skip-err')
+          : (f.taken ? 'fwd-route taken'     : 'fwd-route skip');
+      } else {
+        cls = anyTaken ? (f.taken ? 'fwd-route taken' : 'fwd-route skip') : 'fwd-route skip';
+      }
+      const icon = anyTaken ? (f.taken ? '✓' : '–') : '?';
+      const dest = f.isExit
+        ? `<span class="fwd-rt-exit">${esc(f.to)}</span>`
+        : esc(f.to);
+      const clickAttr = f.isExit
+        ? ` class="${cls}" onclick="jumpToExitChip('${esc(f.to)}')"`
+        : ` class="${cls}" onclick="jumpToForward(${idx},'${esc(f.to)}')"`;
+      return `<span${clickAttr}>${icon} ${esc(f.forwardName)} → ${dest}</span>`;
+    }).join('');
+    forwardsLine = `<div class="pipe-forwards">${items}</div>`;
+  }
+
+  const senderClass = row.isSender ? ' sender-row' : '';
+  return `<div class="pipe-row${senderClass}" id="row-${idx}" style="margin-left:${indent}px">
+    <div class="pipe-row-hdr">
+      <button class="toggle" onclick="toggleRow(${idx})">▷</button>
+      ${row.isSender ? '<span class="sender-icon">↗</span>' : ''}
+      <div class="pipe-name-col">
+        <span class="pname" title="${esc(row.name)}">${esc(row.name)}</span>
+        ${row.className ? `<span class="pclass">${esc(row.className)}</span>` : ''}
+      </div>
+      ${preserveBadge}
+      ${httpBadge}
+      <div class="io-btns">${inBtn}${outBtn}${cfgBtn}</div>
+    </div>
+    ${metaLine}
+    ${forwardsLine}
+  </div>`;
+}
+
+// ── payload toggle ───────────────────────────────────────────────────────────
+function toggleRow(idx) {
+  const el = document.getElementById(`row-${idx}`);
+  if (!el) return;
+  const isOpen = el.classList.contains('open');
+  if (isOpen) { closeRow(el); return; }
+  openRow(el, idx, 'in');
+}
+
+function togglePayload(idx, which) {
+  const el = document.getElementById(`row-${idx}`);
+  if (!el) return;
+  const panel = el.querySelector('.payload-panel');
+  const isOpen = el.classList.contains('open');
+  const currentWhich = el.dataset.which;
+  if (isOpen && currentWhich === which) { closeRow(el); return; }
+  openRow(el, idx, which);
+}
+
+function openRow(el, idx, which) {
+  const row = _rows[idx];
+  if (!row) return;
+
+  el.classList.add('open');
+  el.dataset.which = which;
+  el.querySelector('.toggle').textContent = '▼';
+
+  el.querySelectorAll('.io-btn').forEach(b => b.classList.remove('active'));
+  el.querySelectorAll('.sk-tag.active').forEach(t => t.classList.remove('active'));
+  const activeBtn = el.querySelector(`.${which}-btn`);
+  if (activeBtn) activeBtn.classList.add('active');
+
+  const old = el.querySelector('.payload-panel');
+  if (old) old.remove();
+
+  const div = document.createElement('div');
+  div.className = 'payload-panel';
+  let html = '';
+
+  if (which === 'config') {
+    const { text, truncated } = formatPayload(row.configXml || '');
+    html += `<div class="payload-label cfg-label payload-label-row"><span>Config XML</span><button class="copy-btn" onclick="copyText(_rows[${idx}]?.configXml||'')">Copy</button></div>
+      <pre class="payload-pre">${esc(text)}</pre>
+      ${truncated ? '<div class="truncated">… truncated</div>' : ''}`;
+  } else if (which === 'in') {
+    if (row.input != null) {
+      const { text, truncated } = formatPayload(row.input);
+      html += `<div class="payload-label in-label payload-label-row"><span>Input</span><button class="copy-btn" onclick="copyRowInput(${idx})">Copy</button></div>
+        <pre class="payload-pre">${esc(text)}</pre>
+        ${truncated ? '<div class="truncated">… truncated</div>' : ''}`;
+    } else {
+      html += `<div class="payload-label in-label">Input</div><div class="payload-none">No payload recorded</div>`;
+    }
+  } else {
+    if (row.preserveInput) {
+      html += `<div class="preserve-notice">↩ Input preserved — result written to session key below</div>`;
+    }
+    if (row.output != null) {
+      const { text, truncated } = formatPayload(row.output);
+      html += `<div class="payload-label out-label payload-label-row"><span>Output</span><button class="copy-btn" onclick="copyRowOutput(${idx})">Copy</button></div>
+        <pre class="payload-pre">${esc(text)}</pre>
+        ${truncated ? '<div class="truncated">… truncated</div>' : ''}`;
+    } else if (!row.preserveInput) {
+      html += `<div class="payload-label out-label">Output</div><div class="payload-none">No payload recorded</div>`;
+    }
+  }
+  div.innerHTML = html;
+  el.appendChild(div);
+}
+
+function closeRow(el) {
+  el.classList.remove('open');
+  delete el.dataset.which;
+  delete el.dataset.tagKey;
+  const tog = el.querySelector('.toggle');
+  if (tog) tog.textContent = '▷';
+  el.querySelectorAll('.io-btn').forEach(b => b.classList.remove('active'));
+  el.querySelectorAll('.sk-tag.active').forEach(t => t.classList.remove('active'));
+  const panel = el.querySelector('.payload-panel');
+  if (panel) panel.remove();
+}
+
+// Shared references for renderRow access
+let _rows = [];
+let _exitStateMap = {};
+
+// ── checkpoint processing ────────────────────────────────────────────────────
+function processCheckpoints(checkpoints) {
+  const sessionMeta = {};
+  for (const cp of checkpoints) {
+    if (cp.type === 4) {
+      const bare = cp.name.replace(/^SessionKey /, '');
+      if (SESSION_META_KEYS.has(bare)) sessionMeta[bare] = cp.message;
+    }
+  }
+
+  const pipeStack = [];  // { name, level, rowIdx }
+  const pplStack  = [];  // { name, level, rowIdx }  (rowIdx=-1 for root)
+  const rows = [];
+
+  for (const cp of checkpoints) {
+    if (cp.type === 1 && cp.name.startsWith('Sender ')) {
+      if (cp.level === 0) {
+        // Root-level Sender report (e.g. scheduled cleanupDatabase) — no Pipeline wrapper
+        pplStack.push({ name: cp.name, level: 0, rowIdx: rows.length });
+        rows.push({ type: 'context', sessionReads: [], exitState: null });
+      }
+      // Read parent SenderPipe row BEFORE pushing sender onto stack so findDirectParent works
+      const parentPipeRow = cp.level > 0 ? findDirectParent(pipeStack, cp.level, rows) : null;
+      pipeStack.push({ name: cp.name, level: cp.level, rowIdx: rows.length });
+      rows.push({
+        type: 'pipe', name: cp.name.slice(7), level: cp.level === 0 ? 1 : cp.level,
+        isSender: true,
+        className: parentPipeRow?.senderClassName ?? null,
+        configXml: parentPipeRow?.senderConfigXml ?? null,
+        input: cp.message ?? null, output: null,
+        params: [], sessionReads: [], sessionWrites: [], preserveInput: false, forwardName: null, forwards: null,
+      });
+    } else if (cp.type === 2 && cp.name.startsWith('Sender ')) {
+      const si = findLastIndex(pipeStack, e => e.name === cp.name);
+      if (si >= 0) { rows[pipeStack[si].rowIdx].output = cp.message ?? null; pipeStack.splice(si, 1); }
+    } else if (cp.type === 1 && cp.name.startsWith('Pipeline ')) {
+      const rowIdx = rows.length;
+      pplStack.push({ name: cp.name, level: cp.level, rowIdx });
+      if (cp.level > 0) {
+        rows.push({ type: 'pipeline', name: cp.name.slice(9), level: cp.level, sessionReads: [], exitState: null });
+      } else {
+        rows.push({ type: 'context', sessionReads: [] }); // root pipeline — shows available session keys
+      }
+    } else if (cp.type === 2 && cp.name.startsWith('Pipeline ')) {
+      const si = findLastIndex(pplStack, e => e.name === cp.name);
+      if (si >= 0) pplStack.splice(si, 1);
+    } else if (cp.type === 1 && cp.name.startsWith('Pipe ')) {
+      pipeStack.push({ name: cp.name, level: cp.level, rowIdx: rows.length });
+      rows.push({
+        type: 'pipe', name: cp.name.slice(5), level: cp.level,
+        input: cp.message ?? null, output: null,
+        params: [], sessionReads: [], sessionWrites: [], preserveInput: false, forwardName: null, forwards: null,
+      });
+    } else if (cp.type === 2 && cp.name.startsWith('Pipe ')) {
+      const si = findLastIndex(pipeStack, e => e.name === cp.name);
+      if (si >= 0) { rows[pipeStack[si].rowIdx].output = cp.message ?? null; pipeStack.splice(si, 1); }
+    } else if (cp.type === 6 && (cp.name.startsWith('Pipe ') || cp.name.startsWith('Sender ')) && cp.message) {
+      const m = String(cp.message).match(/className="([^"]+)"/);
+      if (m) {
+        const si = findLastIndex(pipeStack, e => e.name === cp.name);
+        if (si >= 0) {
+          const full = m[1];
+          rows[pipeStack[si].rowIdx].className = full.slice(full.lastIndexOf('.') + 1);
+          rows[pipeStack[si].rowIdx].configXml = cp.message;
+          // If this is a SenderPipe, stash inner sender className + XML snippet for the nested Sender row
+          const sm = String(cp.message).match(/<sender[^>]+className="([^"]+)"/);
+          if (sm) {
+            rows[pipeStack[si].rowIdx].senderClassName = sm[1].slice(sm[1].lastIndexOf('.') + 1);
+            const senderEl = String(cp.message).match(/<sender[\s\S]*?\/>/);
+            if (senderEl) rows[pipeStack[si].rowIdx].senderConfigXml = senderEl[0];
+          }
+        }
+      }
+    } else if (cp.type === 4 && cp.name.startsWith('Parameter ')) {
+      const par = findDirectParent(pipeStack, cp.level, rows);
+      if (par) par.params.push({ name: cp.name.slice(10), value: cp.message });
+    } else if (cp.type === 4 && cp.name.startsWith('SessionKey ')) {
+      const pipePar = findDirectParent(pipeStack, cp.level, rows);
+      if (pipePar) {
+        pipePar.sessionReads.push({ name: cp.name.slice(11), value: cp.message });
+      } else {
+        const pplEntry = findLastInStack(pplStack, cp.level);
+        if (pplEntry) rows[pplEntry.rowIdx].sessionReads.push({ name: cp.name.slice(11), value: cp.message });
+      }
+    } else if (cp.type === 5 && cp.name.startsWith('SessionKey ')) {
+      const par = findDirectParent(pipeStack, cp.level, rows);
+      if (par) par.sessionWrites.push({ name: cp.name.slice(11), value: cp.message });
+    } else if (cp.type === 5 && cp.name === 'PreserveInput') {
+      const par = findDirectParent(pipeStack, cp.level, rows);
+      if (par) par.preserveInput = true;
+    } else if (cp.type === 5 && cp.name === 'forwardName') {
+      if (pipeStack.length > 0) rows[pipeStack[pipeStack.length - 1].rowIdx].forwardName = cp.message;
+    } else if (cp.type === 5 && cp.name === 'exitState') {
+      const pplEntry = findLastInStack(pplStack, cp.level);
+      if (pplEntry) rows[pplEntry.rowIdx].exitState = cp.message;
+    } else if (cp.type === 5 && cp.name !== 'errorMessage') {
+      // Sender-style forward: checkpoint name IS the forward taken (e.g. "success", "exception")
+      // Pipelines use name="exitState" message="SUCCESS"; Senders encode the forward in the name itself
+      const par = findDirectParent(pipeStack, cp.level, rows);
+      if (par && par.forwardName === null) par.forwardName = cp.name;
+    }
+  }
+
+  _rows = rows;
+  return { rows, sessionMeta };
+}
+
+function findDirectParent(stack, childLevel, rows) {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i].level === childLevel - 1) return rows[stack[i].rowIdx];
+  }
+  return null;
+}
+
+function findLastInStack(stack, childLevel) {
+  for (let i = stack.length - 1; i >= 0; i--) {
+    if (stack[i].level === childLevel - 1) return stack[i];
+  }
+  return null;
+}
+
+function findLastIndex(arr, pred) {
+  for (let i = arr.length - 1; i >= 0; i--) if (pred(arr[i])) return i;
+  return -1;
+}
+
+// ── payload formatting ───────────────────────────────────────────────────────
+function formatPayload(raw) {
+  if (!raw) return { text: '', truncated: false };
+  const t = raw.trim();
+  let text;
+  if (t.startsWith('<')) {
+    text = prettyXml(t);
+  } else if (t.startsWith('{') || t.startsWith('[')) {
+    try { text = JSON.stringify(JSON.parse(t), null, 2); } catch { text = t; }
+  } else {
+    // HL7v2 or plain text — ensure one segment per line
+    text = t.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  }
+  const truncated = text.length > MAX_PAYLOAD;
+  return { text: truncated ? text.slice(0, MAX_PAYLOAD) : text, truncated };
+}
+
+function prettyXml(xml) {
+  try {
+    // Strip existing inter-tag whitespace
+    const s = xml.replace(/>\s+</g, '><').replace(/^\s*<\?xml[^?]*\?>\s*/, '');
+    let out = '', depth = 0, i = 0;
+    while (i < s.length) {
+      if (s[i] !== '<') {
+        // text node
+        const end = s.indexOf('<', i);
+        const text = s.slice(i, end < 0 ? s.length : end).trim();
+        if (text) out += text;
+        i = end < 0 ? s.length : end;
+        continue;
+      }
+      const close = s.indexOf('>', i);
+      if (close < 0) { out += s.slice(i); break; }
+      const tag = s.slice(i, close + 1);
+      i = close + 1;
+      const isClose = tag.startsWith('</');
+      const isSelf  = tag.endsWith('/>');
+      const isDecl  = tag.startsWith('<?') || tag.startsWith('<!');
+      if (isClose) depth = Math.max(0, depth - 1);
+      if (out) out += '\n';
+      out += '  '.repeat(depth) + tag;
+      if (!isClose && !isSelf && !isDecl) depth++;
+    }
+    return out.trim() || xml;
+  } catch { return xml; }
+}
+
+// ── refresh ──────────────────────────────────────────────────────────────────
+function startRefresh() {
+  stopRefresh();
+  cdLeft = REFRESH_MS / 1000;
+  updateCountdown();
+  cdTimer = setInterval(() => {
+    cdLeft--;
+    updateCountdown();
+    if (cdLeft <= 0) {
+      cdLeft = REFRESH_MS / 1000;
+      fetchReports();
+    }
+  }, 1000);
+}
+
+function stopRefresh() {
+  clearInterval(cdTimer); clearInterval(refreshTimer);
+  document.getElementById('countdown').textContent = '';
+}
+
+function updateCountdown() {
+  document.getElementById('countdown').textContent = `${cdLeft}s`;
+}
+
+// ── helpers ──────────────────────────────────────────────────────────────────
+function showEmpty() {
+  document.getElementById('empty-state').style.display = '';
+  document.getElementById('detail').style.display = 'none';
+}
+
+function showDetail(headerHtml, treeHtml) {
+  document.getElementById('empty-state').style.display = 'none';
+  document.getElementById('detail').style.display = 'flex';
+  document.getElementById('report-header').innerHTML = headerHtml;
+  document.getElementById('pipeline-tree').innerHTML = treeHtml;
+}
+
+function pill(status) {
+  if (!status) return '<span class="pill pill-run">● –</span>';
+  if (status.toLowerCase() === 'success') return '<span class="pill pill-ok">✓</span>';
+  return '<span class="pill pill-err">✗</span>';
+}
+
+function shortName(name) {
+  // "Pipeline hl7v2-to-fhir/HL7v2-over-MLLP" → "HL7v2-over-MLLP"
+  // "Sender cleanupDatabase-IBISLOCK" → "cleanupDatabase-IBISLOCK"
+  const slash = name.lastIndexOf('/');
+  if (slash >= 0) return name.slice(slash + 1);
+  const space = name.indexOf(' ');
+  if (space >= 0) return name.slice(space + 1);
+  return name;
+}
+
+function fmtTime(ts) {
+  if (!ts) return '';
+  // ts can be "2026-05-09 01:50:24.260" or epoch ms as number
+  if (typeof ts === 'number' || /^\d{10,}$/.test(ts)) {
+    const d = new Date(Number(ts));
+    return d.toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  // "2026-05-09 01:50:24.260" → extract time part
+  const m = ts.match(/(\d{2}:\d{2}:\d{2})/);
+  return m ? m[1] : ts;
+}
+
+function fmtDur(ms) {
+  if (!ms) return '';
+  const n = Number(ms);
+  if (isNaN(n)) return ms;
+  if (n >= 1000) return (n / 1000).toFixed(1) + ' s';
+  return n + ' ms';
+}
+
+function esc(s) {
+  return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// ── tag detail / copy ────────────────────────────────────────────────────────
+function showTagDetail(rowIdx, kind, itemIdx) {
+  const row = _rows[rowIdx];
+  if (!row) return;
+  const el = document.getElementById(`row-${rowIdx}`);
+  if (!el) return;
+
+  const tagKey = `${kind}-${itemIdx}`;
+  if (el.classList.contains('open') && el.dataset.which === 'tag' && el.dataset.tagKey === tagKey) {
+    closeRow(el); return;
+  }
+
+  let item, kindLabel, colorStyle;
+  if (kind === 'param')      { item = row.params[itemIdx];        kindLabel = 'Parameter';             colorStyle = 'color:#fab387'; }
+  else if (kind === 'read')  { item = row.sessionReads[itemIdx];  kindLabel = 'Session Key (read)';    colorStyle = 'color:#60a5fa'; }
+  else                       { item = row.sessionWrites[itemIdx]; kindLabel = 'Session Key (written)'; colorStyle = 'color:#cba6f7'; }
+  if (!item) return;
+
+  el.classList.add('open');
+  el.dataset.which = 'tag';
+  el.dataset.tagKey = tagKey;
+  const tog = el.querySelector('.toggle');
+  if (tog) tog.textContent = '▼';
+  el.querySelectorAll('.io-btn').forEach(b => b.classList.remove('active'));
+  el.querySelectorAll('.sk-tag.active').forEach(t => t.classList.remove('active'));
+  document.getElementById(`tag-${rowIdx}-${kind}-${itemIdx}`)?.classList.add('active');
+
+  const old = el.querySelector('.payload-panel');
+  if (old) old.remove();
+
+  const { text, truncated } = formatPayload(item.value);
+  const div = document.createElement('div');
+  div.className = 'payload-panel';
+  if (row.type === 'pipeline' || row.type === 'context') {
+    div.style.marginLeft = (row.level * INDENT_PX) + 'px';
+  }
+  div.innerHTML =
+    `<div class="kv-section-label payload-label-row" style="${colorStyle};border-top:none">` +
+      `<span>${esc(kindLabel)}: <strong>${esc(item.name)}</strong></span>` +
+      `<button class="copy-btn" onclick="copyTagValue(${rowIdx},'${kind}',${itemIdx})">Copy</button>` +
+    `</div>` +
+    `<pre class="payload-pre">${esc(text)}</pre>` +
+    (truncated ? '<div class="truncated">… truncated</div>' : '');
+  el.appendChild(div);
+}
+
+function copyTagValue(rowIdx, kind, itemIdx) {
+  const row = _rows[rowIdx]; if (!row) return;
+  let item;
+  if (kind === 'param') item = row.params[itemIdx];
+  else if (kind === 'read') item = row.sessionReads[itemIdx];
+  else item = row.sessionWrites[itemIdx];
+  if (item) copyText(item.value ?? '');
+}
+
+function copyRowInput(idx)  { copyText(_rows[idx]?.input  ?? ''); }
+function copyRowOutput(idx) { copyText(_rows[idx]?.output ?? ''); }
+
+function jumpToExitChip(name) {
+  const chip = document.getElementById(`exit-chip-${name}`);
+  if (!chip) return;
+  chip.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  chip.classList.remove('fwd-highlight');
+  void chip.offsetWidth;
+  chip.classList.add('fwd-highlight');
+  setTimeout(() => chip.classList.remove('fwd-highlight'), 1400);
+}
+
+function jumpToExitSource(rowIdx) {
+  const el = document.getElementById(`row-${rowIdx}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const hdr = el.querySelector('.pipe-row-hdr') || el;
+  hdr.classList.remove('fwd-highlight');
+  void hdr.offsetWidth;
+  hdr.classList.add('fwd-highlight');
+  setTimeout(() => hdr.classList.remove('fwd-highlight'), 1400);
+}
+
+function jumpToForward(fromIdx, targetName) {
+  let targetIdx = -1;
+  for (let i = fromIdx + 1; i < _rows.length; i++) {
+    if (_rows[i].type === 'pipe' && _rows[i].name === targetName) { targetIdx = i; break; }
+  }
+  if (targetIdx === -1) {
+    for (let i = fromIdx - 1; i >= 0; i--) {
+      if (_rows[i].type === 'pipe' && _rows[i].name === targetName) { targetIdx = i; break; }
+    }
+  }
+  if (targetIdx === -1) return;
+  const el = document.getElementById(`row-${targetIdx}`);
+  if (!el) return;
+  el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  const hdr = el.querySelector('.pipe-row-hdr') || el;
+  hdr.classList.remove('fwd-highlight');
+  void hdr.offsetWidth; // force reflow to restart animation
+  hdr.classList.add('fwd-highlight');
+  setTimeout(() => hdr.classList.remove('fwd-highlight'), 1400);
+}
+
+function fwdClass(name) {
+  if (!name) return 'fwd-other';
+  const n = name.toLowerCase();
+  if (n === 'success' || /^2\d\d$/.test(name)) return 'fwd-ok';
+  if (n === 'exception' || n === 'error' || /^[45]\d\d$/.test(name)) return 'fwd-err';
+  return 'fwd-other';
+}
+
+function copyText(text) {
+  navigator.clipboard.writeText(text).catch(() => {
+    const ta = document.createElement('textarea');
+    ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  });
+}
+
+// ── draggable divider ────────────────────────────────────────────────────────
+(function() {
+  const divider = document.getElementById('divider');
+  const left = document.getElementById('left');
+  let dragging = false, startX = 0, startW = 0;
+  divider.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; startW = left.offsetWidth;
+    divider.classList.add('dragging');
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove', e => {
+    if (!dragging) return;
+    const w = Math.max(180, Math.min(700, startW + e.clientX - startX));
+    left.style.width = w + 'px';
+  });
+  document.addEventListener('mouseup', () => {
+    if (!dragging) return;
+    dragging = false;
+    divider.classList.remove('dragging');
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+    localStorage.setItem('fv-left-width', left.offsetWidth);
+  });
+  const saved = localStorage.getItem('fv-left-width');
+  if (saved) left.style.width = saved + 'px';
+})();
+
+// ── boot ─────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

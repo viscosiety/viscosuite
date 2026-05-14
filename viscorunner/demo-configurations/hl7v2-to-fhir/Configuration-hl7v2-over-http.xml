@@ -14,8 +14,8 @@
         </Receiver>
         <Pipeline>
             <Exits>
-                <Exit name="Exit" state="SUCCESS"/>
-                <Exit name="Error" state="ERROR"/>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+                <Exit name="Error" state="ERROR" code="500"/>
             </Exits>
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 ingest HTTP"/>
             <SenderPipe getInputFromSessionKey="originalMessage" name="requestProxyPipe">

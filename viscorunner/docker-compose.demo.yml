@@ -43,10 +43,12 @@ services:
       RABBITMQ_USERNAME: viscosuite
       RABBITMQ_PASSWORD: viscosuite
 
-      amqp.events.active: "true"  
-      customViews.names: viscoStore,labmapper
-      customViews.labmapper.name: "Lab Code Mapper"
-      customViews.labmapper.url: /loinc-mapping.html
+      amqp.events.active: "true"
+
+      viscolink.views.names: message-flow,lab-code-mapper
+      viscolink.views.lab-code-mapper.name: Lab Code Mapper
+      viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
+      viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC
 
       SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/app/overlay-config/"
 
@@ -68,8 +70,8 @@ services:
       - ./demo-configurations:/opt/frank/configurations
       # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
       - ./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro
-      # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/loinc-mapping.html
-      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/usr/local/tomcat/webapps/ROOT/loinc-mapping.html:ro
+      # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/viscolink/loinc-mapping.html
+      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/usr/local/tomcat/webapps/viscolink/loinc-mapping.html:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
       - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
       - hsearch-data:/data

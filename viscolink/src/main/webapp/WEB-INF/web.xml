@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<web-app xmlns="https://jakarta.ee/xml/ns/jakartaee"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="https://jakarta.ee/xml/ns/jakartaee https://jakarta.ee/xml/ns/jakartaee/web-app_6_0.xsd"
+         version="6.0"
+         metadata-complete="false">
+
+  <!-- Override Tomcat's default welcome file (index.html) which F!F intercepts via RedirectIndexProxy -->
+  <welcome-file-list>
+    <welcome-file>home.html</welcome-file>
+  </welcome-file-list>
+
+  <filter>
+    <filter-name>BasicAuthFilter</filter-name>
+    <filter-class>com.viscosiety.tools.BasicAuthFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>BasicAuthFilter</filter-name>
+    <url-pattern>/*</url-pattern>
+  </filter-mapping>
+
+  <servlet>
+    <servlet-name>ToolsServlet</servlet-name>
+    <servlet-class>com.viscosiety.tools.ToolsServlet</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>ToolsServlet</servlet-name>
+    <url-pattern>/tools/*</url-pattern>
+  </servlet-mapping>
+
+</web-app>
