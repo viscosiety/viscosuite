@@ -47,7 +47,7 @@ if [ ! -f "${LADYBUG_MARKER}" ]; then
   LADYBUG_TMP="$(mktemp -d)"
   git clone --branch feature/metadata-offset-pagination --depth 1 \
     https://github.com/tommy2d/ladybug.git "${LADYBUG_TMP}"
-  mvn -f "${LADYBUG_TMP}/pom.xml" install -DskipTests -B \
+  mvn -f "${LADYBUG_TMP}/pom.xml" install -DskipTests -B -Dmaven.skip.copyright=true \
     -Drevision="${LADYBUG_VERSION}" --no-transfer-progress
   rm -rf "${LADYBUG_TMP}"
   echo "[mvnw] Ladybug fork installed."
