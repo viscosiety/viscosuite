@@ -48,6 +48,10 @@ default:
 test:
   stage: test
   image: maven:3.9-eclipse-temurin-21
+  before_script:
+    - apt-get update
+    - apt-get install -y nodejs npm
+    - npm install -g pnpm
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
@@ -67,6 +71,10 @@ test:
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
+  before_script:
+    - apt-get update
+    - apt-get install -y nodejs npm
+    - npm install -g pnpm
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
@@ -91,6 +99,10 @@ package:
 integration-test:
   stage: integration-test
   image: maven:3.9-eclipse-temurin-21
+  before_script:
+    - apt-get update
+    - apt-get install -y nodejs npm
+    - npm install -g pnpm
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
