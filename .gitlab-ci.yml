@@ -50,8 +50,11 @@ test:
   image: maven:3.9-eclipse-temurin-21
   before_script:
     - apt-get update
-    - apt-get install -y nodejs npm
-    - npm install -g pnpm@9.14.2
+    - apt-get install -y curl ca-certificates
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y nodejs
+    - corepack enable
+    - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
@@ -73,8 +76,11 @@ package:
   image: maven:3.9-eclipse-temurin-21
   before_script:
     - apt-get update
-    - apt-get install -y nodejs npm
-    - npm install -g pnpm@9.14.2
+    - apt-get install -y curl ca-certificates
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y nodejs
+    - corepack enable
+    - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
@@ -101,8 +107,11 @@ integration-test:
   image: maven:3.9-eclipse-temurin-21
   before_script:
     - apt-get update
-    - apt-get install -y nodejs npm
-    - npm install -g pnpm@9.14.2
+    - apt-get install -y curl ca-certificates
+    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+    - apt-get install -y nodejs
+    - corepack enable
+    - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
