@@ -46,6 +46,9 @@ services:
       amqp.events.active: "true"
       
       viscolink.views.names: message-flow,lab-code-mapper
+      viscolink.views.message-flow.name: Message Flow
+      viscolink.views.message-flow.url: /viscolink/flow-viewer.html
+      viscolink.views.message-flow.description: Trace and inspect integration message flows
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
       viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC

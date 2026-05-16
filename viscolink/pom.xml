@@ -21,7 +21,11 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.1.0</frankframework.version>
+		<frankframework.version>10.2.0-20260516.042329</frankframework.version>
+		<!-- Pin to our fork (tommy2d/feature/metadata-offset-pagination) until wearefrank/ladybug#814 is merged.
+		     Without this override Maven resolves the newer official build which lacks offset support,
+		     breaking the flow-viewer's infinite-scroll termination. -->
+		<ladybug.version>4.0-20260402.185201</ladybug.version>
 		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
@@ -74,6 +78,28 @@
 				<artifactId>junit-platform-launcher</artifactId>
 				<version>1.14.1</version>
 				<scope>test</scope>
+			</dependency>
+			<!-- Force the ladybug fork (offset-pagination) over the newer official build.
+			     Remove once wearefrank/ladybug#814 is merged and released. -->
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-common</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-backend-springmvc</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend-servlet</artifactId>
+				<version>${ladybug.version}</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
