@@ -26,6 +26,11 @@ services:
       customViews.viscoLink.url: /viscolink/
       customViews.viscoLink.target: _self
       
+      viscolink.views.names: message-flow
+      viscolink.views.message-flow.name: Message Flow
+      viscolink.views.message-flow.url: /viscolink/flow-viewer.html
+      viscolink.views.message-flow.description: Trace and inspect integration message flows
+
       # Frank!Framework (viscolink) JNDI datasource
       VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
       VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink
