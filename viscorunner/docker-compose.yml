@@ -19,6 +19,13 @@ services:
       # mounted filesystem rather than scanning the WAR classpath.
       classloader.type: DirectoryClassLoader
 
+      customViews.names: viscoStore,viscoLink
+      customViews.viscoStore.name: ViscoStore
+      customViews.viscoStore.url: /viscostore/tester/
+      customViews.viscoLink.name: ViscoLink
+      customViews.viscoLink.url: /viscolink/
+      customViews.viscoLink.target: _self
+      
       # Frank!Framework (viscolink) JNDI datasource
       VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
       VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink

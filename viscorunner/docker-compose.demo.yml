@@ -44,7 +44,7 @@ services:
       RABBITMQ_PASSWORD: viscosuite
 
       amqp.events.active: "true"
-
+      
       viscolink.views.names: message-flow,lab-code-mapper
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html

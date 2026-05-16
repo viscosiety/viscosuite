@@ -282,6 +282,9 @@
 						<phase>generate-resources</phase>
 						<goals><goal>unpack</goal></goals>
 						<configuration>
+							<!-- overWrite=true forces re-extraction from the current SNAPSHOT JAR on every
+							     build so the patched index.html always matches the bundled JS asset hash. -->
+							<overWrite>true</overWrite>
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.frankframework</groupId>
@@ -309,7 +312,8 @@
 							<target>
 								<mkdir dir="${project.build.directory}/console-patched/console"/>
 								<copy file="${project.build.directory}/console-original/console/index.html"
-								      tofile="${project.build.directory}/console-patched/console/index.html"/>
+								      tofile="${project.build.directory}/console-patched/console/index.html"
+								      overwrite="true"/>
 								<replace file="${project.build.directory}/console-patched/console/index.html">
 									<replacetoken><![CDATA[</body>]]></replacetoken>
 									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
