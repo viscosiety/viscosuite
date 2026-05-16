@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Context>
+  <!--
+    Extra web resources injected without pre-creating webapps/viscolink/.
+    Files placed in /opt/frank/webapp-overlay/viscolink/ are served as
+    if they were part of the viscolink webapp (same URL space).
+
+    The demo overlay mounts loinc-mapping.html here instead of directly
+    into webapps/viscolink/, which would cause Docker to pre-create that
+    directory and cause Tomcat to skip WAR extraction (6 ms silent deploy).
+  -->
+  <Resources>
+    <PostResources className="org.apache.catalina.webresources.DirResourceSet"
+                   base="/opt/frank/webapp-overlay/viscolink"
+                   webAppMount="/"
+                   internalPath="/"/>
+  </Resources>
+</Context>

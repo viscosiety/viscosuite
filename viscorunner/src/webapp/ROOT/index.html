@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ViscoSuite</title>
+  <style>
+    /*
+     * Palette mirrors viscostore/tester.css:
+     *   Page bg:    #063B3E  (tester navbar / header)
+     *   Card bg:    #0a4f54
+     *   Border:     #0d676e
+     *   Brand:      #0F8A96
+     *   Hover:      #0B707A
+     *   Text light: #F3F5F6
+     *   Muted:      #8eb8bc
+     *   Footer:     #5a9098
+     */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #063B3E;
+      color: #F3F5F6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 48px;
+      padding: 32px;
+    }
+
+    header {
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      color: #F3F5F6;
+    }
+
+    header p {
+      margin-top: 6px;
+      font-size: 0.95rem;
+      color: #8eb8bc;
+    }
+
+    .cards {
+      display: flex;
+      gap: 24px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    a.card {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      width: 280px;
+      padding: 28px 28px 24px;
+      background: #0a4f54;
+      border: 1px solid #0d676e;
+      border-radius: 12px;
+      text-decoration: none;
+      color: inherit;
+      transition: border-color 0.15s, background 0.15s, transform 0.12s, opacity 0.2s;
+    }
+
+    a.card:hover {
+      background: #0d676e;
+      border-color: #0F8A96;
+      transform: translateY(-2px);
+    }
+
+    /* Hidden until probe confirms the app is reachable */
+    a.card[hidden] { display: none; }
+
+    .card-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #0F8A96;
+    }
+
+    .card h2 {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: #F3F5F6;
+    }
+
+    .card p {
+      font-size: 0.875rem;
+      line-height: 1.55;
+      color: #8eb8bc;
+    }
+
+    .card-arrow {
+      margin-top: 6px;
+      font-size: 0.85rem;
+      color: #0F8A96;
+    }
+
+    footer {
+      font-size: 0.75rem;
+      color: #5a9098;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>ViscoSuite</h1>
+    <p>Healthcare integration platform</p>
+  </header>
+
+  <div class="cards" id="cards">
+
+    <a class="card" id="card-viscolink" href="/viscolink/" hidden>
+      <span class="card-label">Integration layer</span>
+      <h2>ViscoLink</h2>
+      <p>
+        Ingests HL7v2, FHIR, and custom source data.
+        Converts, validates, and routes messages to the CDR.
+      </p>
+      <span class="card-arrow">Open console →</span>
+    </a>
+
+    <a class="card" id="card-viscostore" href="/viscostore/tester/" hidden>
+      <span class="card-label">Clinical data repository</span>
+      <h2>ViscoStore</h2>
+      <p>
+        Persistent FHIR R4 datastore built on HAPI FHIR JPA.
+        Single source of truth for all inbound and codified resources.
+      </p>
+      <span class="card-arrow">Open tester →</span>
+    </a>
+
+  </div>
+
+  <footer>ViscoSuite &mdash; Viscosiety B.V.</footer>
+
+  <script>
+    // Probe each app's health endpoint. Show the card only if the app responds.
+    // Fail-open: if both probes fail (e.g. startup race), show both cards so
+    // the page is never empty.
+    (async () => {
+      const probes = [
+        {
+          id:  'card-viscolink',
+          url: '/viscolink/iaf/api/server/health',
+        },
+        {
+          id:  'card-viscostore',
+          url: '/viscostore/fhir/metadata',
+        },
+      ];
+
+      const results = await Promise.all(probes.map(async p => {
+        try {
+          const r = await fetch(p.url, {
+            method: 'HEAD',
+            signal: AbortSignal.timeout(3000),
+          });
+          return { id: p.id, ok: r.ok };
+        } catch {
+          return { id: p.id, ok: false };
+        }
+      }));
+
+      const anyOk = results.some(r => r.ok);
+
+      for (const { id, ok } of results) {
+        // Show if reachable, or if everything failed (fail-open)
+        if (ok || !anyOk) {
+          document.getElementById(id).removeAttribute('hidden');
+        }
+      }
+    })();
+  </script>
+
+</body>
+</html>

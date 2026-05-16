@@ -71,7 +71,9 @@ services:
       # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
       - ./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro
       # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/viscolink/loinc-mapping.html
-      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/usr/local/tomcat/webapps/viscolink/loinc-mapping.html:ro
+      # Mounted via webapp-overlay (not directly into webapps/viscolink/) to avoid pre-creating that
+      # directory, which causes Tomcat to skip WAR extraction and deploy an empty context in ~6 ms.
+      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/opt/frank/webapp-overlay/viscolink/loinc-mapping.html:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
       - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
       - hsearch-data:/data

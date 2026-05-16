@@ -7,7 +7,7 @@ ARG UID=2000
 # Harden file permissions (CIS-DI-0008)
 RUN chmod -R 751 /usr/bin /usr/sbin
 
-# Create runtime directories and a non-root tomcat user
+# Create Frank!Framework runtime directories and a non-root tomcat user
 RUN set -eux && \
 	mkdir -p /opt/frank/secrets && \
 	mkdir -p /opt/frank/configurations && \
@@ -29,35 +29,23 @@ COPY --chown=tomcat src/scripts/catalinaAdditional.properties /tmp/catalinaAddit
 RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.properties && \
 	rm /tmp/catalinaAdditional.properties
 
-# JNDI datasource definitions (H2 for local dev; override in production via mounted context.xml)
-COPY --chown=tomcat conf/context.xml /usr/local/tomcat/conf/context.xml
+# JNDI datasource for ViscoLink only (no viscostore resource)
+COPY --chown=tomcat conf/context-viscolink.xml /usr/local/tomcat/conf/context.xml
 
-# Per-context config for viscolink: PostResources overlay so demo files can be injected
-# into /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/viscolink/ (which
-# would cause Tomcat to skip WAR extraction and deploy an empty context in ~6 ms).
+# Per-context PostResources overlay for demo file injection
 COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/viscolink.xml
 
-# JDBC drivers — shared between both WARs via common.loader in catalina.properties
+# JDBC drivers on common.loader
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 
-# Deploy both WARs — Tomcat derives the context path from the filename:
-#   viscolink.war  →  /viscolink
-#   viscostore.war →  /viscostore
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
-COPY --chown=tomcat target/viscolink.war  /usr/local/tomcat/webapps/viscolink.war
-COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/viscostore.war
+COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/viscolink.war
 
-# Fail fast if either WAR is a stale empty stub from .m2/ (< 1 MB).
-# copy-dependencies resolves from the local Maven repo, not the reactor; if
-# `mvn install -pl viscolink,viscostore` was not run first the 1-2 KB placeholder
-# artifact ends up here and Tomcat deploys it silently in ~17 ms with no routes.
+# Fail fast if the WAR is a stale empty stub from .m2/ (< 1 MB)
 RUN set -e; \
-    vl=$(stat -c%s /usr/local/tomcat/webapps/viscolink.war);  \
-    vs=$(stat -c%s /usr/local/tomcat/webapps/viscostore.war); \
+    vl=$(stat -c%s /usr/local/tomcat/webapps/viscolink.war); \
     [ "$vl" -gt 1000000 ] || { echo ""; echo "ERROR: viscolink.war is ${vl} bytes — stale stub. Run:"; \
-        echo "  ./mvnw install -pl viscolink,viscostore && ./mvnw package -pl viscorunner"; echo ""; exit 1; }; \
-    [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: viscostore.war is ${vs} bytes — stale stub. Run:"; \
-        echo "  ./mvnw install -pl viscolink,viscostore && ./mvnw package -pl viscorunner"; echo ""; exit 1; }
+        echo "  ./mvnw install -pl viscolink && ./mvnw package -pl viscorunner"; echo ""; exit 1; }
 
 COPY --chown=tomcat src/scripts/entrypoint.sh /scripts/entrypoint.sh
 

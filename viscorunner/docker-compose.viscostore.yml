@@ -1,0 +1,47 @@
+services:
+
+  viscostore:
+    build:
+      context: .
+      dockerfile: Dockerfile.viscostore
+    image: registry.git.viscosiety.com/public-applications/viscosuite/viscostore:latest
+    ports:
+      - "8180:8080"   # FHIR REST API, Swagger UI, Tester UI
+    environment:
+      # ViscoStore datasource — overrides application.yaml defaults
+      VISCOSTORE_JDBC_DRIVER: org.postgresql.Driver
+      VISCOSTORE_JDBC_URL: jdbc:postgresql://postgres:5432/viscostore
+      VISCOSTORE_JDBC_USERNAME: visco
+      VISCOSTORE_JDBC_PASSWORD: visco
+      VISCOSTORE_JDBC_DIALECT: ca.uhn.fhir.jpa.model.dialect.HapiFhirPostgresDialect
+
+      # HTTP Basic credentials used by clients (e.g. ViscoLink) to call ViscoStore
+      VISCOSTORE_USERNAME: viscolink
+      VISCOSTORE_PASSWORD: viscolink
+
+      # Tester UI makes server-side calls to this address; must be reachable from within
+      # the container (port 8080, not the host-mapped 8180)
+      HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: viscostore
+      POSTGRES_USER: visco
+      POSTGRES_PASSWORD: visco
+    ports:
+      - "5432:5432"
+    volumes:
+      - viscostore-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visco -d viscostore"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  viscostore-postgres-data:

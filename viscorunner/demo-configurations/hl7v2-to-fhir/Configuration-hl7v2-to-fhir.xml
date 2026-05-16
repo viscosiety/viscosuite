@@ -18,7 +18,6 @@
                 <Exit name="NotAcceptable" state="ERROR" code="406" />
                 <Exit name="UnsupportedMediaType" state="ERROR" code="415" />
                 <Exit name="TooManyRequest" state="ERROR" code="429" />
-                <Exit name="ServerError" state="ERROR" code="500" />
                 <Exit name="ServiceUnavailable" state="ERROR" code="503" />
             </Exits>
 

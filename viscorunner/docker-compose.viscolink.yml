@@ -1,0 +1,52 @@
+services:
+
+  viscolink:
+    build:
+      context: .
+      dockerfile: Dockerfile.viscolink
+    image: registry.git.viscosiety.com/public-applications/viscosuite/viscolink:latest
+    ports:
+      - "8180:8080"   # Frank!Console + ViscoLink APIs
+      - "5005:5005"   # JPDA remote debug (optional)
+      - "2575:2575"   # MLLP listener (optional)
+    environment:
+      dtap.stage: LOC
+
+      # F!F loads all subdirectories in the configurations directory automatically
+      configurations.directory.autoLoad: "true"
+      classloader.type: DirectoryClassLoader
+
+      # Frank!Framework (Ladybug) JNDI datasource — PostgreSQL
+      VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
+      VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink
+      VISCOLINK_JDBC_USERNAME: visco
+      VISCOLINK_JDBC_PASSWORD: visco
+
+      # Activate Ladybug database storage (remove to use in-memory storage instead)
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
+      - ./configurations:/opt/frank/configurations
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: viscolink
+      POSTGRES_USER: visco
+      POSTGRES_PASSWORD: visco
+    ports:
+      - "5432:5432"
+    volumes:
+      - viscolink-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visco -d viscolink"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  viscolink-postgres-data:
