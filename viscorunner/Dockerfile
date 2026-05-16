@@ -30,7 +30,7 @@ RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.pr
 	rm /tmp/catalinaAdditional.properties
 
 # JNDI datasource definitions (H2 for local dev; override in production via mounted context.xml)
-COPY --chown=tomcat conf/context.xml /usr/local/tomcat/conf/context.xml
+COPY --chown=tomcat conf/context-viscosuite.xml /usr/local/tomcat/conf/context.xml
 
 # Per-context config for viscolink: PostResources overlay so demo files can be injected
 # into /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/viscolink/ (which
