@@ -1,3 +1,10 @@
+jdbc:
+  - name: "viscolink"
+    type: "${VISCOLINK_JDBC_DRIVER}"
+    url: "${VISCOLINK_JDBC_URL}"
+    username: "${VISCOLINK_JDBC_USERNAME}"
+    password: "${VISCOLINK_JDBC_PASSWORD}"
+
 # amqp:
 #   - name: "viscosuite"
 #     url: "amqp://${RABBITMQ_HOST}:5672"
