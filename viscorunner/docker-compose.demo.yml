@@ -74,6 +74,7 @@ services:
       # Mounted via webapp-overlay (not directly into webapps/viscolink/) to avoid pre-creating that
       # directory, which causes Tomcat to skip WAR extraction and deploy an empty context in ~6 ms.
       - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/opt/frank/webapp-overlay/viscolink/loinc-mapping.html:ro
+      - ./demo-resources/resources.yml:/opt/frank/resources/resources.yml:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
       - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
       - hsearch-data:/data

@@ -36,6 +36,10 @@ default:
     paths:
       - .m2/repository/
 
+# Ladybug fork install is handled by ./mvnw automatically (see the block at the
+# top of that script).  No extra CI step needed — the first ./mvnw call in each
+# job triggers the clone+install if the marker jar is absent from .m2/.
+
 # ---------------------------------------------------------------------------
 # Stage: test
 # Unit and integration tests for viscolink and viscostore.
@@ -46,7 +50,7 @@ test:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
+    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -65,8 +69,8 @@ package:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
-    - mvn $MAVEN_CLI_OPTS package -pl viscorunner -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS package -pl viscorunner -DskipTests
   artifacts:
     paths:
       - viscorunner/target/viscolink.war
@@ -89,8 +93,8 @@ integration-test:
   image: maven:3.9-eclipse-temurin-21
   tags: [docker]
   script:
-    - mvn $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
-    - mvn $MAVEN_CLI_OPTS verify   -pl viscorunner
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS verify   -pl viscorunner
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
@@ -102,7 +106,7 @@ integration-test:
 #   <registry>/viscorunner:<sha>-arm64
 # The two jobs run in parallel.
 # ---------------------------------------------------------------------------
-docker:amd64:
+docker:viscosuite:amd64:
   stage: docker
   image: docker:27
   tags: [docker, x86-64, dind]
@@ -123,7 +127,7 @@ docker:amd64:
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
-docker:arm64:
+docker:viscosuite:arm64:
   stage: docker
   image: docker:27
   tags: [docker, arm64, dind]
@@ -245,15 +249,15 @@ docker:viscostore:arm64:
 # ViscoLink:  <registry>/viscolink:<sha>   + :latest
 # ViscoStore: <registry>/viscostore:<sha>  + :latest
 # ---------------------------------------------------------------------------
-manifest:
+manifest:viscosuite:
   stage: manifest
   image: docker:27
   tags: [dind]
   services:
     - docker:27-dind
   needs:
-    - docker:amd64
-    - docker:arm64
+    - docker:viscosuite:amd64
+    - docker:viscosuite:arm64
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:

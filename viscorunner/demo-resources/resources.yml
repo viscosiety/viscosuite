@@ -5,20 +5,19 @@ jdbc:
     username: "${VISCOLINK_JDBC_USERNAME}"
     password: "${VISCOLINK_JDBC_PASSWORD}"
 
-# amqp:
-#   - name: "viscosuite"
-#     url: "amqp://${RABBITMQ_HOST}:5672"
-#     username: "${RABBITMQ_USERNAME}"
-#     password: "${RABBITMQ_PASSWORD}"
+amqp:
+  - name: "viscosuite"
+    url: "amqp://${RABBITMQ_HOST}:5672"
+    username: "${RABBITMQ_USERNAME}"
+    password: "${RABBITMQ_PASSWORD}"
 
-
-# mllp:
-#   - name: "inbound-2575"
-#     url: "mllp://0.0.0.0:2575"
-#     properties:
-#       charset: "UTF-8"
-#       backlog: "10"
-#       socketTimeout: "60000"
+mllp:
+  - name: "inbound-2575"
+    url: "mllp://0.0.0.0:2575"
+    properties:
+      charset: "UTF-8"
+      backlog: "10"
+      socketTimeout: "60000"
 
 # Uncomment and adjust to enable outbound MLLP connections:
 #  - name: "outbound-ris"
@@ -27,4 +26,3 @@ jdbc:
 #      charset: "UTF-8"
 #      connectTimeout: "5000"
 #      socketTimeout: "30000"
-

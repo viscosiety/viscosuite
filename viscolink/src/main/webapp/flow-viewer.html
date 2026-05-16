@@ -7,11 +7,11 @@
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 :root {
-  --teal: #1a6b5a; --teal-light: #e8f4f1; --teal-mid: #c2dfd9;
+  --teal: #0B707A; --teal-dark: #063B3E; --teal-light: #e3f4f6; --teal-mid: #a8d8dd;
   --green: #2a7a3b; --green-bg: #e8f5eb;
   --red: #c0392b; --red-bg: #fdecea;
   --gray: #6b7280; --gray-bg: #f3f4f6;
-  --border: #e5e7eb; --text: #111827; --muted: #6b7280;
+  --border: #C9D1D3; --text: #1F2A2C; --muted: #6b7280;
   --font: system-ui, -apple-system, sans-serif;
   --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
 }
@@ -21,7 +21,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); font-size
 #topbar {
   display: flex; align-items: center; gap: 10px;
   padding: 0 14px; height: 46px; flex-shrink: 0;
-  background: var(--teal); color: #fff;
+  background: var(--teal-dark); color: #F3F5F6;
 }
 #topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; margin-right: 4px; }
 #live-badge {
@@ -37,7 +37,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); font-size
 }
 #topbar input::placeholder { color: rgba(255,255,255,.6); }
 #topbar input:focus, #topbar select:focus { border-color: rgba(255,255,255,.6); }
-#topbar select option { background: var(--teal); }
+#topbar select option { background: #063B3E; }
 #topbar .spacer { flex: 1; }
 #report-count { font-size: 11px; color: rgba(255,255,255,.65); white-space: nowrap; }
 
@@ -64,6 +64,10 @@ td { padding: 6px 8px; vertical-align: middle; }
 .pipe-name-small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .row-cid { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; opacity: .75; }
 .patient-id { font-size: 11px; color: var(--muted); }
+
+/* load-more sentinel row */
+.load-more-row { text-align: center; color: var(--muted); font-size: 11px; padding: 8px 0; cursor: pointer; background: var(--gray-bg); border-top: 1px solid var(--border); }
+.load-more-row:hover { background: var(--teal-light); color: var(--teal); }
 
 /* status pill */
 .pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
@@ -206,9 +210,9 @@ pre.payload-pre {
   border: 1px solid; white-space: nowrap; font-family: var(--mono);
 }
 .fwd-route.taken      { border-color: #6ee7b7; background: #ecfdf5; color: #065f46; font-weight: 600; }
-.fwd-route.skip       { border-color: #e5e7eb; background: #f9fafb; color: #9ca3af; }
+.fwd-route.skip       { border-color: #d1d5db; background: #f3f4f6; color: #9ca3af; border-style: dashed; opacity: .45; }
 .fwd-route.taken-err  { border-color: #fca5a5; background: #fef2f2; color: #b91c1c; font-weight: 600; }
-.fwd-route.skip-err   { border-color: #fca5a5; background: #fff5f5; color: #ef4444; }
+.fwd-route.skip-err   { border-color: #fca5a5; background: #fff5f5; color: #ef4444; border-style: dashed; opacity: .45; }
 .fwd-rt-exit { font-style: italic; }
 /* pipeline exit state summary bar */
 .exits-bar { display: flex; align-items: center; gap: 6px; padding: 5px 8px 7px; flex-wrap: wrap; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
@@ -216,8 +220,8 @@ pre.payload-pre {
 .exit-chip { font-size: 11px; font-weight: 600; padding: 2px 9px; border-radius: 4px; border: 1px solid; cursor: pointer; }
 .exit-chip.taken-ok   { background: #dcfce7; color: #15803d; border-color: #86efac; }
 .exit-chip.taken-err  { background: #fdecea; color: #b91c1c; border-color: #fca5a5; }
-.exit-chip.skip-ok    { background: transparent; color: #16a34a; border-color: #86efac; }
-.exit-chip.skip-err   { background: transparent; color: #b91c1c; border-color: #fca5a5; }
+.exit-chip.skip-ok    { background: transparent; color: #16a34a; border-color: #86efac; border-style: dashed; opacity: .45; }
+.exit-chip.skip-err   { background: transparent; color: #b91c1c; border-color: #fca5a5; border-style: dashed; opacity: .45; }
 .exit-chip:hover { filter: brightness(0.88); }
 
 /* Sender pipe rows — outbound side-effects, visually distinct from transform pipes */
@@ -289,10 +293,17 @@ const REFRESH_MS = 10_000;
 const MAX_PAYLOAD = 8_000;
 const INDENT_PX = 18;
 const SESSION_META_KEYS = new Set(['cid', 'mid', 'patientId', 'tsReceived']);
+const PAGE_SIZE_INITIAL = 10;
+const PAGE_SIZE_MORE    = 50;
 
 // ── state ────────────────────────────────────────────────────────────────────
 let storage = STORAGE_DEFAULT;
-let reports = [];
+let reports = [];       // alias for allReports (used by detail loader)
+let allReports = [];    // all fetched records so far (appended page by page)
+let currentOffset = 0; // offset of the next page to fetch
+let totalCount = null;  // unfiltered server total; null when a client-side filter is active
+let lastPageFull = false; // true when last user-triggered fetch returned a full page (may be more)
+let loadingMore = false;
 let selectedId = null;
 let refreshTimer = null;
 let cdTimer = null;
@@ -303,18 +314,25 @@ let patientFilter = '';
 // ── init ─────────────────────────────────────────────────────────────────────
 async function init() {
   await discoverStorage();
-  await fetchReports();
+  await fetchReports(true);
   startRefresh();
 
   document.getElementById('flow-filter').addEventListener('change', e => {
     flowFilter = e.target.value;
-    fetchReports();
+    fetchReports(true);
   });
   const patInput = document.getElementById('patient-filter');
   patInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { patientFilter = patInput.value.trim(); fetchReports(); }
+    if (e.key === 'Enter') { patientFilter = patInput.value.trim(); fetchReports(true); }
   });
-  patInput.addEventListener('blur', () => { patientFilter = patInput.value.trim(); fetchReports(); });
+  patInput.addEventListener('blur', () => { patientFilter = patInput.value.trim(); fetchReports(true); });
+
+  document.getElementById('table-wrap').addEventListener('scroll', () => {
+    const el = document.getElementById('table-wrap');
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 160 && !loadingMore) {
+      loadMoreRows();
+    }
+  });
 }
 
 // ── storage discovery ────────────────────────────────────────────────────────
@@ -329,41 +347,57 @@ async function discoverStorage() {
 }
 
 // ── report list ──────────────────────────────────────────────────────────────
-async function fetchReports() {
+function buildReportUrl(limit, offset) {
   const url = new URL(`${BASE}/iaf/ladybug/api/metadata/${storage}`, window.location.origin);
   ['storageId','endTime','duration','name','flow','patientId','correlationId','status'].forEach(
     n => url.searchParams.append('metadataNames', n));
-  url.searchParams.set('limit', '50');
-  if (flowFilter) { url.searchParams.set('filterHeader', 'flow'); url.searchParams.set('filter', flowFilter); }
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('offset', String(offset));
+  if (flowFilter)    { url.searchParams.set('filterHeader', 'flow');      url.searchParams.set('filter', flowFilter); }
   if (patientFilter) { url.searchParams.set('filterHeader', 'patientId'); url.searchParams.set('filter', patientFilter); }
+  return url;
+}
 
+async function fetchCount() {
   try {
-    const r = await fetch(url);
-    if (!r.ok) throw new Error(r.status);
-    reports = await r.json();
-    renderTable();
+    const r = await fetch(`${BASE}/iaf/ladybug/api/metadata/${storage}/count`);
+    if (r.ok) totalCount = await r.json();
+  } catch { /* non-fatal */ }
+}
+
+// reset=true: filter change or init — fetches page 0
+// reset=false: auto-refresh — re-fetches all loaded records from offset 0
+async function fetchReports(reset = false) {
+  if (reset) { currentOffset = 0; allReports = []; lastPageFull = false; }
+  try {
+    const limit = reset ? PAGE_SIZE_INITIAL : Math.max(currentOffset, PAGE_SIZE_INITIAL);
+    // Only fetch unfiltered count when no client-side filter is active; the /count
+    // endpoint has no filter support so its value is meaningless when patientFilter is set.
+    if (patientFilter) { totalCount = null; } else { fetchCount(); }
+    const metaResp = await fetch(buildReportUrl(limit, 0));
+    if (!metaResp.ok) throw new Error(metaResp.status);
+    const page = await metaResp.json();
+    allReports = page;
+    reports = allReports;
+    currentOffset = Math.max(currentOffset, page.length);
+    if (reset) lastPageFull = page.length >= PAGE_SIZE_INITIAL;
+    rebuildTable();
     updateFlowDropdown();
-    document.getElementById('report-count').textContent = `${reports.length} reports`;
+    updateReportCount();
   } catch {
     document.getElementById('report-body').innerHTML =
       `<tr><td colspan="5" class="loading">Could not load reports</td></tr>`;
   }
 }
 
-function renderTable() {
-  const tbody = document.getElementById('report-body');
-  if (!reports.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="loading">No reports</td></tr>';
-    return;
-  }
-  tbody.innerHTML = reports.map(row => {
-    const id = row.storageId;
-    const flow = row.flow || shortName(row.name || '');
-    const pat  = row.patientId || '';
-    const time = fmtTime(row.endTime);
-    const dur  = fmtDur(row.duration);
-    const sel  = id === selectedId ? ' class="selected"' : '';
-    return `<tr${sel} onclick="selectRow('${id}')">
+function buildRowHtml(row) {
+  const id   = row.storageId;
+  const flow = row.flow || shortName(row.name || '');
+  const pat  = row.patientId || '';
+  const time = fmtTime(row.endTime);
+  const dur  = fmtDur(row.duration);
+  const sel  = id === selectedId ? ' class="selected"' : '';
+  return `<tr${sel} onclick="selectRow('${id}')">
       <td class="td-status">${pill(row.status)}</td>
       <td class="td-name">
         <span class="flow-name" title="${esc(row.flow || '')}">${esc(flow)}</span>
@@ -374,7 +408,71 @@ function renderTable() {
       <td class="td-time">${esc(time)}</td>
       <td class="td-dur">${esc(dur)}</td>
     </tr>`;
-  }).join('');
+}
+
+function renderTable() { rebuildTable(); }  // called by selectRow / deselectRow
+
+function rebuildTable() {
+  const tbody = document.getElementById('report-body');
+  if (!allReports.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="loading">No reports</td></tr>';
+    return;
+  }
+  tbody.innerHTML = allReports.map(buildRowHtml).join('');
+  updateSentinel(tbody);
+}
+
+function updateReportCount() {
+  const shown = allReports.length;
+  const total = totalCount != null ? totalCount : `${shown}${lastPageFull ? '+' : ''}`;
+  document.getElementById('report-count').textContent = `${shown} / ${total} reports`;
+}
+
+function updateSentinel(tbody) {
+  tbody = tbody || document.getElementById('report-body');
+  document.getElementById('load-more-sentinel')?.remove();
+  // When a client-side filter is active, totalCount reflects the unfiltered total
+  // and cannot be used. Fall back to page-fullness: only show sentinel when the
+  // last fetch returned a full page, meaning there may be more filtered results.
+  const moreOnServer = patientFilter
+    ? lastPageFull
+    : (totalCount == null || currentOffset < totalCount);
+  if (!moreOnServer) return;
+  const tr = document.createElement('tr');
+  tr.id = 'load-more-sentinel';
+  const remaining = (!patientFilter && totalCount != null) ? totalCount - currentOffset : '?';
+  const label = loadingMore ? 'Loading…' : `↓ ${remaining} more — load next page`;
+  tr.innerHTML = `<td colspan="5" class="load-more-row" onclick="loadMoreRows()">${label}</td>`;
+  tbody.appendChild(tr);
+}
+
+async function loadMoreRows() {
+  if (loadingMore) return;
+  loadingMore = true;
+  updateSentinel();
+  try {
+    const sentinel = document.getElementById('load-more-sentinel');
+    if (sentinel) sentinel.querySelector('td').textContent = 'Loading…';
+    const r = await fetch(buildReportUrl(PAGE_SIZE_MORE, currentOffset));
+    if (!r.ok) throw new Error(r.status);
+    const page = await r.json();
+    if (!patientFilter) await fetchCount();
+    if (page.length > 0) {
+      allReports = [...allReports, ...page];
+      reports = allReports;
+      currentOffset += page.length;
+      lastPageFull = page.length >= PAGE_SIZE_MORE;
+      document.getElementById('load-more-sentinel')?.remove();
+      document.getElementById('report-body')
+        .insertAdjacentHTML('beforeend', page.map(buildRowHtml).join(''));
+      updateReportCount();
+    } else {
+      lastPageFull = false;
+    }
+  } finally {
+    loadingMore = false;
+    updateSentinel();
+  }
 }
 
 function updateFlowDropdown() {
@@ -474,6 +572,15 @@ function annotateForwardsFromConfig(rows, fwdMap) {
       }
     }
 
+    // SenderPipe wrappers get forwardName=null; inherit from first child row that has one
+    let resolvedForwardName = row.forwardName;
+    if (!resolvedForwardName) {
+      for (let j = i + 1; j < rows.length; j++) {
+        if (rows[j].level <= row.level) break;
+        if (rows[j].forwardName) { resolvedForwardName = rows[j].forwardName; break; }
+      }
+    }
+
     row.forwards = cfgFwds.map(f => {
       let taken = false;
       if (!f.isExit && nextPipe) {
@@ -483,18 +590,24 @@ function annotateForwardsFromConfig(rows, fwdMap) {
         if (exitFwds.length === 1) {
           taken = true;
         } else {
-          // 1st: use Ladybug forwardName (recorded for SenderPipes, HTTP status codes etc.)
-          const fn = (row.forwardName || '').toLowerCase();
-          const successLike = fn === 'success' || fn === 'pass' || /^2\d\d$/.test(fn);
-          const errorLike   = fn === 'exception' || fn === 'error' || fn === 'failure' || /^[45]\d\d$/.test(fn);
+          const fn  = (resolvedForwardName || '').toLowerCase();
           const fn2 = f.forwardName.toLowerCase();
-          if (successLike) {
-            taken = fn2 === 'success' || fn2 === 'pass';
-          } else if (errorLike) {
-            taken = fn2 === 'exception' || fn2 === 'error' || fn2 === 'failure';
-          } else if (pipelineExitState) {
-            // 2nd: match forward's target (= XML state attr) against the pipeline's recorded exit state
-            taken = f.to.toUpperCase() === pipelineExitState.toUpperCase();
+          // 1st: exact match — handles HTTP status codes ("401") and named forwards ("success")
+          const hasExactMatch = exitFwds.some(x => x.forwardName.toLowerCase() === fn);
+          if (hasExactMatch) {
+            taken = fn2 === fn;
+          } else {
+            // 2nd: category match for generic success/error when no exact forward name exists
+            const successLike = fn === 'success' || fn === 'pass' || /^2\d\d$/.test(fn);
+            const errorLike   = fn === 'exception' || fn === 'error' || fn === 'failure' || /^[45]\d\d$/.test(fn);
+            if (successLike) {
+              taken = fn2 === 'success' || fn2 === 'pass';
+            } else if (errorLike) {
+              taken = fn2 === 'exception' || fn2 === 'error' || fn2 === 'failure';
+            } else if (pipelineExitState) {
+              // 3rd: match forward's target against the pipeline's recorded exit state
+              taken = f.to.toUpperCase() === pipelineExitState.toUpperCase();
+            }
           }
         }
       }
@@ -584,7 +697,8 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
 
   // Exit state summary bar — at top of pipeline tree
   let exitsBar = '';
-  const exitEntries = Object.entries(exitMap);
+  const exitEntries = Object.entries(exitMap)
+    .sort((a, b) => (b[1].taken ? 1 : 0) - (a[1].taken ? 1 : 0));
   if (exitEntries.length > 0) {
     const chips = exitEntries.map(([name, { taken, fromRowIdx }]) => {
       const isErr = exitStateMap[name] !== 'SUCCESS';
@@ -597,7 +711,7 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
         : ` onclick="jumpToExitChip('${esc(name)}')"`;
       return `<span id="exit-chip-${esc(name)}" class="${cls}"${click}>${icon} ${esc(name)}</span>`;
     }).join('');
-    exitsBar = `<div class="exits-bar"><span class="exits-label">Exits</span>${chips}</div>`;
+    exitsBar = `<div class="exits-bar"><span class="exits-label">Exit Options</span>${chips}</div>`;
   }
 
   const tree = exitsBar + rows.map((row, i) => renderRow(row, i)).join('');
@@ -658,7 +772,7 @@ function renderRow(row, idx) {
   if (row.forwards && row.forwards.length > 0 &&
       (row.forwards.length > 1 || row.forwards.some(f => f.isExit))) {
     const anyTaken = row.forwards.some(f => f.taken);
-    const items = row.forwards.map(f => {
+    const items = [...row.forwards].sort((a, b) => (b.taken ? 1 : 0) - (a.taken ? 1 : 0)).map(f => {
       let cls;
       if (f.isExit) {
         const isErrExit = _exitStateMap[f.to] !== 'SUCCESS';
@@ -967,7 +1081,7 @@ function startRefresh() {
     updateCountdown();
     if (cdLeft <= 0) {
       cdLeft = REFRESH_MS / 1000;
-      fetchReports();
+      fetchReports(false);
     }
   }, 1000);
 }

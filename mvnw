@@ -32,6 +32,27 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
+# ---------------------------------------------------------------------------
+# Ladybug fork — temporary until wearefrank/ladybug merges our PR #814.
+# https://github.com/tommy2d/ladybug/tree/feature/metadata-offset-pagination
+#
+# frankframework-ladybug-common pins org.wearefrank:ladybug-*:4.0-20260402.185201.
+# We install the fork at that same version so .m2/ shadows the Nexus artifact.
+# Remove this block once upstream merges and the official release is published.
+# ---------------------------------------------------------------------------
+LADYBUG_VERSION="4.0-20260402.185201"
+LADYBUG_MARKER="${HOME}/.m2/repository/org/wearefrank/ladybug-common/${LADYBUG_VERSION}/ladybug-common-${LADYBUG_VERSION}.jar"
+if [ ! -f "${LADYBUG_MARKER}" ]; then
+  echo "[mvnw] Installing ladybug fork (tommy2d/feature/metadata-offset-pagination)..."
+  LADYBUG_TMP="$(mktemp -d)"
+  git clone --branch feature/metadata-offset-pagination --depth 1 \
+    https://github.com/tommy2d/ladybug.git "${LADYBUG_TMP}"
+  mvn -f "${LADYBUG_TMP}/pom.xml" install -DskipTests -B \
+    -Drevision="${LADYBUG_VERSION}" --no-transfer-progress
+  rm -rf "${LADYBUG_TMP}"
+  echo "[mvnw] Ladybug fork installed."
+fi
+
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in
