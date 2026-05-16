@@ -23,7 +23,9 @@ variables:
   # -B: batch mode (no ANSI colours, no interactive prompts)
   # --no-transfer-progress: suppresses the per-chunk download progress lines
   MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
-  IMAGE: $CI_REGISTRY_IMAGE/viscorunner
+  IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # combined image
+  IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # ViscoLink-only image
+  IMAGE_VISCOSTORE: $CI_REGISTRY_IMAGE/viscostore   # ViscoStore-only image
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
 
@@ -143,11 +145,105 @@ docker:arm64:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
 # ---------------------------------------------------------------------------
+# Stage: docker — standalone ViscoLink image
+# ---------------------------------------------------------------------------
+docker:viscolink:amd64:
+  stage: docker
+  image: docker:27
+  tags: [docker, x86-64, dind]
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+    - job: integration-test
+      artifacts: false
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --platform linux/amd64
+        -f viscorunner/Dockerfile.viscolink
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
+        viscorunner/
+    - docker push "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+docker:viscolink:arm64:
+  stage: docker
+  image: docker:27
+  tags: [docker, arm64, dind]
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+    - job: integration-test
+      artifacts: false
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --platform linux/arm64
+        -f viscorunner/Dockerfile.viscolink
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
+        viscorunner/
+    - docker push "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: docker — standalone ViscoStore image
+# ---------------------------------------------------------------------------
+docker:viscostore:amd64:
+  stage: docker
+  image: docker:27
+  tags: [docker, x86-64, dind]
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+    - job: integration-test
+      artifacts: false
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --platform linux/amd64
+        -f viscorunner/Dockerfile.viscostore
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
+        viscorunner/
+    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+docker:viscostore:arm64:
+  stage: docker
+  image: docker:27
+  tags: [docker, arm64, dind]
+  services:
+    - docker:27-dind
+  needs:
+    - job: package
+      artifacts: true
+    - job: integration-test
+      artifacts: false
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker build --platform linux/arm64
+        -f viscorunner/Dockerfile.viscostore
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
+        viscorunner/
+    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
 # Stage: manifest
-# Combines the two platform images into a single multi-arch manifest and
-# pushes two final tags:
-#   - <registry>/viscorunner:<commit-sha>  (immutable)
-#   - <registry>/viscorunner:latest        (floating)
+# Combines platform images into multi-arch manifests.
+# Combined:   <registry>/viscorunner:<sha> + :latest
+# ViscoLink:  <registry>/viscolink:<sha>   + :latest
+# ViscoStore: <registry>/viscostore:<sha>  + :latest
 # ---------------------------------------------------------------------------
 manifest:
   stage: manifest
@@ -166,5 +262,45 @@ manifest:
         -t "$IMAGE:latest"
         "$IMAGE:$CI_COMMIT_SHA-amd64"
         "$IMAGE:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+manifest:viscolink:
+  stage: manifest
+  image: docker:27
+  tags: [dind]
+  services:
+    - docker:27-dind
+  needs:
+    - docker:viscolink:amd64
+    - docker:viscolink:arm64
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker buildx imagetools create
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA"
+        -t "$IMAGE_VISCOLINK:latest"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+manifest:viscostore:
+  stage: manifest
+  image: docker:27
+  tags: [dind]
+  services:
+    - docker:27-dind
+  needs:
+    - docker:viscostore:amd64
+    - docker:viscostore:arm64
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker buildx imagetools create
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA"
+        -t "$IMAGE_VISCOSTORE:latest"
+        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
+        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
