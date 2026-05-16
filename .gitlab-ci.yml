@@ -51,7 +51,7 @@ test:
   before_script:
     - apt-get update
     - apt-get install -y nodejs npm
-    - npm install -g pnpm
+    - npm install -g pnpm@9.14.2
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
@@ -74,7 +74,7 @@ package:
   before_script:
     - apt-get update
     - apt-get install -y nodejs npm
-    - npm install -g pnpm
+    - npm install -g pnpm@9.14.2
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
@@ -102,7 +102,7 @@ integration-test:
   before_script:
     - apt-get update
     - apt-get install -y nodejs npm
-    - npm install -g pnpm
+    - npm install -g pnpm@9.14.2
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
