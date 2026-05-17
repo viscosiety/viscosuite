@@ -22,10 +22,11 @@
 
 	<properties>
 		<frankframework.version>10.2.0-20260516.042329</frankframework.version>
-		<!-- Pin to our fork (tommy2d/feature/metadata-offset-pagination) until wearefrank/ladybug#814 is merged.
+		<!-- Pin to our fork (tommy2d/viscoSuiteDev) until wearefrank/ladybug#814 is merged.
 		     Without this override Maven resolves the newer official build which lacks offset support,
-		     breaking the flow-viewer's infinite-scroll termination. -->
-		<ladybug.version>4.0-20260402.185201</ladybug.version>
+		     breaking the flow-viewer's infinite-scroll termination.
+		     Using local SNAPSHOT to include postMessage bridge for ViscoFlow copy-to-test deep-link. -->
+		<ladybug.version>4.0-SNAPSHOT</ladybug.version>
 		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>

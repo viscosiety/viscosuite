@@ -23,7 +23,7 @@ services:
       VISCOLINK_JDBC_PASSWORD: visco
 
       # Activate Ladybug database storage (remove to use in-memory storage instead)
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN"
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
     depends_on:
       postgres:
         condition: service_healthy
