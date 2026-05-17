@@ -33,19 +33,28 @@ set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
 # ---------------------------------------------------------------------------
-# Ladybug fork — temporary until wearefrank/ladybug merges our PR #814.
-# https://github.com/tommy2d/ladybug/tree/feature/metadata-offset-pagination
+# Ladybug fork — temporary until wearefrank/ladybug merges our PRs.
+# https://github.com/tommy2d/ladybug/tree/viscoSuiteDev
 #
-# frankframework-ladybug-common pins org.wearefrank:ladybug-*:4.0-20260402.185201.
-# We install the fork at that same version so .m2/ shadows the Nexus artifact.
+# Installs at 4.0-SNAPSHOT so the version matches viscolink/pom.xml.
+# Detects the effective local repo from MAVEN_OPTS so this works both locally
+# (default ~/.m2) and in CI (project-local .m2 set via maven.repo.local).
 # Remove this block once upstream merges and the official release is published.
 # ---------------------------------------------------------------------------
-LADYBUG_VERSION="4.0-20260402.185201"
-LADYBUG_MARKER="${HOME}/.m2/repository/org/wearefrank/ladybug-common/${LADYBUG_VERSION}/ladybug-common-${LADYBUG_VERSION}.jar"
+LADYBUG_VERSION="4.0-SNAPSHOT"
+case "${MAVEN_OPTS:-}" in
+  *maven.repo.local=*)
+    _LB_REPO=$(echo "$MAVEN_OPTS" | grep -o 'maven.repo.local=[^ ]*' | cut -d= -f2)
+    ;;
+  *)
+    _LB_REPO="${HOME}/.m2/repository"
+    ;;
+esac
+LADYBUG_MARKER="${_LB_REPO}/org/wearefrank/ladybug-common/${LADYBUG_VERSION}/ladybug-common-${LADYBUG_VERSION}.jar"
 if [ ! -f "${LADYBUG_MARKER}" ]; then
-  echo "[mvnw] Installing ladybug fork (tommy2d/feature/metadata-offset-pagination)..."
+  echo "[mvnw] Installing ladybug fork (tommy2d/viscoSuiteDev)..."
   LADYBUG_TMP="$(mktemp -d)"
-  git clone --branch feature/metadata-offset-pagination --depth 1 \
+  git clone --branch viscoSuiteDev --depth 1 \
     https://github.com/tommy2d/ladybug.git "${LADYBUG_TMP}"
   mvn -f "${LADYBUG_TMP}/pom.xml" install -DskipTests -B -Dmaven.skip.copyright=true \
     -Drevision="${LADYBUG_VERSION}" --no-transfer-progress

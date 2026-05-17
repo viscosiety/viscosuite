@@ -309,9 +309,9 @@
 						<phase>generate-resources</phase>
 						<goals><goal>unpack</goal></goals>
 						<configuration>
-							<!-- overWrite=true forces re-extraction from the current SNAPSHOT JAR on every
+							<!-- overWriteSnapshots forces re-extraction from the current SNAPSHOT JAR on every
 							     build so the patched index.html always matches the bundled JS asset hash. -->
-							<overWrite>true</overWrite>
+							<overWriteSnapshots>true</overWriteSnapshots>
 							<artifactItems>
 								<artifactItem>
 									<groupId>org.frankframework</groupId>
