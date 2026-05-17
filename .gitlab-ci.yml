@@ -334,9 +334,12 @@ manifest:viscostore:
 
 # ---------------------------------------------------------------------------
 # Stage: cleanup
-# Deletes the per-arch intermediate tags after multi-arch manifests are pushed.
-# Each commit ends up with exactly 2 tags per image: :<sha> + :latest
-# The :<sha>-amd64 and :<sha>-arm64 tags are build intermediates only.
+# Deletes per-arch intermediate tags (:<sha>-amd64, :<sha>-arm64) immediately
+# after manifests are pushed — these are build intermediates only.
+# Keeping only :<sha> (multi-arch manifest) + :latest per image.
+#
+# "Keep last N builds" is handled by GitLab's built-in cleanup policy:
+# Settings → Packages and registries → Cleanup policies
 # ---------------------------------------------------------------------------
 cleanup:arch-tags:
   stage: cleanup
