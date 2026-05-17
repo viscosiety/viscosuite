@@ -10,9 +10,9 @@
     directory and cause Tomcat to skip WAR extraction (6 ms silent deploy).
   -->
   <Resources>
-    <PostResources className="org.apache.catalina.webresources.DirResourceSet"
+    <PreResources className="org.apache.catalina.webresources.DirResourceSet"
                    base="/opt/frank/webapp-overlay/viscolink"
                    webAppMount="/"
-                   internalPath="/"/>
+                   internalPath="/" />
   </Resources>
 </Context>

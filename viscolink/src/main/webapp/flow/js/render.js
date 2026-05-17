@@ -95,11 +95,14 @@ export function prettyXml(xml) {
 
 // ── Trace list row ────────────────────────────────────────────────────────────
 
-export function renderTraceRow(row, selectedId) {
+export function renderTraceRow(row, selectedId, extensions = []) {
   const id   = row.storageId;
   const flow = row.flow || shortName(row.name || '');
   const pat  = row.patientId || '';
   const sel  = id === selectedId ? ' class="selected"' : '';
+  const extBtns = extensions.map(e =>
+    `<button id="ext-${esc(e.id)}-${id}" class="action-btn ext-btn" title="${esc(e.tooltip)}" onclick="event.stopPropagation();triggerExtension('${esc(e.id)}','${id}')">${esc(e.icon)}</button>`
+  ).join('');
   return `<tr${sel} onclick="selectRow('${id}')">
     <td class="td-status">${pill(row.status)}</td>
     <td class="td-name">
@@ -110,7 +113,7 @@ export function renderTraceRow(row, selectedId) {
     <td class="td-patient"><span class="patient-id">${esc(pat)}</span></td>
     <td class="td-time">${esc(fmtTime(row.endTime))}</td>
     <td class="td-dur">${esc(fmtDur(row.duration))}</td>
-    <td class="td-action"><div class="row-actions"><button id="rerun-${id}" class="action-btn rerun-btn" title="Replay trace" onclick="event.stopPropagation();rerunTrace('${id}')">↺</button><button id="copy-test-${id}" class="action-btn" title="Copy to Ladybug test" onclick="event.stopPropagation();copyTraceToTest('${id}')">T</button></div></td>
+    <td class="td-action"><div class="row-actions"><button id="rerun-${id}" class="action-btn rerun-btn" title="Replay trace" onclick="event.stopPropagation();rerunTrace('${id}')">↺</button><button id="copy-test-${id}" class="action-btn" title="Copy to Ladybug test" onclick="event.stopPropagation();copyTraceToTest('${id}')">T</button>${extBtns}</div></td>
   </tr>`;
 }
 

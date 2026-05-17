@@ -39,6 +39,7 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); font-size
 #topbar input:focus, #topbar select:focus { border-color: rgba(255,255,255,.6); }
 #topbar select option { background: #063B3E; }
 #topbar .spacer { flex: 1; }
+#extension-badge { font-size: 10px; font-weight: 600; letter-spacing: .4px; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.12); color: rgba(255,255,255,.75); border: 1px solid rgba(255,255,255,.2); }
 #report-count { font-size: 11px; color: rgba(255,255,255,.65); white-space: nowrap; }
 
 /* ── main split ── */
@@ -283,6 +284,7 @@ pre.payload-pre {
   <select id="flow-filter"><option value="">All flows</option></select>
   <input id="patient-filter" placeholder="Patient ID…" style="width:120px">
   <span class="spacer"></span>
+  <span id="extension-badge"></span>
   <span id="trace-count"></span>
 </div>
 
@@ -313,6 +315,7 @@ pre.payload-pre {
 </div>
 
 <div id="toast"></div>
+<script src="extensions.js"></script>
 <script type="module" src="js/app.js"></script>
 </body>
 </html>

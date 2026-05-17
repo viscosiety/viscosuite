@@ -31,6 +31,7 @@ let flowFilter   = '';
 let patientFilter = '';
 let _rows        = [];
 let _exitStateMap = {};
+let _extensions  = window.__viscoFlowExtensions ?? [];
 
 // ── Expose window functions for inline onclick handlers ───────────────────────
 // Function declarations are hoisted so these assignments work at module top.
@@ -48,6 +49,7 @@ window.jumpToForward    = jumpToForward;
 window.loadMoreRows     = loadMoreRows;
 window.rerunTrace        = rerunTrace;
 window.copyTraceToTest   = copyTraceToTest;
+window.triggerExtension  = triggerExtension;
 
 // ── Router ────────────────────────────────────────────────────────────────────
 onRoute(handleRoute);
@@ -121,7 +123,7 @@ async function loadMoreRows() {
       lastPageFull   = page.length >= PAGE_SIZE_MORE;
       document.getElementById('load-more-sentinel')?.remove();
       document.getElementById('trace-body')
-        .insertAdjacentHTML('beforeend', page.map(r => renderTraceRow(r, selectedId)).join(''));
+        .insertAdjacentHTML('beforeend', page.map(r => renderTraceRow(r, selectedId, _extensions)).join(''));
       updateTraceCount();
     } else {
       lastPageFull = false;
@@ -138,7 +140,7 @@ function rebuildTable() {
     tbody.innerHTML = '<tr><td colspan="6" class="loading">No traces</td></tr>';
     return;
   }
-  tbody.innerHTML = allTraces.map(r => renderTraceRow(r, selectedId)).join('');
+  tbody.innerHTML = allTraces.map(r => renderTraceRow(r, selectedId, _extensions)).join('');
   updateSentinel(tbody);
 }
 
@@ -234,6 +236,30 @@ async function copyTraceToTest(storageId) {
       if (b) { b.textContent = 'T'; b.classList.remove('rerun-ok', 'rerun-err'); }
     }, 2000);
     if (report) openReportInLadybug(report);
+  }
+}
+
+// ── ViscoForge extensions ─────────────────────────────────────────────────────
+async function triggerExtension(id, storageId) {
+  const ext = _extensions.find(e => e.id === id);
+  if (!ext) return;
+  const btn = document.getElementById(`ext-${id}-${storageId}`);
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  try {
+    const r = await fetch(`/viscoforge${ext.endpoint}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ storageId }),
+    });
+    if (btn) { btn.textContent = r.ok ? '✓' : '✗'; btn.classList.add(r.ok ? 'rerun-ok' : 'rerun-err'); }
+  } catch {
+    if (btn) { btn.textContent = '✗'; btn.classList.add('rerun-err'); }
+  } finally {
+    if (btn) btn.disabled = false;
+    setTimeout(() => {
+      const b = document.getElementById(`ext-${id}-${storageId}`);
+      if (b) { b.textContent = ext.icon; b.classList.remove('rerun-ok', 'rerun-err'); }
+    }, 2000);
   }
 }
 
