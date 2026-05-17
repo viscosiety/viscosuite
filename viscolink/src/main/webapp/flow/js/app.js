@@ -323,6 +323,11 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
     ? fmtDur(String(report.endTime - report.startTime))
     : fmtDur(meta?.duration);
 
+  const isReplay = rows.some(r => r.forwardName === 'stub');
+  const replayBanner = isReplay
+    ? `<div class="replay-banner" title="One or more senders were stubbed — this trace was produced by a Ladybug replay, not a live message">⚠ Replayed — senders stubbed</div>`
+    : '';
+
   const header = `
     <div class="rh-flow">${esc(flow)}</div>
     <div class="rh-meta">
@@ -331,7 +336,8 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
       ${metaItem('Received', received)}
       ${metaItem('Duration', dur)}
       ${metaItem('Pipeline', shortName(report.name || ''))}
-    </div>`;
+    </div>
+    ${replayBanner}`;
 
   let exitsBar = '';
   const exitEntries = Object.entries(exitMap)

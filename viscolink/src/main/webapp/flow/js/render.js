@@ -44,6 +44,7 @@ export function fwdClass(name) {
   const n = name.toLowerCase();
   if (n === 'success' || /^2\d\d$/.test(name)) return 'fwd-ok';
   if (n === 'exception' || n === 'error' || /^[45]\d\d$/.test(name)) return 'fwd-err';
+  if (n === 'stub') return 'fwd-stub';
   return 'fwd-other';
 }
 
