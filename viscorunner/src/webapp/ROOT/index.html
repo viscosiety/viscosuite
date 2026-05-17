@@ -78,6 +78,28 @@
     /* Hidden until probe confirms the app is reachable */
     a.card[hidden] { display: none; }
 
+    /* Appear with a quick fade-in when unhidden */
+    a.card { animation: card-in 0.22s ease both; }
+    @keyframes card-in {
+      from { opacity: 0; transform: translateY(5px); }
+      to   { opacity: 1; transform: none; }
+    }
+
+    /* Loading indicator shown while probes are in-flight */
+    #loading {
+      display: flex; align-items: center; gap: 10px;
+      color: #8eb8bc; font-size: 0.875rem;
+    }
+    #loading.done { display: none; }
+    .spinner {
+      width: 18px; height: 18px; flex-shrink: 0;
+      border-radius: 50%;
+      border: 2px solid #0d676e;
+      border-top-color: #0F8A96;
+      animation: spin 0.75s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
     .card-label {
       font-size: 0.7rem;
       font-weight: 600;
@@ -117,6 +139,8 @@
     <p>Healthcare integration platform</p>
   </header>
 
+  <div id="loading"><span class="spinner"></span>Checking services…</div>
+
   <div class="cards" id="cards">
 
     <a class="card" id="card-viscolink" href="/viscolink/" hidden>
@@ -144,41 +168,36 @@
   <footer>ViscoSuite &mdash; Viscosiety B.V.</footer>
 
   <script>
-    // Probe each app's health endpoint. Show the card only if the app responds.
-    // Fail-open: if both probes fail (e.g. startup race), show both cards so
-    // the page is never empty.
+    // Probe each app's health endpoint. Reveal each card as soon as its probe
+    // responds — no waiting for all probes to finish. Fail-open: if every probe
+    // fails show all cards so the page is never empty.
     (async () => {
       const probes = [
-        {
-          id:  'card-viscolink',
-          url: '/viscolink/iaf/api/server/health',
-        },
-        {
-          id:  'card-viscostore',
-          url: '/viscostore/fhir/metadata',
-        },
+        { id: 'card-viscolink',  url: '/viscolink/iaf/api/server/health' },
+        { id: 'card-viscostore', url: '/viscostore/fhir/metadata' },
       ];
 
-      const results = await Promise.all(probes.map(async p => {
+      const loading = document.getElementById('loading');
+      let remaining = probes.length;
+      let anyOk = false;
+
+      const showCard = id => document.getElementById(id).removeAttribute('hidden');
+
+      const done = () => {
+        remaining--;
+        if (remaining === 0) {
+          loading.classList.add('done');
+          if (!anyOk) probes.forEach(p => showCard(p.id)); // fail-open
+        }
+      };
+
+      await Promise.all(probes.map(async p => {
         try {
-          const r = await fetch(p.url, {
-            method: 'HEAD',
-            signal: AbortSignal.timeout(3000),
-          });
-          return { id: p.id, ok: r.ok };
-        } catch {
-          return { id: p.id, ok: false };
-        }
+          const r = await fetch(p.url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          if (r.ok) { anyOk = true; showCard(p.id); }
+        } catch { /* probe failed — handled in done() */ }
+        finally { done(); }
       }));
-
-      const anyOk = results.some(r => r.ok);
-
-      for (const { id, ok } of results) {
-        // Show if reachable, or if everything failed (fail-open)
-        if (ok || !anyOk) {
-          document.getElementById(id).removeAttribute('hidden');
-        }
-      }
     })();
   </script>
 

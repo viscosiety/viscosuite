@@ -45,10 +45,13 @@ services:
 
       amqp.events.active: "true"
 
-      viscolink.views.names: message-flow,lab-code-mapper
+      viscolink.views.names: viscoflow,lab-code-mapper
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
       viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC
+      viscolink.views.viscoflow.name: ViscoFlow
+      viscolink.views.viscoflow.url: /viscolink/flow/
+      viscolink.views.viscoflow.description: ViscoFlow — modular message flow viewer
 
       SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/app/overlay-config/"
 

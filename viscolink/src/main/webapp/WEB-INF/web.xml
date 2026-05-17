@@ -28,4 +28,13 @@
     <url-pattern>/tools/*</url-pattern>
   </servlet-mapping>
 
+  <servlet>
+    <servlet-name>FlowController</servlet-name>
+    <servlet-class>com.viscosiety.flow.FlowController</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>FlowController</servlet-name>
+    <url-pattern>/flow-api/*</url-pattern>
+  </servlet-mapping>
+
 </web-app>

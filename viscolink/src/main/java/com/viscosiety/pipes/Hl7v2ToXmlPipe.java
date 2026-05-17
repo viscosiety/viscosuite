@@ -32,6 +32,7 @@ import org.frankframework.stream.Message;
 public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     private String hl7Version;
+    private boolean normalizeLineEndings = true;
 
     private PipeParser pipeParser;
     private XMLParser  xmlParser;
@@ -52,7 +53,9 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
     public @NonNull PipeRunResult doPipe(@NonNull Message message, @NonNull PipeLineSession session)
             throws PipeRunException {
         try {
-            String hl7 = message.asString();
+            String raw = message.asString();
+            // HL7v2 segment terminator is CR (\r); browser editors produce LF or CRLF — normalise.
+            String hl7 = normalizeLineEndings ? raw.replace("\r\n", "\r").replace("\n", "\r") : raw;
             ca.uhn.hl7v2.model.Message parsed = pipeParser.parse(hl7);
             String xml = xmlParser.encode(parsed);
             return new PipeRunResult(getSuccessForward(), new Message(xml));
@@ -79,5 +82,18 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     public String getHl7Version() {
         return hl7Version;
+    }
+
+    /**
+     * When {@code true}, CR+LF and bare LF line endings are normalised to CR before parsing,
+     * working around browser-based editors that mangle HL7v2 segment terminators.
+     * @ff.default true
+     */
+    public void setNormalizeLineEndings(boolean normalizeLineEndings) {
+        this.normalizeLineEndings = normalizeLineEndings;
+    }
+
+    public boolean isNormalizeLineEndings() {
+        return normalizeLineEndings;
     }
 }
