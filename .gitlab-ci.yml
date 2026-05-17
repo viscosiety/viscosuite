@@ -5,6 +5,7 @@
 #   package  — full Maven build, produces WARs for the Docker image (main only)
 #   docker   — builds platform-specific images in parallel (main only)
 #   manifest — combines amd64 + arm64 images into a single multi-arch manifest (main only)
+#   cleanup  — deletes per-arch intermediate tags; keeps only :<sha> + :latest
 #
 # Runners: self-hosted Docker runners
 #   amd64: tags [docker, dind]
@@ -17,6 +18,7 @@ stages:
   - integration-test
   - docker
   - manifest
+  - cleanup
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
@@ -327,5 +329,43 @@ manifest:viscostore:
         -t "$IMAGE_VISCOSTORE:latest"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: cleanup
+# Deletes the per-arch intermediate tags after multi-arch manifests are pushed.
+# Each commit ends up with exactly 2 tags per image: :<sha> + :latest
+# The :<sha>-amd64 and :<sha>-arm64 tags are build intermediates only.
+# ---------------------------------------------------------------------------
+cleanup:arch-tags:
+  stage: cleanup
+  image: alpine:3
+  tags: [docker]
+  needs:
+    - manifest:viscosuite
+    - manifest:viscolink
+    - manifest:viscostore
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - |
+      REPOS=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+        "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/registry/repositories")
+      for IMAGE_NAME in viscorunner viscolink viscostore; do
+        REPO_ID=$(echo "$REPOS" | jq -r ".[] | select(.name == \"${IMAGE_NAME}\") | .id")
+        if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
+          echo "WARNING: repo not found for ${IMAGE_NAME}, skipping"
+          continue
+        fi
+        for SUFFIX in amd64 arm64; do
+          TAG="${CI_COMMIT_SHA}-${SUFFIX}"
+          STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            --request DELETE \
+            --header "JOB-TOKEN: $CI_JOB_TOKEN" \
+            "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/registry/repositories/${REPO_ID}/tags/${TAG}")
+          echo "${IMAGE_NAME}:${TAG} → HTTP ${STATUS}"
+        done
+      done
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
