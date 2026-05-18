@@ -22,11 +22,9 @@
 
 	<properties>
 		<frankframework.version>10.2.0-20260516.042329</frankframework.version>
-		<!-- Pin to our fork (tommy2d/viscoSuiteDev) until wearefrank/ladybug#814 is merged.
-		     Without this override Maven resolves the newer official build which lacks offset support,
-		     breaking the flow-viewer's infinite-scroll termination.
-		     Using local SNAPSHOT to include postMessage bridge for ViscoFlow copy-to-test deep-link. -->
-		<ladybug.version>4.0-SNAPSHOT</ladybug.version>
+		<!-- Published from viscoSuiteDev branch at git.viscosiety.com/public-applications/ladybug.
+		     Includes offset pagination support and postMessage bridge for ViscoFlow deep-link. -->
+		<ladybug.version>4.1-SNAPSHOT</ladybug.version>
 		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
@@ -396,6 +394,10 @@
 			<id>frankframework</id>
 			<name>Frank!Framework</name>
 			<url>https://nexus.frankframework.org/content/repositories/public</url>
+		</repository>
+		<repository>
+			<id>gitlab-ladybug</id>
+			<url>https://git.viscosiety.com/api/v4/projects/6/packages/maven</url>
 		</repository>
 	</repositories>
 </project>
