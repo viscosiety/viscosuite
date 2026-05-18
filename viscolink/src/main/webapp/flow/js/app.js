@@ -267,7 +267,7 @@ function openReportInLadybug(report) {
   const lbWin = window.open(`${BASE}/iaf/ladybug/`, 'ladybug');
   if (!lbWin) return; // popup blocked
 
-  const send = () => lbWin.postMessage({ action: 'openReport', report, currentView: { storageName: 'Test' } }, location.origin);
+  const send = () => lbWin.postMessage({ action: 'ladybug-openReport', report, currentView: { storageName: 'Test' } }, location.origin);
 
   // Listen for ladybug-ready (fires from Angular ngOnInit on fresh load, or in response to ping)
   const onMsg = (e) => {
@@ -280,7 +280,7 @@ function openReportInLadybug(report) {
   window.addEventListener('message', onMsg);
 
   // Ping in case the window was already loaded (no ngOnInit fires again)
-  const ping = setTimeout(() => lbWin.postMessage({ action: 'ping' }, location.origin), 300);
+  const ping = setTimeout(() => lbWin.postMessage({ action: 'ladybug-ping' }, location.origin), 300);
 
   // Safety cleanup after 15s
   const cleanup = setTimeout(() => {

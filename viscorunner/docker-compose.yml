@@ -57,6 +57,7 @@ services:
       # them via the Frank!Console without rebuilding.  The directory is empty by default;
       # add subdirectories and set configurations.names to activate them.
       - ./configurations:/opt/frank/configurations
+      - ladybug-testtool:/usr/local/tomcat/logs
 
   postgres:
     image: postgres:16
@@ -79,3 +80,4 @@ services:
 
 volumes:
   postgres-data:
+  ladybug-testtool:
