@@ -34,7 +34,9 @@ public class BasicAuthFilter implements Filter {
         String path = req.getRequestURI().substring(ctx.length());
 
         // F!F owns /iaf/ and /api/; FHIR facade is authenticated by its own layer.
-        if (path.startsWith("/iaf/") || path.startsWith("/api/") || path.startsWith("/fhir/")) {
+        // /tools/health is a public liveness probe used by the ViscoSuite welcome page.
+        if (path.startsWith("/iaf/") || path.startsWith("/api/") || path.startsWith("/fhir/")
+                || path.equals("/tools/health")) {
             chain.doFilter(request, response);
             return;
         }
