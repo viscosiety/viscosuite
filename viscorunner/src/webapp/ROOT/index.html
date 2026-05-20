@@ -180,6 +180,7 @@
       const loading = document.getElementById('loading');
       let remaining = probes.length;
       let anyOk = false;
+      let allNetworkErrors = true; // stays true only if every probe throws (unreachable)
 
       const showCard = id => document.getElementById(id).removeAttribute('hidden');
 
@@ -187,15 +188,18 @@
         remaining--;
         if (remaining === 0) {
           loading.classList.add('done');
-          if (!anyOk) probes.forEach(p => showCard(p.id)); // fail-open
+          // Fail-open only when every probe had a network error (service unreachable).
+          // Auth challenges (4xx) are HTTP responses — the service is up but gated.
+          if (!anyOk && allNetworkErrors) probes.forEach(p => showCard(p.id));
         }
       };
 
       await Promise.all(probes.map(async p => {
         try {
           const r = await fetch(p.url, { method: 'HEAD', signal: AbortSignal.timeout(3000) });
+          allNetworkErrors = false; // got an HTTP response → not a network error
           if (r.ok) { anyOk = true; showCard(p.id); }
-        } catch { /* probe failed — handled in done() */ }
+        } catch { /* network error or timeout */ }
         finally { done(); }
       }));
     })();
