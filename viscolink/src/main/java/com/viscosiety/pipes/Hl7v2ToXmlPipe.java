@@ -5,6 +5,7 @@ import ca.uhn.hl7v2.HapiContext;
 import ca.uhn.hl7v2.parser.CanonicalModelClassFactory;
 import ca.uhn.hl7v2.parser.PipeParser;
 import ca.uhn.hl7v2.parser.XMLParser;
+import ca.uhn.hl7v2.validation.impl.NoValidation;
 
 import org.jspecify.annotations.NonNull;
 
@@ -33,6 +34,7 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     private String hl7Version;
     private boolean normalizeLineEndings = true;
+    private boolean validateMessage = true;
 
     private PipeParser pipeParser;
     private XMLParser  xmlParser;
@@ -52,23 +54,34 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
     @Override
     public @NonNull PipeRunResult doPipe(@NonNull Message message, @NonNull PipeLineSession session)
             throws PipeRunException {
+        if (message == null) {
+            throw new PipeRunException(this, "Failed to convert HL7v2 to XML: Message can not be null!");
+        }
         try {
             String raw = message.asString();
+            if (raw == null || raw.isBlank()) {
+                throw new PipeRunException(this, "Failed to convert HL7v2 to XML: HL7v2 message is empty");
+            }
             // HL7v2 segment terminator is CR (\r); browser editors produce LF or CRLF — normalise.
             String hl7 = normalizeLineEndings ? raw.replace("\r\n", "\r").replace("\n", "\r") : raw;
             ca.uhn.hl7v2.model.Message parsed = pipeParser.parse(hl7);
             String xml = xmlParser.encode(parsed);
             return new PipeRunResult(getSuccessForward(), new Message(xml));
+        } catch (PipeRunException e) {
+            throw e;
         } catch (Exception e) {
             throw new PipeRunException(this, "Failed to convert HL7v2 to XML: " + e.getMessage(), e);
         }
     }
 
     private HapiContext buildContext() {
-        if (hl7Version == null || hl7Version.isBlank()) {
-            return new DefaultHapiContext();
+        HapiContext ctx = (hl7Version == null || hl7Version.isBlank())
+                ? new DefaultHapiContext()
+                : new DefaultHapiContext(new CanonicalModelClassFactory(hl7Version));
+        if (!validateMessage) {
+            ctx.setValidationContext(new NoValidation());
         }
-        return new DefaultHapiContext(new CanonicalModelClassFactory(hl7Version));
+        return ctx;
     }
 
     /**
@@ -95,5 +108,18 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     public boolean isNormalizeLineEndings() {
         return normalizeLineEndings;
+    }
+
+    /**
+     * When {@code false}, HAPI HL7v2 validation is disabled. Useful for processing
+     * messages that use withdrawn fields or otherwise fail strict HL7v2 validation.
+     * @ff.default true
+     */
+    public void setValidateMessage(boolean validateMessage) {
+        this.validateMessage = validateMessage;
+    }
+
+    public boolean isValidateMessage() {
+        return validateMessage;
     }
 }

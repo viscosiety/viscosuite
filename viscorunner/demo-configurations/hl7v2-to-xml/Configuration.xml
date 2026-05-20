@@ -1,0 +1,27 @@
+<!DOCTYPE Configuration>
+
+<Configuration name="hl7v2-to-xml" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+               xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+    <Adapter name="HL7v2ToXML"
+             description="Receives HL7v2 XML via JavaListener, transforms it to a FHIR ${fhir.target.version} transaction Bundle, validates it, and POSTs it to viscostore">
+
+        <Receiver name="HL7V2HTTPReceiver">
+            <ApiListener
+                    name="HL7V2RestListener"
+                    uriPattern="hl7v2-to-xml"
+                    method="POST"
+                    headerParams="Accept,Content-Type"
+                    produces="XML"
+                    allowAllParams="true"
+            />
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+                <Exit name="Error" state="ERROR" code="500"/>
+            </Exits>
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 to XML"/>
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" validateMessage="false" hl7Version="2.6" />
+        </Pipeline>
+    </Adapter>
+</Configuration>

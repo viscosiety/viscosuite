@@ -11,14 +11,14 @@
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
                 <Exit name="Exception" state="ERROR" code="500"/>
-                <Exit name="BadRequest" state="ERROR" code="400" />
-                <Exit name="NotAuthorized" state="ERROR" code="401" />
-                <Exit name="Forbidden" state="ERROR" code="403" />
-                <Exit name="NotFound" state="ERROR" code="404" />
-                <Exit name="NotAcceptable" state="ERROR" code="406" />
-                <Exit name="UnsupportedMediaType" state="ERROR" code="415" />
-                <Exit name="TooManyRequest" state="ERROR" code="429" />
-                <Exit name="ServiceUnavailable" state="ERROR" code="503" />
+                <Exit name="BadRequest" state="ERROR" code="400"/>
+                <Exit name="NotAuthorized" state="ERROR" code="401"/>
+                <Exit name="Forbidden" state="ERROR" code="403"/>
+                <Exit name="NotFound" state="ERROR" code="404"/>
+                <Exit name="NotAcceptable" state="ERROR" code="406"/>
+                <Exit name="UnsupportedMediaType" state="ERROR" code="415"/>
+                <Exit name="TooManyRequest" state="ERROR" code="429"/>
+                <Exit name="ServiceUnavailable" state="ERROR" code="503"/>
             </Exits>
 
             <PutInSessionPipe name="putGlobalsInSession">
