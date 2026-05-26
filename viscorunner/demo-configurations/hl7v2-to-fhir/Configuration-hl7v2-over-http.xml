@@ -19,10 +19,32 @@
                 <Exit name="Error" state="ERROR" code="500"/>
             </Exits>
 
-            <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml).
+            <!-- Step 1: extract "true"/"false" from the headers session key into isXmlMime.
+                 Param sessionKey="headers" feeds XPath directly against the stored headers XML,
+                 so no getInputFromSessionKey on the pipe and no TIKA media-type conflict. -->
+            <PutInSessionPipe name="detectContentType" sessionKey="_dummy">
+                <Param name="isXmlMime" type="STRING"
+                       sessionKey="headers"
+                       xpathExpression="string(boolean(/headers/header[@name='Content-Type'][contains(lower-case(string(.)),'xml')]))"/>
+                <Forward name="success" path="routeByMime"/>
+            </PutInSessionPipe>
+
+            <!-- Step 1b: route by Content-Type header.
+                 application/xml → HL7v2 XML Encoding Syntax, skip conversion.
+                 Anything else (text/plain, application/hl7-v2, …) → pipe-delimited ER7, convert first. -->
+            <IfPipe name="routeByMime"
+                    getInputFromSessionKey="isXmlMime"
+                    preserveInput="true"
+                    expressionValue="true">
+                <Forward name="then" path="saveHl7Xml"/>
+                <Forward name="else" path="parseHl7"/>
+            </IfPipe>
+
+            <!-- Step 1a (pipe-delimited only): convert to HL7v2 XML (urn:hl7-org:v2xml).
                  HL7v2 validation can be disabled via ?validateMessage=false on the request URI. -->
             <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6">
                 <Param name="validateMessage" sessionKey="validateMessage"/>
+                <Forward name="success"   path="saveHl7Xml"/>
                 <Forward name="exception" path="Error"/>
             </Pipe>
 

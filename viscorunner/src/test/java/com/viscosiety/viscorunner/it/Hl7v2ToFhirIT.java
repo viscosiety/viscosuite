@@ -92,13 +92,13 @@ class Hl7v2ToFhirIT {
             "MSH|^~\\&|HIS|HOSPITAL|VISCO|DEST|20240315143000||ADT^A01^ADT_A01|MSG-IT-001|P|2.5\r" +
             "EVN|A01|20240315143000\r" +
             "PID|1||PAT001^^^HOSPITAL^MR||SMITH^JANE^M||19751020|F\r" +
-            "PV1|1|I|||||||||||||||||V001\r";
+            "PV1|1|I|CARDIO||||||||||||||||V001\r";
 
     private static final String ADT_A03_PIPE =
             "MSH|^~\\&|HIS|HOSPITAL|VISCO|DEST|20240318160000||ADT^A03^ADT_A03|MSG-IT-003|P|2.5\r" +
             "EVN|A03|20240318160000\r" +
             "PID|1||PAT001^^^HOSPITAL^MR||SMITH^JANE^M||19751020|F\r" +
-            "PV1|1|I|||||||||||||||||V001|||||||||||||||||||||||||20240315143000|20240318160000\r";
+            "PV1|1|I|CARDIO||||||||||||||||V001|||||||||||||||||||||||||20240315143000|20240318160000\r";
 
     private static final Path LAUNCHER_LIBS = Paths.get("target/launcher-libs").toAbsolutePath();
 
