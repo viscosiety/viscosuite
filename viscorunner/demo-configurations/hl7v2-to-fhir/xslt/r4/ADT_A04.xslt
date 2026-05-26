@@ -81,13 +81,18 @@
         <xsl:param name="visitId"          as="xs:string?"/>
         <xsl:param name="patientReference" as="xs:string?"/>
 
-        <!-- A04 = outpatient registration; force AMB if the sending system
-             sent PV1.2=O, but also accept whatever class is present. -->
+        <!-- A04 = outpatient registration: coerce inpatient class to AMB; pass-through others. -->
         <xsl:variable name="encounterClass" select="
             if (hl7:PV1.2 = 'I') then 'AMB'
             else fn:toFhirEncounterClass(hl7:PV1.2)"/>
 
         <Encounter xmlns="http://hl7.org/fhir">
+            <text>
+                <status value="generated"/>
+                <div xmlns="http://www.w3.org/1999/xhtml">
+                    <p>Generated Encounter resource from HL7v2 PV1 segment.</p>
+                </div>
+            </text>
             <identifier>
                 <use value="official"/>
                 <value value="{$visitId}"/>
@@ -110,13 +115,11 @@
                 </type>
             </xsl:if>
 
-            <!-- Hospital service from PV1.10 -->
+            <!-- Hospital service from PV1.10 — emit as text only; v2-0069 codes are
+                 hospital-specific and are not validated by the FHIR terminology server. -->
             <xsl:if test="hl7:PV1.10">
                 <serviceType>
-                    <coding>
-                        <system value="http://terminology.hl7.org/CodeSystem/v2-0069"/>
-                        <code   value="{hl7:PV1.10}"/>
-                    </coding>
+                    <text value="{hl7:PV1.10}"/>
                 </serviceType>
             </xsl:if>
 
