@@ -50,6 +50,7 @@ import org.frankframework.stream.Message;
 public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     private String hl7Version;
+    private boolean enforceHl7Version = true;
     private boolean normalizeLineEndings = true;
     private boolean validateMessage = true;
 
@@ -99,7 +100,7 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
             PipeParser pipeParser = validate ? pipeParserValidating : pipeParserNoValidation;
             XMLParser  xmlParser  = validate ? xmlParserValidating  : xmlParserNoValidation;
             ca.uhn.hl7v2.model.Message parsed = pipeParser.parse(hl7);
-            if (hl7Version != null && !hl7Version.isBlank()) {
+            if (enforceHl7Version && hl7Version != null && !hl7Version.isBlank()) {
                 String msgVersion = parsed.getVersion();
                 if (!hl7Version.equals(msgVersion)) {
                     throw new PipeRunException(this,
@@ -138,6 +139,21 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     public String getHl7Version() {
         return hl7Version;
+    }
+
+    /**
+     * When {@code false}, the version check against MSH-12 is skipped even if {@code hl7Version}
+     * is set. The configured version is still used for HAPI structure resolution, so the correct
+     * message classes are used for encoding — mismatches are silently accepted.
+     * Useful when senders are known to send an older minor version (e.g. 2.5) against a 2.6 pipeline.
+     * @ff.default true
+     */
+    public void setEnforceHl7Version(boolean enforceHl7Version) {
+        this.enforceHl7Version = enforceHl7Version;
+    }
+
+    public boolean isEnforceHl7Version() {
+        return enforceHl7Version;
     }
 
     /**

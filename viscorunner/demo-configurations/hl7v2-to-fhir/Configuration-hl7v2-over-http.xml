@@ -42,7 +42,7 @@
 
             <!-- Step 1a (pipe-delimited only): convert to HL7v2 XML (urn:hl7-org:v2xml).
                  HL7v2 validation can be disabled via ?validateMessage=false on the request URI. -->
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6">
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6" enforceHl7Version="false">
                 <Param name="validateMessage" sessionKey="validateMessage"/>
                 <Forward name="success"   path="saveHl7Xml"/>
                 <Forward name="exception" path="Error"/>
