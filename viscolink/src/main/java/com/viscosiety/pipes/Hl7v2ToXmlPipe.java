@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Viscosiety B.V.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.viscosiety.pipes;
 
 import ca.uhn.hl7v2.DefaultHapiContext;
@@ -13,6 +29,7 @@ import org.frankframework.configuration.ConfigurationException;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.core.PipeRunException;
 import org.frankframework.core.PipeRunResult;
+import org.frankframework.parameters.ParameterValueList;
 import org.frankframework.pipes.FixedForwardPipe;
 import org.frankframework.stream.Message;
 
@@ -36,16 +53,22 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
     private boolean normalizeLineEndings = true;
     private boolean validateMessage = true;
 
-    private PipeParser pipeParser;
-    private XMLParser  xmlParser;
+    private PipeParser pipeParserValidating;
+    private XMLParser  xmlParserValidating;
+    private PipeParser pipeParserNoValidation;
+    private XMLParser  xmlParserNoValidation;
 
     @Override
     public void configure() throws ConfigurationException {
         super.configure();
         try {
-            HapiContext ctx = buildContext();
-            pipeParser = ctx.getPipeParser();
-            xmlParser  = ctx.getXMLParser();
+            HapiContext ctxValidating = buildContext(true);
+            pipeParserValidating = ctxValidating.getPipeParser();
+            xmlParserValidating  = ctxValidating.getXMLParser();
+
+            HapiContext ctxNoValidation = buildContext(false);
+            pipeParserNoValidation = ctxNoValidation.getPipeParser();
+            xmlParserNoValidation  = ctxNoValidation.getXMLParser();
         } catch (Exception e) {
             throw new ConfigurationException("Failed to initialise HAPI HL7v2 parsers: " + e.getMessage(), e);
         }
@@ -58,12 +81,20 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
             throw new PipeRunException(this, "Failed to convert HL7v2 to XML: Message can not be null!");
         }
         try {
+            boolean validate = validateMessage;
+            ParameterValueList pvl = getParameterList().getValues(message, session);
+            if (pvl != null && pvl.contains("validateMessage")) {
+                validate = pvl.get("validateMessage").asBooleanValue(validateMessage);
+            }
+
             String raw = message.asString();
             if (raw == null || raw.isBlank()) {
                 throw new PipeRunException(this, "Failed to convert HL7v2 to XML: HL7v2 message is empty");
             }
             // HL7v2 segment terminator is CR (\r); browser editors produce LF or CRLF — normalise.
             String hl7 = normalizeLineEndings ? raw.replace("\r\n", "\r").replace("\n", "\r") : raw;
+            PipeParser pipeParser = validate ? pipeParserValidating : pipeParserNoValidation;
+            XMLParser  xmlParser  = validate ? xmlParserValidating  : xmlParserNoValidation;
             ca.uhn.hl7v2.model.Message parsed = pipeParser.parse(hl7);
             String xml = xmlParser.encode(parsed);
             return new PipeRunResult(getSuccessForward(), new Message(xml));
@@ -74,11 +105,11 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
         }
     }
 
-    private HapiContext buildContext() {
+    private HapiContext buildContext(boolean validate) {
         HapiContext ctx = (hl7Version == null || hl7Version.isBlank())
                 ? new DefaultHapiContext()
                 : new DefaultHapiContext(new CanonicalModelClassFactory(hl7Version));
-        if (!validateMessage) {
+        if (!validate) {
             ctx.setValidationContext(new NoValidation());
         }
         return ctx;
