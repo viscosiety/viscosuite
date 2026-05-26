@@ -118,9 +118,13 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
     }
 
     private HapiContext buildContext(boolean validate) {
-        HapiContext ctx = (hl7Version == null || hl7Version.isBlank())
-                ? new DefaultHapiContext()
-                : new DefaultHapiContext(new CanonicalModelClassFactory(hl7Version));
+        // When enforceHl7Version is false, don't pin the model factory to hl7Version —
+        // let HAPI resolve the message structure from MSH-12 so the correct version's
+        // validation rules and field definitions are applied.
+        boolean pinVersion = enforceHl7Version && hl7Version != null && !hl7Version.isBlank();
+        HapiContext ctx = pinVersion
+                ? new DefaultHapiContext(new CanonicalModelClassFactory(hl7Version))
+                : new DefaultHapiContext();
         if (!validate) {
             ctx.setValidationContext(new NoValidation());
         }
@@ -142,10 +146,11 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
     }
 
     /**
-     * When {@code false}, the version check against MSH-12 is skipped even if {@code hl7Version}
-     * is set. The configured version is still used for HAPI structure resolution, so the correct
-     * message classes are used for encoding — mismatches are silently accepted.
-     * Useful when senders are known to send an older minor version (e.g. 2.5) against a 2.6 pipeline.
+     * When {@code false}, the version check against MSH-12 is skipped and HAPI derives the
+     * message structure and validation rules from MSH-12 rather than from {@code hl7Version}.
+     * Use this when senders are known to send an older minor version (e.g. 2.5) but the pipeline
+     * is configured for a newer one (e.g. 2.6) — the message is parsed against its own version's
+     * rules, so no withdrawn-field violations are triggered.
      * @ff.default true
      */
     public void setEnforceHl7Version(boolean enforceHl7Version) {
