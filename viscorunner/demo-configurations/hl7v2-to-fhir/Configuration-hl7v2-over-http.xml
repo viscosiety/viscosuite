@@ -25,17 +25,17 @@
             <PutInSessionPipe name="detectContentType">
                 <Param name="isXmlMime" type="STRING"
                        sessionKey="headers"
-                       xpathExpression="string(boolean(/headers/header[@name='Content-Type'][contains(lower-case(string(.)),'xml')]))"/>
+                       xpathExpression="string(/headers/header[@name='Content-Type'][contains(lower-case(string(.)),'xml')])"/>
                 <Forward name="success" path="routeByMime"/>
             </PutInSessionPipe>
 
             <!-- Step 1b: route by Content-Type header.
+                 isXmlMime is non-empty when Content-Type contains 'xml', empty otherwise.
                  application/xml → HL7v2 XML Encoding Syntax, skip conversion.
                  Anything else (text/plain, application/hl7-v2, …) → pipe-delimited ER7, convert first. -->
             <IfPipe name="routeByMime"
                     getInputFromSessionKey="isXmlMime"
-                    preserveInput="true"
-                    expressionValue="true">
+                    preserveInput="true">
                 <Forward name="then" path="saveHl7Xml"/>
                 <Forward name="else" path="parseHl7"/>
             </IfPipe>
