@@ -84,7 +84,10 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
             boolean validate = validateMessage;
             ParameterValueList pvl = getParameterList().getValues(message, session);
             if (pvl != null && pvl.contains("validateMessage")) {
-                validate = pvl.get("validateMessage").asBooleanValue(validateMessage);
+                String raw = pvl.get("validateMessage").asStringValue();
+                if (raw != null && !raw.isBlank()) {
+                    validate = Boolean.parseBoolean(raw);
+                }
             }
 
             String raw = message.asString();
@@ -96,6 +99,14 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
             PipeParser pipeParser = validate ? pipeParserValidating : pipeParserNoValidation;
             XMLParser  xmlParser  = validate ? xmlParserValidating  : xmlParserNoValidation;
             ca.uhn.hl7v2.model.Message parsed = pipeParser.parse(hl7);
+            if (hl7Version != null && !hl7Version.isBlank()) {
+                String msgVersion = parsed.getVersion();
+                if (!hl7Version.equals(msgVersion)) {
+                    throw new PipeRunException(this,
+                        "Failed to convert HL7v2 to XML: message version " + msgVersion +
+                        " does not match configured hl7Version " + hl7Version);
+                }
+            }
             String xml = xmlParser.encode(parsed);
             return new PipeRunResult(getSuccessForward(), new Message(xml));
         } catch (PipeRunException e) {
@@ -117,7 +128,8 @@ public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 
     /**
      * HL7v2 version to use when resolving message structures (e.g. {@code 2.5} or {@code 2.5.1}).
-     * When omitted the version is read from MSH-12 at parse time.
+     * When set, messages whose MSH-12 version does not match are rejected with a {@link PipeRunException}.
+     * When omitted the version is derived from MSH-12 and no version check is performed.
      * @ff.default (derived from MSH-12)
      */
     public void setHl7Version(String hl7Version) {

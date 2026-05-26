@@ -440,16 +440,18 @@
 
             <xsl:for-each select="$nk1Segments">
                 <contact>
-                    <!--
-                      NK1.3 relationship.
-
-                      Easy validation-safe fix:
-                      do not emit SPO as v2-0131 coding. The base FHIR validator
-                      does not recognize v2-0131#SPO for Patient.contact.relationship.
-                      Preserve the source meaning as text for now.
-                    -->
+                    <!-- NK1.3 relationship: emit v2-0063 coding (extensible binding accepts it) + text -->
                     <xsl:if test="hl7:NK1.3/hl7:CE.1 or hl7:NK1.3/hl7:CE.2">
                         <relationship>
+                            <xsl:if test="hl7:NK1.3/hl7:CE.1">
+                                <coding>
+                                    <system value="http://terminology.hl7.org/CodeSystem/v2-0063"/>
+                                    <code value="{hl7:NK1.3/hl7:CE.1}"/>
+                                    <xsl:if test="hl7:NK1.3/hl7:CE.2">
+                                        <display value="{hl7:NK1.3/hl7:CE.2}"/>
+                                    </xsl:if>
+                                </coding>
+                            </xsl:if>
                             <text value="{if (hl7:NK1.3/hl7:CE.2)
                                           then hl7:NK1.3/hl7:CE.2
                                           else hl7:NK1.3/hl7:CE.1}"/>

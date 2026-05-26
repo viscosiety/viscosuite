@@ -9,23 +9,94 @@
                     method="POST"
                     headerParams="Accept,Content-Type"
                     produces="XML"
-                    allowAllParams="true"
+                    allowedParameters="validateMessage"
             />
         </Receiver>
+        <XslErrorMessageFormatter styleSheetName="xslt/filterErrors.xslt"/>
         <Pipeline>
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
                 <Exit name="Error" state="ERROR" code="500"/>
             </Exits>
-            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 ingest HTTP"/>
-            <SenderPipe getInputFromSessionKey="originalMessage" name="requestProxyPipe">
-                <IbisLocalSender javaListener="HL7v2ToFHIRListener">
-                    <Param name="headerAccept" sessionKey="headers" xpathExpression="/headers/header[@name = 'Accept']/text()"/>
-                    <Param name="headerContent-Type" sessionKey="headers" xpathExpression="/headers/header[@name = 'Content-Type']/text()"/>
-                </IbisLocalSender>
-                <Forward name="success" path="Exit"/>
+
+            <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml).
+                 HL7v2 validation can be disabled via ?validateMessage=false on the request URI. -->
+            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6">
+                <Param name="validateMessage" sessionKey="validateMessage"/>
                 <Forward name="exception" path="Error"/>
+            </Pipe>
+
+            <!-- Step 2: save HL7v2 XML and extract key fields for tracing in the debugger.
+                 Use //h: wildcards so XPaths work regardless of the root element name
+                 (ADT_A01, ADT_A02, ADT_A03, ADT_A09, …). -->
+            <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml">
+                <Param type="STRING" name="flow"      xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' MLLP')" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="patientId" xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="event"     xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1,' ',//h:MSH/h:MSH.9/h:MSG.2)" namespaceDefs="h=urn:hl7-org:v2xml"/>
+            </PutInSessionPipe>
+
+            <!-- Step 3: extract department code (PV1.3/PL.1) as plain text for IfPipe -->
+            <XsltPipe name="extractDept" styleSheetName="xslt/extract-department.xslt" />
+
+            <!-- Step 4: route on department — only CARDIO is accepted.
+                 IfPipe compares the current message (department text) to expressionValue. -->
+            <IfPipe name="filterDepartment" expressionValue="CARDIO">
+                <Forward name="then" path="restoreForFhir"/>
+                <Forward name="else" path="restoreForReject"/>
+            </IfPipe>
+
+            <!-- Allowed path -->
+            <GetFromSessionPipe name="restoreForFhir" sessionKey="hl7Xml">
+                <Forward name="success" path="forwardToFhirPipeline"/>
+            </GetFromSessionPipe>
+
+            <SenderPipe name="forwardToFhirPipeline">
+                <IbisLocalSender javaListener="HL7v2ToFHIRListener" />
+                <Forward name="success"   path="restoreForAck"/>
+                <Forward name="exception" path="restoreForError"/>
             </SenderPipe>
+
+            <GetFromSessionPipe name="restoreForAck" sessionKey="hl7Xml">
+                <Forward name="success" path="buildAckXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildAckXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AA"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Error path: exception from FHIR pipeline → AE NACK -->
+            <GetFromSessionPipe name="restoreForError" sessionKey="hl7Xml">
+                <Forward name="success" path="buildErrorXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildErrorXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AE"/>
+                <Param name="errorMessage"       value="Internal processing error; check the Frank!Console for details"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Rejected path -->
+            <GetFromSessionPipe name="restoreForReject" sessionKey="hl7Xml">
+                <Forward name="success" path="buildRejectXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildRejectXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AR"/>
+                <Param name="errorMessage"       value="Department not supported by this integration"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
+
+            <!-- Shared: ACK/NACK XML → pipe-delimited HL7v2 (returned to MllpListener) -->
+            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
+                <Forward name="success" path="Exit"/>
+            </Pipe>
         </Pipeline>
     </Adapter>
 </Module>
