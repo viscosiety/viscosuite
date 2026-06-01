@@ -1,2 +1,2 @@
--- viscostore is created by POSTGRES_DB; create the Frank!Framework database here
-CREATE DATABASE viscolink;
+CREATE DATABASE viscolink  OWNER visco;
+CREATE DATABASE viscostore OWNER visco;

@@ -63,7 +63,6 @@ services:
     image: postgres:16
     container_name: postgres
     environment:
-      POSTGRES_DB: viscostore
       POSTGRES_USER: visco
       POSTGRES_PASSWORD: visco
     ports:
@@ -72,10 +71,10 @@ services:
       - postgres-data:/var/lib/postgresql/data
       - ./postgres:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U visco -d viscostore"]
+      test: ["CMD-SHELL", "pg_isready -U visco -d viscolink && pg_isready -U visco -d viscostore"]
       interval: 5s
-      timeout: 5s
-      retries: 10
+      timeout: 3s
+      retries: 20
       start_period: 30s
 
 volumes:

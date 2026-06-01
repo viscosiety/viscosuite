@@ -47,13 +47,13 @@ services:
 
       viscolink.views.names: viscoflow,lab-code-mapper,pipeline-console
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
-      viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
+      viscolink.views.lab-code-mapper.url: /viscolink/demo-tools/loinc-mapping-ui.html
       viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC
       viscolink.views.viscoflow.name: ViscoFlow
       viscolink.views.viscoflow.url: /viscolink/flow/
       viscolink.views.viscoflow.description: ViscoFlow — modular message flow viewer
       viscolink.views.pipeline-console.name: Demo Pipeline Tester
-      viscolink.views.pipeline-console.url: /viscolink/test-client.html
+      viscolink.views.pipeline-console.url: /viscolink/demo-tools/test-client.html
       viscolink.views.pipeline-console.description: Drive demo pipelines end-to-end
 
       # Demo Pipeline Tester — default connection settings
@@ -83,11 +83,11 @@ services:
       - ./demo-configurations:/opt/frank/configurations
       # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
       - ./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro
-      # Demo management UI for the loinc-mapping-api — served at http://localhost:8180/viscolink/loinc-mapping.html
-      # Mounted via webapp-overlay (not directly into webapps/viscolink/) to avoid pre-creating that
-      # directory, which causes Tomcat to skip WAR extraction and deploy an empty context in ~6 ms.
-      - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/opt/frank/webapp-overlay/viscolink/loinc-mapping.html:ro
-      - ./demo-configurations/test-client.html:/opt/frank/webapp-overlay/viscolink/test-client.html:ro
+      # Demo tool UIs — served under /viscolink/demo-tools/ via the webapp-overlay mechanism.
+      # Mounted as a directory so new tools in demo-tools/ are served automatically.
+      # (Not mounted into webapps/viscolink/ directly — that would cause Tomcat to pre-create
+      # the directory, skip WAR extraction, and deploy an empty context in ~6 ms.)
+      - ./demo-tools:/opt/frank/webapp-overlay/viscolink/demo-tools:ro
       - ./demo-resources/resources.yml:/opt/frank/resources/resources.yml:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
       - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
