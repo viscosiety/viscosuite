@@ -2,7 +2,7 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
     <Adapter name="HL7v2-over-HTTP" description="Received HL7v2 messages transported over HTTP and then forwards them to the HL7-to-FHIR Java Listener.">
-        <Receiver name="HL7V2HTTPReceiver">
+        <Receiver name="HL7V2HTTPReceiver" maxBackoffDelay="0">
             <ApiListener
                     name="HL7V2RestListener"
                     uriPattern="hl7v2"

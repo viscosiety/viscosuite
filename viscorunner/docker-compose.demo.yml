@@ -45,13 +45,22 @@ services:
 
       amqp.events.active: "true"
 
-      viscolink.views.names: viscoflow,lab-code-mapper
+      viscolink.views.names: viscoflow,lab-code-mapper,integration-test-client
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
       viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC
       viscolink.views.viscoflow.name: ViscoFlow
       viscolink.views.viscoflow.url: /viscolink/flow/
       viscolink.views.viscoflow.description: ViscoFlow — modular message flow viewer
+      viscolink.views.integration-test-client.name: Integration Test Client
+      viscolink.views.integration-test-client.url: /viscolink/test-client.html
+      viscolink.views.integration-test-client.description: Drive all three demo pipelines end-to-end
+
+      # Integration Test Client — default connection settings
+      test-client.host: localhost
+      test-client.port: "8180"
+      test-client.user: ADMIN
+      test-client.password: PASSWORD1234
 
       SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/app/overlay-config/"
 
@@ -77,6 +86,7 @@ services:
       # Mounted via webapp-overlay (not directly into webapps/viscolink/) to avoid pre-creating that
       # directory, which causes Tomcat to skip WAR extraction and deploy an empty context in ~6 ms.
       - ./demo-configurations/loinc-mapping-api/loinc-mapping-ui.html:/opt/frank/webapp-overlay/viscolink/loinc-mapping.html:ro
+      - ./demo-configurations/test-client.html:/opt/frank/webapp-overlay/viscolink/test-client.html:ro
       - ./demo-resources/resources.yml:/opt/frank/resources/resources.yml:ro
       - ./demo-resources/loinc-mapping.csv:/opt/frank/resources/loinc-mapping.csv:ro
       - ./demo-hapi-overlay/application.yaml:/app/overlay-config/application.yaml:ro
