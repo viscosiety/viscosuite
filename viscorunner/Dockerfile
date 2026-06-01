@@ -44,6 +44,9 @@ COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 #   viscolink.war  →  /viscolink
 #   viscostore.war →  /viscostore
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
+ARG BUILD_TIMESTAMP=""
+RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
+    sed -i "s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 COPY --chown=tomcat target/viscolink.war  /usr/local/tomcat/webapps/viscolink.war
 COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/viscostore.war
 

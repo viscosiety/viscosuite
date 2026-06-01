@@ -4,6 +4,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      args:
+        BUILD_TIMESTAMP: "${BUILD_TIMESTAMP:-}"
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscorunner:latest
     ports:
       - "8180:8080"

@@ -144,6 +144,7 @@ docker:viscosuite:amd64:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
     - docker build --platform linux/amd64
+        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
         -t "$IMAGE:$CI_COMMIT_SHA-amd64"
         viscorunner/
     - docker push "$IMAGE:$CI_COMMIT_SHA-amd64"
@@ -165,6 +166,7 @@ docker:viscosuite:arm64:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
     - docker build --platform linux/arm64
+        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
         -t "$IMAGE:$CI_COMMIT_SHA-arm64"
         viscorunner/
     - docker push "$IMAGE:$CI_COMMIT_SHA-arm64"
