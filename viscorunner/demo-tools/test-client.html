@@ -630,7 +630,7 @@ const GROUPS = [
         desc: 'loinc-enriched facade: fetches Observations from viscostore, enriches NullFlavor/OTH codes with LOINC codings from loinc_mapping table.',
         path: '/viscolink/fhir/r4/loinc-enriched/Observation',
         queryParams: [
-          { name: 'patient', label: 'patient', placeholder: 'PAT-2020001' },
+          { name: 'patient', label: 'patient', placeholder: 'pat-lab-uncoded-001' },
           { name: '_include', label: '_include', value: 'Observation:specimen', readonly: true },
           { name: '_format', label: '_format', value: 'xml', readonly: true },
         ],
