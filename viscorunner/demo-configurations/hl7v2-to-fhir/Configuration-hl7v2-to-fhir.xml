@@ -22,16 +22,38 @@
             </Exits>
 
             <PutInSessionPipe name="putGlobalsInSession">
-                <!-- Use //h: wildcards so XPaths work regardless of the root element name
-                     (ADT_A01, ADT_A02, ADT_A03, ADT_A09, …).
+                <!-- Use //h: wildcards so XPaths work regardless of the root element name.
                      Route by MSG.2 (trigger event, e.g. A01/A08) rather than MSG.3
                      (message structure), because A04/A08/A13 all share the ADT_A01
-                     structure name but need distinct XSLT files. -->
+                     structure name but need distinct XSLT files.
+                     Supported events: A01, A02, A03, A04, A08, A11, A13 — validated by checkSupportedEventType below. -->
                 <Param type="STRING" name="patientId"       xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]"   namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="flow"            xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' → hl7v2-to-fhir')" namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="hl7TriggerEvent" xpathExpression="//h:MSH/h:MSH.9/h:MSG.2"      namespaceDefs="h=urn:hl7-org:v2xml" />
                 <Param type="STRING" name="mappingStyleSheet" xpathExpression="concat('./xslt/${fhir.target.version}/ADT_', //h:MSH/h:MSH.9/h:MSG.2, '.xslt')" namespaceDefs="h=urn:hl7-org:v2xml" />
             </PutInSessionPipe>
+
+            <!-- Reject unsupported ADT event types before any XSLT lookup is attempted.
+                 forwardNameSessionKey routes to the forward whose name matches the trigger event value.
+                 Any event not listed below hits the notFound forward. -->
+            <SwitchPipe name="checkSupportedEventType" forwardNameSessionKey="hl7TriggerEvent">
+                <Forward name="A01" path="generateTransactionUuid"/>
+                <Forward name="A02" path="generateTransactionUuid"/>
+                <Forward name="A03" path="generateTransactionUuid"/>
+                <Forward name="A04" path="generateTransactionUuid"/>
+                <Forward name="A08" path="generateTransactionUuid"/>
+                <Forward name="A11" path="generateTransactionUuid"/>
+                <Forward name="A13" path="generateTransactionUuid"/>
+                <Forward name="notFound" path="rejectUnsupportedEventType"/>
+            </SwitchPipe>
+
+            <!-- ExceptionPipe params are added to the ErrorMessageFormatter output and copied
+                 into the PipeLineSession, giving the Ladybug debugger and calling adapters
+                 full context on the rejected event type. -->
+            <ExceptionPipe name="rejectUnsupportedEventType" getInputFromSessionKey="hl7TriggerEvent">
+                <Param name="triggerEvent"        sessionKey="hl7TriggerEvent"/>
+                <Param name="supportedEventTypes" value="A01, A02, A03, A04, A08, A11, A13"/>
+            </ExceptionPipe>
 
             <UUIDGeneratorPipe name="generateTransactionUuid" preserveInput="true" storeResultInSessionKey="transactionUuid">
 

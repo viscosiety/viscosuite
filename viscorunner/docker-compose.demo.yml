@@ -56,13 +56,6 @@ services:
       viscolink.views.pipeline-console.url: /viscolink/demo-tools/test-client.html
       viscolink.views.pipeline-console.description: Drive demo pipelines end-to-end
 
-      # Demo Pipeline Tester — default connection settings
-      test-client.protocol: "http"
-      test-client.host: localhost
-      test-client.port: "8180"
-      test-client.user: ADMIN
-      test-client.password: PASSWORD1234
-
       SPRING_CONFIG_ADDITIONAL_LOCATION: "optional:file:/app/overlay-config/"
 
       # Fake EMR — external PostgreSQL over TLS (k8s-hosted, public endpoint)

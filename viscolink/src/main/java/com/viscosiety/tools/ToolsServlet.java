@@ -35,24 +35,8 @@ public class ToolsServlet extends HttpServlet {
         switch (path) {
             case "/health"   -> writeJson(resp, 200, "{\"status\":\"UP\"}");
             case "/registry" -> handleRegistry(resp);
-            case "/config"   -> handleConfig(resp);
             default          -> writeJson(resp, 404, "{\"error\":\"Not found\",\"path\":\"" + path + "\"}");
         }
-    }
-
-    private void handleConfig(HttpServletResponse resp) throws IOException {
-        AppConstants props = AppConstants.getInstance();
-        String protocol = props.getProperty("test-client.protocol", "");
-        String host     = props.getProperty("test-client.host",     "");
-        String port     = props.getProperty("test-client.port",     "");
-        String user     = props.getProperty("test-client.user",     "");
-        String password = props.getProperty("test-client.password", "");
-        writeJson(resp, 200,
-            "{\"protocol\":" + jsonStr(protocol) +
-            ",\"host\":"     + jsonStr(host)     +
-            ",\"port\":"     + jsonStr(port)     +
-            ",\"user\":"     + jsonStr(user)     +
-            ",\"password\":" + jsonStr(password) + "}");
     }
 
     private void handleRegistry(HttpServletResponse resp) throws IOException {

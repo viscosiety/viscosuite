@@ -21,7 +21,7 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.2.0-20260516.042329</frankframework.version>
+		<frankframework.version>10.2.0-20260528.042334</frankframework.version>
 		<!-- Published from viscoSuiteDev branch at git.viscosiety.com/public-applications/ladybug.
 		     Includes offset pagination support and postMessage bridge for ViscoFlow deep-link. -->
 		<ladybug.version>4.1-SNAPSHOT</ladybug.version>

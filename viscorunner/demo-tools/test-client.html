@@ -1,0 +1,1610 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Pipeline Tester — ViscoSuite</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #063B3E;
+      --card:     #0a4f54;
+      --border:   #0d676e;
+      --brand:    #0F8A96;
+      --hover:    #0B707A;
+      --text:     #F3F5F6;
+      --muted:    #8eb8bc;
+      --mono-bg:  #041f21;
+      --mono-fg:  #a5d6da;
+      --get:      #1a4d30;
+      --get-fg:   #4ade80;
+      --post:     #1a2d5a;
+      --post-fg:  #93c5fd;
+      --aa-bg:    #1a4d30;
+      --aa-fg:    #4ade80;
+      --ae-bg:    #4d2c0a;
+      --ae-fg:    #fb923c;
+      --ar-bg:    #4d1a1a;
+      --ar-fg:    #f87171;
+      --err-bg:   #3d1a4d;
+      --err-fg:   #e879f9;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ──────────────────────────────────────────────────────── */
+    header {
+      padding: 14px 22px;
+      border-bottom: 1px solid var(--border);
+      background: var(--card);
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      flex-shrink: 0;
+    }
+    header a { color: var(--muted); text-decoration: none; font-size: 0.82rem; }
+    header a:hover { color: var(--text); }
+    header h1 { font-size: 1.05rem; font-weight: 700; flex: 1; }
+
+    /* ── Config bar ──────────────────────────────────────────────────── */
+    .config-bar {
+      padding: 9px 22px;
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .config-bar label { color: var(--muted); display: flex; align-items: center; gap: 6px; }
+    .config-bar input[type=text],
+    .config-bar input[type=number],
+    .config-bar input[type=password] {
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .config-bar input[type=text]     { width: 130px; }
+    .config-bar input[type=number]   { width: 62px; }
+    .config-bar input[type=password] { width: 100px; }
+    .config-bar input:focus { outline: none; border-color: var(--brand); }
+    .config-bar select {
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .config-bar select:focus { outline: none; border-color: var(--brand); }
+    .config-sep { width: 1px; height: 18px; background: var(--border); }
+
+    /* ── Layout ──────────────────────────────────────────────────────── */
+    .main {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      min-height: 0;
+    }
+
+    /* ── Sidebar ─────────────────────────────────────────────────────── */
+    .sidebar {
+      width: 248px;
+      flex-shrink: 0;
+      border-right: 1px solid var(--border);
+      overflow-y: auto;
+      padding: 8px 0 16px;
+    }
+
+    .sg-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--brand);
+      padding: 10px 14px 4px;
+    }
+    .sg-label:not(:first-child) {
+      border-top: 1px solid var(--border);
+      padding-top: 12px;
+      margin-top: 4px;
+    }
+
+    .sc-row {
+      display: flex;
+      align-items: center;
+      padding: 5px 12px 5px 14px;
+      cursor: pointer;
+      gap: 7px;
+      transition: background 0.1s;
+    }
+    .sc-row:hover  { background: var(--card); }
+    .sc-row.active { background: var(--hover); }
+
+    .method-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 2px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+      min-width: 34px;
+      text-align: center;
+    }
+    .mb-get  { background: var(--get);  color: var(--get-fg);  }
+    .mb-post { background: var(--post); color: var(--post-fg); }
+    .mb-hl7  { background: #2a1a4d;    color: #c4b5fd;        }
+
+    .sc-code {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.68rem;
+      color: var(--brand);
+      width: 24px;
+      flex-shrink: 0;
+      text-align: right;
+    }
+
+    .sc-label-text {
+      font-size: 0.82rem;
+      color: var(--text);
+      flex: 1;
+      line-height: 1.3;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .expect-badge {
+      font-size: 0.6rem;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+    .eb-aa { background: var(--aa-bg); color: var(--aa-fg); }
+    .eb-ae { background: var(--ae-bg); color: var(--ae-fg); }
+    .eb-ar { background: var(--ar-bg); color: var(--ar-fg); }
+
+    /* ── Content area ────────────────────────────────────────────────── */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      min-width: 0;
+    }
+
+    /* URL / action bar */
+    .url-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 18px 10px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .url-method {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 5px;
+      letter-spacing: 0.04em;
+      flex-shrink: 0;
+    }
+
+    input.url-display {
+      flex: 1;
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      padding: 5px 10px;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.78rem;
+      color: #c4b5fd;
+      min-width: 0;
+      outline: none;
+    }
+    input.url-display:focus {
+      border-color: var(--brand);
+      color: var(--mono-fg);
+    }
+
+    button.run-btn {
+      background: var(--brand);
+      color: #fff;
+      border: none;
+      border-radius: 5px;
+      padding: 6px 18px;
+      font-size: 0.83rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.14s;
+      flex-shrink: 0;
+    }
+    button.run-btn:hover    { background: var(--hover); }
+    button.run-btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.65; }
+
+    .run-info { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
+
+    /* Params / body area */
+    .params-area {
+      padding: 12px 18px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .params-area.hidden { display: none; }
+
+    .param-section-label {
+      font-size: 0.7rem;
+      font-weight: 600;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 4px;
+    }
+
+    .param-grid {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 6px 10px;
+      align-items: center;
+    }
+
+    .param-grid label {
+      font-size: 0.78rem;
+      color: var(--muted);
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .param-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .param-grid input[type=text],
+    .param-grid input[type=number] {
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: "SF Mono", Consolas, monospace;
+      flex: 1;
+      min-width: 120px;
+    }
+    .param-grid input:focus { outline: none; border-color: var(--brand); }
+    .param-grid input[readonly] { color: var(--muted); }
+
+    .param-chip {
+      font-size: 0.68rem;
+      padding: 2px 7px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--muted);
+      cursor: pointer;
+      transition: background 0.1s, color 0.1s;
+      white-space: nowrap;
+    }
+    .param-chip:hover { background: var(--hover); color: var(--text); }
+
+    .param-version-select {
+      display: flex;
+      gap: 0;
+      border: 1px solid var(--border);
+      border-radius: 5px;
+      overflow: hidden;
+    }
+    .param-version-select input[type=radio] { display: none; }
+    .param-version-select label {
+      padding: 4px 10px;
+      font-size: 0.76rem;
+      font-weight: 600;
+      cursor: pointer;
+      color: var(--muted);
+      background: var(--mono-bg);
+      border: none;
+      text-align: center;
+      transition: background 0.1s, color 0.1s;
+    }
+    .param-version-select input[type=radio]:checked + label {
+      background: var(--brand);
+      color: #fff;
+    }
+
+    /* HL7v2 editor mode */
+    .hl7-area {
+      flex: 1;
+      padding: 10px 18px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+    }
+    .hl7-area.hidden { display: none; }
+
+    textarea.hl7-editor {
+      flex: 1;
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--mono-fg);
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.77rem;
+      line-height: 1.65;
+      padding: 10px 12px;
+      resize: none;
+      outline: none;
+      min-height: 180px;
+    }
+    textarea.hl7-editor:focus { border-color: var(--brand); }
+
+    /* Body editor (FHIR POST) */
+    .body-area {
+      flex: 1;
+      padding: 0 18px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      min-height: 0;
+    }
+    .body-area.hidden { display: none; }
+
+    textarea.body-editor {
+      flex: 1;
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--mono-fg);
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.76rem;
+      line-height: 1.6;
+      padding: 10px 12px;
+      resize: none;
+      outline: none;
+      min-height: 160px;
+    }
+    textarea.body-editor:focus { border-color: var(--brand); }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--muted);
+      font-size: 0.85rem;
+    }
+
+    /* ── Response ────────────────────────────────────────────────────── */
+    .response-wrap {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      padding: 10px 18px 14px;
+      gap: 6px;
+      border-top: 1px solid var(--border);
+      min-height: 180px;
+    }
+
+    .resp-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+    .resp-title {
+      font-size: 0.67rem;
+      font-weight: 700;
+      letter-spacing: 0.09em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    .ack-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+    }
+    .ab-aa  { background: var(--aa-bg);  color: var(--aa-fg);  }
+    .ab-ae  { background: var(--ae-bg);  color: var(--ae-fg);  }
+    .ab-ar  { background: var(--ar-bg);  color: var(--ar-fg);  }
+    .ab-err { background: var(--err-bg); color: var(--err-fg); }
+
+    .http-status-badge {
+      font-size: 0.68rem;
+      font-weight: 600;
+      padding: 2px 7px;
+      border-radius: 3px;
+      letter-spacing: 0.04em;
+    }
+    .hs-ok  { background: var(--aa-bg); color: var(--aa-fg);  }
+    .hs-err { background: var(--ar-bg); color: var(--ar-fg);  }
+
+    .resp-ct {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-left: auto;
+    }
+
+    pre.resp-body {
+      flex: 1;
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.76rem;
+      line-height: 1.58;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--mono-fg);
+      min-height: 0;
+    }
+    pre.resp-body.ok   { border-color: #1a5c30; }
+    pre.resp-body.nack { border-color: var(--ae-bg); }
+    pre.resp-body.err  { border-color: var(--ar-bg); }
+
+    .resp-placeholder { color: var(--muted); font-style: italic; }
+
+    /* ── Scenario info panel ─────────────────────────────────────────── */
+    .scenario-info {
+      padding: 10px 18px 0;
+      flex-shrink: 0;
+    }
+
+    .scenario-info-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      user-select: none;
+      padding: 0 0 6px;
+    }
+    .scenario-info-toggle:hover .si-chevron { color: var(--text); }
+
+    .si-breadcrumb {
+      font-size: 0.68rem;
+      color: var(--muted);
+      flex: 1;
+      letter-spacing: 0.03em;
+    }
+    .si-breadcrumb b { color: var(--brand); font-weight: 600; }
+
+    .si-chevron {
+      font-size: 0.65rem;
+      color: var(--muted);
+      transition: transform 0.15s;
+      line-height: 1;
+    }
+    .si-chevron.open { transform: rotate(90deg); }
+
+    .si-body {
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 10px 14px 12px;
+      margin-bottom: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .si-body.collapsed { display: none; }
+
+    .si-section-label {
+      font-size: 0.6rem;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--brand);
+      margin-bottom: 3px;
+    }
+
+    .si-group-desc {
+      font-size: 0.78rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+    .si-group-desc ul {
+      margin: 4px 0 0 16px;
+      padding: 0;
+    }
+    .si-group-desc li { margin-bottom: 2px; }
+    .si-group-desc code {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.72rem;
+      background: var(--card);
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: var(--mono-fg);
+    }
+
+    .si-scenario-desc {
+      font-size: 0.8rem;
+      color: var(--text);
+      line-height: 1.6;
+      border-top: 1px solid var(--border);
+      padding-top: 8px;
+    }
+    .si-scenario-desc code {
+      font-family: "SF Mono", Consolas, monospace;
+      font-size: 0.72rem;
+      background: var(--card);
+      padding: 1px 4px;
+      border-radius: 3px;
+      color: var(--mono-fg);
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <a href="/">← ViscoSuite</a>
+  <h1>Demo Pipeline Tester</h1>
+</header>
+
+<div class="config-bar">
+  <label>User <input id="cfg-user" type="text" placeholder="ADMIN" title="Basic auth credentials"></label>
+  <label>Password <input id="cfg-pass" type="password" placeholder="PASSWORD1234" title="Basic auth credentials"></label>
+  <div class="config-sep"></div>
+  <label><input id="cfg-validate" type="checkbox" checked> Validate HL7</label>
+</div>
+
+<div class="main">
+  <nav class="sidebar" id="sidebar"></nav>
+
+  <div class="content" id="content">
+    <div class="empty-state">Select a scenario on the left to begin.</div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── Scenario definitions ──────────────────────────────────────────────────
+
+const GROUPS = [
+  // ── A: Fake-EMR pipeline ────────────────────────────────────────────
+  {
+    label: 'Fake-EMR Pipeline',
+    desc: `<p>The Fake-EMR simulates a <strong>legacy Electronic Medical Record system</strong> that exposes its data through relational database queries — in practice, stored procedures on SQL Server or PostgreSQL. This is the most common integration pattern in Dutch hospital environments: the source system cannot produce FHIR natively, so ViscoSuite bridges the gap by querying the database directly.</p>
+<p>ViscoLink's ETL adapter calls stored procedures (e.g. <code>sp_patient_gegevens</code>, <code>sp_diagnoses_patient</code>), collects the relational result sets, and passes them through an XSLT transformation (<code>emr-to-fhir-bundle.xslt</code>) that maps rows to FHIR R4 resources. The resulting <code>transaction</code> Bundle is POSTed straight to ViscoStore for persistent storage.</p>
+<ul>
+  <li><strong>Source:</strong> Fake-EMR relational database (stored procedures)</li>
+  <li><strong>Adapter type:</strong> ETL / database query</li>
+  <li><strong>Output:</strong> FHIR R4 <code>Bundle</code> → persisted in ViscoStore</li>
+</ul>`,
+    items: [
+      {
+        id: 'emr-patient', label: 'EMR → FHIR Patient', method: 'GET', pipeline: 'emr',
+        desc: 'Triggers sp_patient_gegevens + sp_diagnoses_patient → emr-to-fhir-bundle.xslt → POST viscostore. Returns the FHIR R4 transaction-response Bundle.',
+        path: '/viscolink/api/emr/patient/{patientId}',
+        params: [
+          {
+            name: 'patientId', label: 'Patient ID', placeholder: 'PAT-2020001',
+            suggestions: Array.from({ length: 15 }, (_, i) => `PAT-2020${String(i + 1).padStart(3, '0')}`),
+          },
+        ],
+      },
+    ],
+  },
+
+  // ── B1: FHIR facade — Lab Enrichment ───────────────────────────────
+  {
+    label: 'FHIR Facade — Lab Enrichment',
+    desc: `<p>This group demonstrates ViscoLink acting as an <strong>enrichment proxy</strong> in front of ViscoStore. The underlying store holds Observations with <code>NullFlavor/OTH</code> codes — placeholders used when the originating lab system could not supply a standard terminology code at ingestion time. ViscoLink intercepts outbound FHIR responses and enriches those coded results with proper LOINC codings sourced from a local <code>loinc_mapping</code> table.</p>
+<p>The consumer of this facade sees fully coded Observations and is unaware that the raw data in ViscoStore is uncodified. This pattern is useful when <strong>terminology mapping must happen at query time</strong> rather than at ingestion, or when the mapping table needs to evolve independently of stored data.</p>
+<ul>
+  <li><strong>Source:</strong> ViscoStore FHIR R4 (Observations with OTH/NullFlavor codes)</li>
+  <li><strong>Adapter type:</strong> FHIR-to-FHIR facade with XSLT output enrichment</li>
+  <li><strong>Output:</strong> LOINC-enriched Observations returned directly to the caller — nothing is written to ViscoStore</li>
+</ul>`,
+    items: [
+      {
+        id: 'lab-obs-search', label: 'Observation Search', method: 'GET', pipeline: 'fhir',
+        desc: 'loinc-enriched facade: fetches Observations from viscostore, enriches NullFlavor/OTH codes with LOINC codings from loinc_mapping table.',
+        path: '/viscolink/fhir/r4/loinc-enriched/Observation',
+        queryParams: [
+          { name: 'patient', label: 'patient', placeholder: 'PAT-2020001' },
+          { name: '_include', label: '_include', value: 'Observation:specimen', readonly: true },
+          { name: '_format', label: '_format', value: 'xml', readonly: true },
+        ],
+      },
+      {
+        id: 'lab-obs-read', label: 'Observation Read', method: 'GET', pipeline: 'fhir',
+        desc: 'loinc-enriched facade: read single Observation by ID, enriched with LOINC codings.',
+        path: '/viscolink/fhir/r4/loinc-enriched/Observation/{observationId}',
+        params: [
+          { name: 'observationId', label: 'Observation ID', placeholder: '' },
+        ],
+      },
+    ],
+  },
+
+  // ── B2: FHIR facade — fhir-to-fhir ────────────────────────────────
+  {
+    label: 'FHIR Facade — fhir-to-fhir',
+    desc: `<p>The fhir-to-fhir adapter family handles integrations where <strong>both the source and the target speak FHIR</strong>, but version differences, profile constraints, or terminology conventions require transformation in between. ViscoLink intercepts FHIR requests and/or their responses, applying configurable XSLT stylesheets that can rewrite resource content, remap identifiers, adjust coding systems, or strip unsupported extensions.</p>
+<p>Two patterns are demonstrated here:</p>
+<ul>
+  <li><strong>Output rewriting</strong> — A read request is forwarded to ViscoStore unchanged, and the response is transformed before returning to the caller (e.g. <code>patient-read-r4.xslt</code> maps ViscoStore's internal representation to a consumer-expected profile). Nothing is written to ViscoStore.</li>
+  <li><strong>Input rewriting before storage</strong> — An incoming Bundle transaction is transformed <em>before</em> being forwarded to ViscoStore (<code>bundle-transaction-r4.xslt</code>), allowing the integration layer to normalise source data regardless of which FHIR version or profile the sender uses.</li>
+</ul>
+<p>The version selector (R4 / R5 / DSTU3) shows how a single adapter configuration handles multiple FHIR generations through version-specific XSLT variants.</p>`,
+    items: [
+      {
+        id: 'f2f-patient-read', label: 'Patient Read', method: 'GET', pipeline: 'fhir',
+        desc: 'fhir-to-fhir facade: read Patient by ID. Passes through XsltPipe (patient-read-{version}.xslt) — override XSLT to rewrite.',
+        path: '/viscolink/fhir/{version}/fhir-to-fhir/Patient/{patientId}',
+        params: [
+          { name: 'patientId', label: 'Patient ID', placeholder: 'PAT-R4-001' },
+        ],
+        versionParam: true,
+      },
+      {
+        id: 'f2f-bundle-tx', label: 'Bundle Transaction', method: 'POST', pipeline: 'fhir',
+        desc: 'fhir-to-fhir facade: POST a FHIR transaction Bundle. Passes through bundle-transaction-{version}.xslt — override XSLT to rewrite resources.',
+        path: '/viscolink/fhir/{version}/fhir-to-fhir',
+        versionParam: true,
+        contentType: 'application/fhir+xml',
+        bodyTemplates: {
+          r4: `<?xml version="1.0" encoding="UTF-8"?>
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="bundle-tx-r4-demo"/>
+  <type value="transaction"/>
+  <timestamp value="{TS_FHIR}"/>
+  <entry>
+    <fullUrl value="urn:uuid:pat-r4-demo"/>
+    <resource>
+      <Patient>
+        <identifier>
+          <system value="urn:oid:2.16.840.1.113883.2.4.99.1"/>
+          <value value="PAT-R4-001"/>
+        </identifier>
+        <name>
+          <use value="official"/>
+          <family value="de Vries"/>
+          <given value="Jan"/>
+          <prefix value="dhr."/>
+        </name>
+        <telecom>
+          <system value="phone"/>
+          <value value="+31612345678"/>
+          <use value="mobile"/>
+        </telecom>
+        <gender value="male"/>
+        <birthDate value="1980-03-15"/>
+        <address>
+          <line value="Keizersgracht 123"/>
+          <city value="Amsterdam"/>
+          <postalCode value="1015CJ"/>
+          <country value="NLD"/>
+        </address>
+      </Patient>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Patient"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:cond-r4-demo"/>
+    <resource>
+      <Condition>
+        <clinicalStatus>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/condition-clinical"/>
+            <code value="active"/>
+          </coding>
+        </clinicalStatus>
+        <code>
+          <coding>
+            <system value="http://snomed.info/sct"/>
+            <code value="44054006"/>
+            <display value="Diabetes mellitus type 2"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-r4-demo"/>
+        </subject>
+        <onsetDateTime value="2020-01-15"/>
+      </Condition>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Condition"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:obs-r4-demo"/>
+    <resource>
+      <Observation>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="vital-signs"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="29463-7"/>
+            <display value="Body weight"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-r4-demo"/>
+        </subject>
+        <valueQuantity>
+          <value value="82"/>
+          <unit value="kg"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="kg"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Observation"/>
+    </request>
+  </entry>
+</Bundle>`,
+          r5: `<?xml version="1.0" encoding="UTF-8"?>
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="bundle-tx-r5-demo"/>
+  <type value="transaction"/>
+  <timestamp value="{TS_FHIR}"/>
+  <entry>
+    <fullUrl value="urn:uuid:pat-r5-demo"/>
+    <resource>
+      <Patient>
+        <identifier>
+          <system value="urn:oid:2.16.840.1.113883.2.4.99.1"/>
+          <value value="PAT-R5-001"/>
+        </identifier>
+        <name>
+          <use value="official"/>
+          <text value="dhr. Jan de Vries"/>
+          <family value="de Vries"/>
+          <given value="Jan"/>
+          <prefix value="dhr."/>
+        </name>
+        <telecom>
+          <system value="phone"/>
+          <value value="+31612345678"/>
+          <use value="mobile"/>
+        </telecom>
+        <gender value="male"/>
+        <birthDate value="1980-03-15"/>
+        <address>
+          <text value="Keizersgracht 123, 1015CJ Amsterdam"/>
+          <line value="Keizersgracht 123"/>
+          <city value="Amsterdam"/>
+          <postalCode value="1015CJ"/>
+          <country value="NLD"/>
+        </address>
+      </Patient>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Patient"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:cond-r5-demo"/>
+    <resource>
+      <Condition>
+        <clinicalStatus>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/condition-clinical"/>
+            <code value="active"/>
+          </coding>
+        </clinicalStatus>
+        <code>
+          <coding>
+            <system value="http://snomed.info/sct"/>
+            <code value="44054006"/>
+            <display value="Diabetes mellitus type 2"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-r5-demo"/>
+        </subject>
+        <onsetDateTime value="2020-01-15"/>
+      </Condition>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Condition"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:obs-r5-demo"/>
+    <resource>
+      <Observation>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://terminology.hl7.org/CodeSystem/observation-category"/>
+            <code value="vital-signs"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="29463-7"/>
+            <display value="Body weight"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-r5-demo"/>
+        </subject>
+        <valueQuantity>
+          <value value="82"/>
+          <unit value="kg"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="kg"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Observation"/>
+    </request>
+  </entry>
+</Bundle>`,
+          dstu3: `<?xml version="1.0" encoding="UTF-8"?>
+<Bundle xmlns="http://hl7.org/fhir">
+  <id value="bundle-tx-dstu3-demo"/>
+  <type value="transaction"/>
+  <entry>
+    <fullUrl value="urn:uuid:pat-dstu3-demo"/>
+    <resource>
+      <Patient>
+        <identifier>
+          <system value="urn:oid:2.16.840.1.113883.2.4.99.1"/>
+          <value value="PAT-DSTU3-001"/>
+        </identifier>
+        <name>
+          <use value="official"/>
+          <family value="de Vries"/>
+          <given value="Jan"/>
+          <prefix value="dhr."/>
+        </name>
+        <telecom>
+          <system value="phone"/>
+          <value value="+31612345678"/>
+          <use value="mobile"/>
+        </telecom>
+        <gender value="male"/>
+        <birthDate value="1980-03-15"/>
+        <address>
+          <line value="Keizersgracht 123"/>
+          <city value="Amsterdam"/>
+          <postalCode value="1015CJ"/>
+          <country value="NLD"/>
+        </address>
+      </Patient>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Patient"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:cond-dstu3-demo"/>
+    <resource>
+      <Condition>
+        <clinicalStatus value="active"/>
+        <code>
+          <coding>
+            <system value="http://snomed.info/sct"/>
+            <code value="44054006"/>
+            <display value="Diabetes mellitus type 2"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-dstu3-demo"/>
+        </subject>
+        <onsetDateTime value="2020-01-15"/>
+      </Condition>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Condition"/>
+    </request>
+  </entry>
+  <entry>
+    <fullUrl value="urn:uuid:obs-dstu3-demo"/>
+    <resource>
+      <Observation>
+        <status value="final"/>
+        <category>
+          <coding>
+            <system value="http://hl7.org/fhir/observation-category"/>
+            <code value="vital-signs"/>
+          </coding>
+        </category>
+        <code>
+          <coding>
+            <system value="http://loinc.org"/>
+            <code value="29463-7"/>
+            <display value="Body weight"/>
+          </coding>
+        </code>
+        <subject>
+          <reference value="urn:uuid:pat-dstu3-demo"/>
+        </subject>
+        <valueQuantity>
+          <value value="82"/>
+          <unit value="kg"/>
+          <system value="http://unitsofmeasure.org"/>
+          <code value="kg"/>
+        </valueQuantity>
+      </Observation>
+    </resource>
+    <request>
+      <method value="POST"/>
+      <url value="Observation"/>
+    </request>
+  </entry>
+</Bundle>`,
+        },
+      },
+    ],
+  },
+
+  // ── C: HL7v2 over HTTP ─────────────────────────────────────────────
+  {
+    label: 'HL7v2 over HTTP',
+    desc: `<p>This group demonstrates the <strong>message-based ADT integration pathway</strong>. Legacy hospital systems — HIS, PAS, ward management terminals — generate HL7 v2 pipe-delimited messages for every patient movement event. ViscoLink receives these messages over HTTP (ER7 format), extracts the message type from <code>MSH.9</code>, applies the matching XSLT transformation (e.g. <code>ADT_A04.xslt</code>), and persists the resulting FHIR resources to ViscoStore as a transaction Bundle. The pipeline returns an HL7 v2 ACK response (<code>AA</code> / <code>AE</code> / <code>AR</code>) as expected by the sending system.</p>
+<p>The demo follows a coherent clinical narrative for patient Jan de Vries through a complete hospital episode: outpatient registration → inpatient admission → ward transfer → demographics update → discharge. Cancel events (A11, A13) demonstrate undo and correction workflows.</p>
+<p>Two negative-path scenarios are also included:</p>
+<ul>
+  <li><strong>ORTHO admission (AR)</strong> — This demo deployment is scoped to the CARDIO department; an admission to ORTHO is rejected with an <code>AR</code> (Application Reject) NACK, showing how ViscoLink enforces business rules.</li>
+  <li><strong>Unsupported message type (AE)</strong> — An <code>OMS^O05</code> order message has no matching XSLT handler, causing an <code>AE</code> (Application Error) NACK — the standard response for a message that was syntactically valid but could not be processed.</li>
+</ul>`,
+    items: [
+      {
+        id: 'hl7-a04', code: 'A04', label: 'Register Patient', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A04 — Jan de Vries (PAT-001) registers for outpatient appointment at CARDIO OPD (V-2026-002). Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A04^ADT_A01|{MSG_ID}|P|2.5',
+          'EVN|A04|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'NK1|1|de Vries^Maria^H|SPO^Spouse^HL70063|Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD|+31201234567^PRN^PH|+31201234567^WPN^PH|EC^Emergency Contact^HL70131',
+          'PV1|1|O|CARDIO^OPD^1^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD|DR002^Janssen^Robert^^^Dr.^MD||O|||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-002|||||||||||||||||||||||||{TS}',
+          'PV2',
+          'OBX|1|NM|29463-7^^LN||82|kg|||||F',
+          'AL1|1|DA|NKA^No Known Allergies^HL70132',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a01', code: 'A01', label: 'Admit Patient', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A01 — Jan de Vries (PAT-001) inpatient admit to CARDIO ward 101 bed A (V-2026-001). Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A01^ADT_A01|{MSG_ID}|P|2.5',
+          'EVN|A01|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet|||||ACC-2026-001',
+          'NK1|1|de Vries^Maria^H|SPO^Spouse^HL70063|Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD|+31201234567^PRN^PH|+31201234567^WPN^PH|EC^Emergency Contact^HL70131',
+          'PV1|1|I|CARDIO^101^A^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD|DR002^Janssen^Robert^^^Dr.^MD||E|||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001|||||||||||||||||||||||||{TS}',
+          'PV2',
+          'OBX|1|NM|29463-7^^LN||82|kg|||||F',
+          'AL1|1|DA|NKA^No Known Allergies^HL70132',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a02', code: 'A02', label: 'Transfer Patient', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A02 — Jan de Vries transferred from CARDIO 101-A to CARDIO 102-B. Requires prior A01. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A02^ADT_A02|{MSG_ID}|P|2.5',
+          'EVN|A02|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'PV1|1|I|CARDIO^102^B^HospitalA|||CARDIO^101^A^HospitalA|DR001^de Boer^Erik^^^Dr.^MD||||||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001|||||||||||||||||||||||||20260301080000',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a08', code: 'A08', label: 'Update Patient Info', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A08 — Jan de Vries updates address to Herengracht 456. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A08^ADT_A01|{MSG_ID}|P|2.5',
+          'EVN|A08|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Herengracht 456^^Amsterdam^NH^1017CA^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'NK1|1|de Vries^Maria^H|SPO^Spouse^HL70063|Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD|+31201234567^PRN^PH|+31201234567^WPN^PH|EC^Emergency Contact^HL70131',
+          'PV1|1|I|CARDIO^101^A^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD||||||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001',
+          'PV2',
+          'OBX|1|NM|29463-7^^LN||82|kg|||||F',
+          'AL1|1|DA|NKA^No Known Allergies^HL70132',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a03', code: 'A03', label: 'Discharge Patient', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A03 — Jan de Vries discharged home from CARDIO 102-B. Requires prior A01. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A03^ADT_A03|{MSG_ID}|P|2.5',
+          'EVN|A03|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'PV1|1|I|CARDIO^102^B^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD||||||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001|||||||||||||||||||||||||01||||||||20260301080000|{TS}',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a11', code: 'A11', label: 'Cancel Admit', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A11 — Retracts A01 admission of V-2026-001. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A11^ADT_A09|{MSG_ID}|P|2.5',
+          'EVN|A11|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M||||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'PV1|1|I|CARDIO^101^A^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD||||||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a13', code: 'A13', label: 'Cancel Discharge', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A13 — Retracts A03 discharge of V-2026-001; Encounter reverts to in-progress. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A13^ADT_A01|{MSG_ID}|P|2.5',
+          'EVN|A13|{TS}',
+          'PID|1||PAT-001^^^HospitalA^MR~123456782^^^2.16.840.1.113883.2.4.6.3^NNLD||de Vries^Jan^H||19800315|M|||Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD||+31612345678^CP^CP~j.devries@example.nl^NET^Internet',
+          'NK1|1|de Vries^Maria^H|SPO^Spouse^HL70063|Keizersgracht 123^^Amsterdam^NH^1015CJ^NLD|+31201234567^PRN^PH|+31201234567^WPN^PH|EC^Emergency Contact^HL70131',
+          'PV1|1|I|CARDIO^102^B^HospitalA||||DR001^de Boer^Erik^^^Dr.^MD||||||||||DR001^de Boer^Erik^^^Dr.^MD|OP|V-2026-001|||||||||||||||||||||||||20260301080000',
+          'PV2',
+          'OBX|1|NM|29463-7^^LN||82|kg|||||F',
+          'AL1|1|DA|NKA^No Known Allergies^HL70132',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-a01-ortho', code: 'A01', label: 'Admit Patient (ORTHO)', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'ADT^A01 — Sara Bakker (PAT-002) to ORTHO dept. Rejected: only CARDIO accepted → AR NACK.',
+        expect: 'AR',
+        msg: [
+          'MSH|^~\\&|SendingApp|SendingFac|viscolink|viscosiety|{TS}||ADT^A01^ADT_A01|{MSG_ID}|P|2.5',
+          'EVN|A01|{TS}',
+          'PID|1||PAT-002^^^HospitalA^MR~111222333^^^2.16.840.1.113883.2.4.6.3^NNLD||Bakker^Sara^A||19750822|F|||Prinsengracht 456^^Amsterdam^NH^1016GZ^NLD||+31687654321^CP^CP~s.bakker@example.nl^NET^Internet|||||ACC-2026-002',
+          'NK1|1|Bakker^Pieter^A|SPO^Spouse^HL70063|Prinsengracht 456^^Amsterdam^NH^1016GZ^NLD|+31201234568^PRN^PH|+31201234568^WPN^PH|EC^Emergency Contact^HL70131',
+          'PV1|1|I|ORTHO^201^B^HospitalA||||DR003^van den Berg^Anna^^^Dr.^MD|DR004^Visser^Kevin^^^Dr.^MD||E|||||||DR003^van den Berg^Anna^^^Dr.^MD|OP|V-2026-003|||||||||||||||||||||||||{TS}',
+          'PV2',
+          'OBX|1|NM|29463-7^^LN||68|kg|||||F',
+          'AL1|1|DA|NKA^No Known Allergies^HL70132',
+        ].join('\r'),
+      },
+      {
+        id: 'hl7-oms-o05', code: 'O05', label: 'OMS Order (unsupported)', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'OMS^O05 — Order message type not handled by hl7v2-to-fhir. Expects AE NACK.',
+        expect: 'AE',
+        msg: [
+          'MSH|^~\\&|Epic||Inventory_System||{TS}|5471|OMS^O05|{MSG_ID}|D|2.6',
+          'PID|1||5513^^^EPIC^EPIC~T924^^^TEST^CR||DHILLON^HARMEET^SINGH^^MR.^||19751115|M|DHILON^HARMEET^SINGH^^^|||||||||6001~7199~900000053~153028|23492-3035',
+          'ORC|NW|6417^EPC|||||||20050305|351^SIMPSON^SALLY^^^^',
+          'RQD|1|41|45452^SECOND ONE|5500^^SID|2|Box|10000^MAIN||10000^MAIN|20050305',
+          'ZQD|SN1234|LN5678|20211221||||1||||||1|0PR1|2|||LAP APPENDECTOMIE|20210202141500',
+        ].join('\r'),
+      },
+    ],
+  },
+];
+
+const ALL_ITEMS = GROUPS.flatMap(g => g.items);
+
+function groupFor(item) {
+  return GROUPS.find(g => g.items.includes(item)) || null;
+}
+
+let siCollapsed = false;
+
+function toggleScenarioInfo() {
+  siCollapsed = !siCollapsed;
+  const body    = document.getElementById('si-body');
+  const chevron = document.getElementById('si-chevron');
+  if (body)    body.classList.toggle('collapsed', siCollapsed);
+  if (chevron) chevron.classList.toggle('open', !siCollapsed);
+}
+
+function renderScenarioInfo(item) {
+  const group = groupFor(item);
+  if (!group) return '';
+  return `
+    <div class="scenario-info">
+      <div class="scenario-info-toggle" onclick="toggleScenarioInfo()">
+        <span class="si-breadcrumb"><b>${esc(group.label)}</b> › ${esc(item.label)}</span>
+        <span class="si-chevron${siCollapsed ? '' : ' open'}" id="si-chevron">▶</span>
+      </div>
+      <div class="si-body${siCollapsed ? ' collapsed' : ''}" id="si-body">
+        ${group.desc ? `<div><div class="si-section-label">Integration scenario</div><div class="si-group-desc">${group.desc}</div></div>` : ''}
+        <div class="si-scenario-desc"><strong>${esc(item.label)}:</strong> ${esc(item.desc)}</div>
+      </div>
+    </div>`;
+}
+
+// ── Config ────────────────────────────────────────────────────────────────
+
+const cfgEls = {
+  user:     document.getElementById('cfg-user'),
+  pass:     document.getElementById('cfg-pass'),
+  validate: document.getElementById('cfg-validate'),
+};
+
+function loadCfg() {
+  cfgEls.user.value       = localStorage.getItem('tc:user')     ?? 'ADMIN';
+  cfgEls.pass.value       = localStorage.getItem('tc:pass')     ?? 'PASSWORD1234';
+  cfgEls.validate.checked = localStorage.getItem('tc:validate') !== 'false';
+}
+
+function saveCfg(key, val) { localStorage.setItem('tc:' + key, val); }
+
+cfgEls.user.addEventListener('change',     () =>   saveCfg('user',     cfgEls.user.value));
+cfgEls.pass.addEventListener('change',     () =>   saveCfg('pass',     cfgEls.pass.value));
+cfgEls.validate.addEventListener('change', () => { saveCfg('validate', cfgEls.validate.checked); updateUrlDisplay(); });
+
+function baseUrl() {
+  const proto = window.location.protocol;
+  const h = window.location.hostname;
+  const p = window.location.port;
+  return p ? `${proto}//${h}:${p}` : `${proto}//${h}`;
+}
+
+function buildAuthHeader() {
+  const u = cfgEls.user.value.trim();
+  const p = cfgEls.pass.value;
+  if (!u) return null;
+  return 'Basic ' + btoa(u + ':' + p);
+}
+
+// ── Timestamps ────────────────────────────────────────────────────────────
+
+function ts14() {
+  const d = new Date();
+  return [d.getFullYear(),
+    String(d.getMonth() + 1).padStart(2, '0'),
+    String(d.getDate()).padStart(2, '0'),
+    String(d.getHours()).padStart(2, '0'),
+    String(d.getMinutes()).padStart(2, '0'),
+    String(d.getSeconds()).padStart(2, '0')].join('');
+}
+
+function tsFhir() {
+  return new Date().toISOString().replace(/\.\d{3}Z$/, 'Z');
+}
+
+function msgId() { return ts14() + String(new Date().getMilliseconds()).padStart(3, '0'); }
+
+function substituteHl7(tmpl) {
+  return tmpl.replace(/\{TS\}/g, ts14()).replace(/\{MSG_ID\}/g, msgId());
+}
+
+function substituteFhir(tmpl) {
+  return tmpl.replace(/\{TS_FHIR\}/g, tsFhir());
+}
+
+// ── Utilities ─────────────────────────────────────────────────────────────
+
+function esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function prettyXml(xmlStr) {
+  try {
+    const doc = new DOMParser().parseFromString(xmlStr.trim(), 'application/xml');
+    if (doc.querySelector('parsererror')) return xmlStr;
+    return serializeNode(doc.documentElement, 0);
+  } catch { return xmlStr; }
+}
+
+function serializeNode(node, depth) {
+  const pad = '  '.repeat(depth);
+  if (node.nodeType === Node.TEXT_NODE) {
+    const t = node.textContent.trim();
+    return t ? pad + t : '';
+  }
+  if (node.nodeType !== Node.ELEMENT_NODE) return '';
+  const attrs = Array.from(node.attributes).map(a => ` ${a.name}="${a.value}"`).join('');
+  const ns = node === node.ownerDocument.documentElement && node.namespaceURI
+    ? ` xmlns="${node.namespaceURI}"` : '';
+  const children = Array.from(node.childNodes)
+    .map(c => serializeNode(c, depth + 1)).filter(s => s.length > 0);
+  const tag = node.localName;
+  if (!children.length) return `${pad}<${tag}${ns}${attrs}/>`;
+  if (children.length === 1 && !children[0].trim().includes('\n')) {
+    return `${pad}<${tag}${ns}${attrs}>${children[0].trim()}</${tag}>`;
+  }
+  return `${pad}<${tag}${ns}${attrs}>\n${children.join('\n')}\n${pad}</${tag}>`;
+}
+
+function parseAck(body) {
+  for (const seg of body.split(/[\r\n]+/)) {
+    if (seg.startsWith('MSA|')) return (seg.split('|')[1] || '').trim().toUpperCase() || null;
+  }
+  return null;
+}
+
+function hl7ToDisplay(msg) { return msg.replace(/\r/g, '\n').trim(); }
+function displayToHl7(text) { return text.replace(/\r?\n/g, '\r'); }
+
+// ── Sidebar ───────────────────────────────────────────────────────────────
+
+let activeId = null;
+
+function renderSidebar() {
+  document.getElementById('sidebar').innerHTML = GROUPS.map(g => `
+    <div class="sg-label">${esc(g.label)}</div>
+    ${g.items.map(item => `
+      <div class="sc-row${item.id === activeId ? ' active' : ''}"
+           id="sr-${item.id}"
+           title="${esc(item.desc)}"
+           onclick="loadScenario('${item.id}')">
+        <span class="method-badge ${item.method === 'GET' ? 'mb-get' : item.method === 'POST' ? 'mb-post' : 'mb-hl7'}">${esc(item.method)}</span>
+        ${item.code ? `<span class="sc-code">${esc(item.code)}</span>` : ''}
+        <span class="sc-label-text">${esc(item.label)}</span>
+        ${item.expect ? `<span class="expect-badge eb-${item.expect.toLowerCase()}">${esc(item.expect)}</span>` : ''}
+      </div>
+    `).join('')}
+  `).join('');
+}
+
+// ── Content area ──────────────────────────────────────────────────────────
+
+let currentScenario = null;
+let selectedVersion = 'r4';
+
+function loadScenario(id) {
+  const item = ALL_ITEMS.find(i => i.id === id);
+  if (!item) return;
+
+  if (activeId) document.getElementById('sr-' + activeId)?.classList.remove('active');
+  activeId = id;
+  document.getElementById('sr-' + id)?.classList.add('active');
+  currentScenario = item;
+
+  renderContent(item);
+}
+
+function renderContent(item) {
+  const methodCls = item.method === 'GET' ? 'mb-get' : item.method === 'POST' ? 'mb-post' : 'mb-hl7';
+  const methodLabel = item.method === 'HL7' ? 'POST' : item.method;
+
+  let paramsHtml = '';
+  let bodyHtml = '';
+  let hl7Html = '';
+
+  if (item.method === 'HL7') {
+    hl7Html = `
+      <div class="hl7-area" id="hl7-area">
+        <div class="param-section-label">Message</div>
+        <textarea class="hl7-editor" id="hl7-editor" spellcheck="false">${esc(hl7ToDisplay(substituteHl7(item.msg)))}</textarea>
+      </div>`;
+  } else if (item.method === 'POST') {
+    const versionSel = item.versionParam ? `
+      <div class="param-section-label">FHIR Version</div>
+      <div class="param-version-select">
+        ${['r4', 'r5', 'dstu3'].map(v => `
+          <input type="radio" name="fhir-ver" id="ver-${v}" value="${v}" ${v === selectedVersion ? 'checked' : ''}
+                 onchange="setVersion('${v}')">
+          <label for="ver-${v}">${v.toUpperCase()}</label>
+        `).join('')}
+      </div>` : '';
+    const bodyTemplate = item.bodyTemplates ? item.bodyTemplates[selectedVersion] || '' : (item.bodyTemplate || '');
+    bodyHtml = `
+      <div class="params-area" id="params-area">
+        ${versionSel}
+      </div>
+      <div class="body-area" id="body-area">
+        <div class="param-section-label">Request Body <span style="color:var(--muted);font-weight:400">(${esc(item.contentType || 'application/fhir+xml')})</span></div>
+        <textarea class="body-editor" id="body-editor" spellcheck="false">${esc(substituteFhir(bodyTemplate))}</textarea>
+      </div>`;
+  } else {
+    // GET
+    const pathParams = (item.params || []).map(p => `
+      <label>${esc(p.label)}</label>
+      <div class="param-input-wrap">
+        <input type="text" id="pp-${p.name}" value="${esc(p.placeholder || '')}" placeholder="${esc(p.placeholder || '')}"
+               oninput="updateUrlDisplay()" ${p.readonly ? 'readonly' : ''}>
+        ${(p.suggestions || []).map(s => `<span class="param-chip" onclick="setParam('pp-${p.name}', '${esc(s)}')">${esc(s)}</span>`).join('')}
+      </div>
+    `).join('');
+
+    const queryParams = (item.queryParams || []).map(p => `
+      <label>${esc(p.label)}</label>
+      <div class="param-input-wrap">
+        <input type="text" id="qp-${p.name}" value="${esc(p.value || p.placeholder || '')}"
+               placeholder="${esc(p.placeholder || '')}"
+               oninput="updateUrlDisplay()" ${p.readonly ? 'readonly' : ''}>
+      </div>
+    `).join('');
+
+    const versionSel = item.versionParam ? `
+      <label>Version</label>
+      <div class="param-input-wrap">
+        <div class="param-version-select">
+          ${['r4', 'r5', 'dstu3'].map(v => `
+            <input type="radio" name="fhir-ver" id="ver-${v}" value="${v}" ${v === selectedVersion ? 'checked' : ''}
+                   onchange="setVersion('${v}')">
+            <label for="ver-${v}">${v.toUpperCase()}</label>
+          `).join('')}
+        </div>
+      </div>` : '';
+
+    const hasParams = pathParams || queryParams || versionSel;
+    paramsHtml = hasParams ? `
+      <div class="params-area" id="params-area">
+        ${versionSel ? '<div class="param-grid">' + versionSel + '</div>' : ''}
+        ${pathParams ? '<div class="param-grid">' + pathParams + '</div>' : ''}
+        ${queryParams ? '<div class="param-grid">' + queryParams + '</div>' : ''}
+      </div>` : '';
+  }
+
+  document.getElementById('content').innerHTML = `
+    ${renderScenarioInfo(item)}
+    <div class="url-bar">
+      <span class="url-method ${methodCls}">${esc(methodLabel)}</span>
+      <input class="url-display" id="url-display" type="text" spellcheck="false" autocomplete="off">
+      <button class="run-btn" id="run-btn" onclick="executeRequest()">Run →</button>
+      <span class="run-info" id="run-info"></span>
+    </div>
+    ${paramsHtml}
+    ${bodyHtml}
+    ${hl7Html}
+    <div class="response-wrap">
+      <div class="resp-header">
+        <span class="resp-title">Response</span>
+        <span class="ack-badge" id="ack-badge"></span>
+        <span class="http-status-badge" id="http-status-badge"></span>
+        <span class="resp-ct" id="resp-ct"></span>
+      </div>
+      <pre class="resp-body" id="resp-body"><span class="resp-placeholder">No response yet — click Run.</span></pre>
+    </div>
+  `;
+
+  updateUrlDisplay();
+}
+
+function setParam(elId, value) {
+  const el = document.getElementById(elId);
+  if (el) { el.value = value; updateUrlDisplay(); }
+}
+
+function setVersion(v) {
+  selectedVersion = v;
+  if (!currentScenario) return;
+  updateUrlDisplay();
+  // Refresh body template if applicable
+  const bodyEl = document.getElementById('body-editor');
+  if (bodyEl && currentScenario.bodyTemplates) {
+    bodyEl.value = substituteFhir(currentScenario.bodyTemplates[v] || '');
+  }
+  // Also update patient ID default for patient-read
+  const pidEl = document.getElementById('pp-patientId');
+  if (pidEl && currentScenario.id === 'f2f-patient-read') {
+    const defaults = { r4: 'PAT-R4-001', r5: 'PAT-R5-001', dstu3: 'PAT-DSTU3-001' };
+    pidEl.value = defaults[v] || pidEl.value;
+    updateUrlDisplay();
+  }
+}
+
+function computeUrl(item) {
+  if (!item) return '';
+  if (item.pipeline === 'hl7v2') {
+    const validate = cfgEls.validate ? cfgEls.validate.checked : true;
+    return `/viscolink/api/hl7v2?validateMessage=${validate}`;
+  }
+  let path = item.path;
+
+  // Replace version
+  if (item.versionParam) {
+    path = path.replace('{version}', selectedVersion);
+  }
+
+  // Replace path params
+  (item.params || []).forEach(p => {
+    const el = document.getElementById('pp-' + p.name);
+    const val = el ? el.value.trim() : (p.placeholder || '');
+    path = path.replace(`{${p.name}}`, encodeURIComponent(val));
+  });
+
+  // Append query params
+  const qps = (item.queryParams || [])
+    .map(p => {
+      const el = document.getElementById('qp-' + p.name);
+      const val = el ? el.value.trim() : (p.value || '');
+      return val ? `${encodeURIComponent(p.name)}=${encodeURIComponent(val)}` : null;
+    })
+    .filter(Boolean);
+
+  if (qps.length) path += '?' + qps.join('&');
+  return path;
+}
+
+function updateUrlDisplay() {
+  const el = document.getElementById('url-display');
+  if (!el || !currentScenario) return;
+  el.value = baseUrl() + computeUrl(currentScenario);
+}
+
+function getTargetUrl() {
+  const el = document.getElementById('url-display');
+  return el ? el.value.trim() : '';
+}
+
+// ── Execute ───────────────────────────────────────────────────────────────
+
+async function executeRequest() {
+  const item = currentScenario;
+  if (!item) return;
+
+  const btn = document.getElementById('run-btn');
+  btn.disabled = true;
+  setRunInfo('Running…');
+  clearResponse();
+
+  try {
+    if (item.method === 'HL7') {
+      await executeHl7(item);
+    } else if (item.method === 'GET') {
+      await executeGet(item);
+    } else if (item.method === 'POST') {
+      await executePost(item);
+    }
+  } finally {
+    btn.disabled = false;
+    setRunInfo('');
+  }
+}
+
+async function executeGet(item) {
+  const url = getTargetUrl();
+  const headers = { 'Accept': 'application/fhir+xml' };
+  const auth = buildAuthHeader();
+  if (auth) headers['Authorization'] = auth;
+
+  try {
+    const resp = await fetch(url, { headers });
+    const text = await resp.text();
+    showFhirResponse(resp, text);
+  } catch (e) {
+    showNetError(e.message);
+  }
+}
+
+async function executePost(item) {
+  const url = getTargetUrl();
+  const bodyEl = document.getElementById('body-editor');
+  const body = bodyEl ? bodyEl.value : '';
+  const ct = item.contentType || 'application/fhir+xml';
+  const headers = { 'Content-Type': ct, 'Accept': 'application/fhir+xml' };
+  const auth = buildAuthHeader();
+  if (auth) headers['Authorization'] = auth;
+
+  try {
+    const resp = await fetch(url, { method: 'POST', headers, body });
+    const text = await resp.text();
+    showFhirResponse(resp, text);
+  } catch (e) {
+    showNetError(e.message);
+  }
+}
+
+async function executeHl7(item) {
+  const editorEl = document.getElementById('hl7-editor');
+  const rawMsg = displayToHl7(editorEl ? editorEl.value : '');
+  const url = getTargetUrl();
+  const headers = { 'Content-Type': 'x-application/hl7-v2+er7' };
+  const auth = buildAuthHeader();
+  if (auth) headers['Authorization'] = auth;
+
+  try {
+    const resp = await fetch(url, { method: 'POST', headers, body: rawMsg });
+    const text = await resp.text();
+    showHl7Response(resp, text);
+  } catch (e) {
+    showNetError(e.message);
+  }
+}
+
+// ── Response rendering ────────────────────────────────────────────────────
+
+function clearResponse() {
+  const pre = document.getElementById('resp-body');
+  if (pre) {
+    pre.className = 'resp-body';
+    pre.innerHTML = '<span class="resp-placeholder">Waiting…</span>';
+  }
+  setEl('ack-badge', '', '');
+  setEl('http-status-badge', '', '');
+  setEl('resp-ct', '', '');
+}
+
+function showFhirResponse(resp, text) {
+  const ok = resp.ok;
+  const ct = resp.headers.get('Content-Type') || '';
+  setEl('resp-ct', ct.split(';')[0].trim(), '');
+  setHttpStatus(resp.status, ok);
+
+  const pre = document.getElementById('resp-body');
+  if (!pre) return;
+  pre.className = 'resp-body ' + (ok ? 'ok' : 'err');
+  pre.textContent = ct.includes('xml') || ct.includes('fhir') ? prettyXml(text) : (text || '(empty)');
+}
+
+function showHl7Response(resp, text) {
+  const ack = parseAck(text);
+  const pre = document.getElementById('resp-body');
+  if (!pre) return;
+
+  setHttpStatus(resp.status, resp.ok);
+
+  if (ack) {
+    const ackMap = { AA: ['ab-aa', 'ok'], AE: ['ab-ae', 'nack'], AR: ['ab-ar', 'nack'] };
+    const [bc, rc] = ackMap[ack] || ['ab-err', 'err'];
+    setEl('ack-badge', ack, bc);
+    pre.className = 'resp-body ' + rc;
+  } else if (!resp.ok) {
+    setEl('ack-badge', 'ERR', 'ab-err');
+    pre.className = 'resp-body err';
+  }
+
+  pre.textContent = hl7ToDisplay(text) || '(empty)';
+}
+
+function showNetError(msg) {
+  setEl('ack-badge', 'NET', 'ab-err');
+  setEl('http-status-badge', '', '');
+  const pre = document.getElementById('resp-body');
+  if (pre) { pre.className = 'resp-body err'; pre.textContent = 'Network error: ' + msg; }
+}
+
+function setHttpStatus(code, ok) {
+  setEl('http-status-badge', 'HTTP ' + code, ok ? 'hs-ok' : 'hs-err');
+}
+
+function setEl(id, text, cls) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text;
+  el.className = el.className.split(' ')[0] + (cls ? ' ' + cls : '');
+}
+
+function setRunInfo(msg) {
+  const el = document.getElementById('run-info');
+  if (el) el.textContent = msg;
+}
+
+// ── Boot ──────────────────────────────────────────────────────────────────
+
+loadCfg();
+renderSidebar();
+</script>
+
+</body>
+</html>

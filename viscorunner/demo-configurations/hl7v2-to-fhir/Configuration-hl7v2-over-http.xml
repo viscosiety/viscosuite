@@ -52,10 +52,40 @@
                  Use //h: wildcards so XPaths work regardless of the root element name
                  (ADT_A01, ADT_A02, ADT_A03, ADT_A09, …). -->
             <PutInSessionPipe name="saveHl7Xml" sessionKey="hl7Xml">
-                <Param type="STRING" name="flow"      xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' MLLP')" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="patientId" xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]" namespaceDefs="h=urn:hl7-org:v2xml"/>
-                <Param type="STRING" name="event"     xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1,' ',//h:MSH/h:MSH.9/h:MSG.2)" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="flow"            xpathExpression="concat('HL7v2 ', //h:MSH/h:MSH.9/h:MSG.1, '^', //h:MSH/h:MSH.9/h:MSG.2, ' MLLP')" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="patientId"       xpathExpression="(//h:PID/h:PID.3/h:CX.1)[1]" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="event"           xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1,' ',//h:MSH/h:MSH.9/h:MSG.2)" namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param type="STRING" name="hl7TriggerEvent" xpathExpression="//h:MSH/h:MSH.9/h:MSG.2" namespaceDefs="h=urn:hl7-org:v2xml"/>
             </PutInSessionPipe>
+
+            <!-- Step 2b: reject unsupported event types before the department check.
+                 Non-ADT types (OMS^O05, ORU^R01, …) are unknown to hl7v2-to-fhir and must
+                 receive an AE NACK here rather than a misleading AR "department" reject. -->
+            <SwitchPipe name="checkSupportedEventType" forwardNameSessionKey="hl7TriggerEvent">
+                <Forward name="A01" path="extractDept"/>
+                <Forward name="A02" path="extractDept"/>
+                <Forward name="A03" path="extractDept"/>
+                <Forward name="A04" path="extractDept"/>
+                <Forward name="A08" path="extractDept"/>
+                <Forward name="A11" path="extractDept"/>
+                <Forward name="A13" path="extractDept"/>
+                <Forward name="notFound" path="restoreForUnsupportedType"/>
+            </SwitchPipe>
+
+            <!-- Unsupported event type → AE (Application Error) NACK -->
+            <GetFromSessionPipe name="restoreForUnsupportedType" sessionKey="hl7Xml">
+                <Forward name="success" path="buildUnsupportedTypeXml"/>
+            </GetFromSessionPipe>
+
+            <XsltPipe name="buildUnsupportedTypeXml" styleSheetName="xslt/HL7v2-ACK.xslt">
+                <Param name="ackCode"            value="AE"/>
+                <Param name="errorMessage"
+                       xpathExpression="concat(//h:MSH/h:MSH.9/h:MSG.1, ' ', //h:MSH/h:MSH.9/h:MSG.2, ' is not supported by this integration')"
+                       namespaceDefs="h=urn:hl7-org:v2xml"/>
+                <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
+                <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
+                <Forward name="success" path="encodeResponse"/>
+            </XsltPipe>
 
             <!-- Step 3: extract department code (PV1.3/PL.1) as plain text for IfPipe -->
             <XsltPipe name="extractDept" styleSheetName="xslt/extract-department.xslt" />
@@ -109,7 +139,9 @@
 
             <XsltPipe name="buildRejectXml" styleSheetName="xslt/HL7v2-ACK.xslt">
                 <Param name="ackCode"            value="AR"/>
-                <Param name="errorMessage"       value="Department not supported by this integration"/>
+                <Param name="errorMessage"
+                       xpathExpression="concat('Department ', (//h:PV1/h:PV1.3/h:PL.1, 'unknown')[1], ' is not supported by this integration')"
+                       namespaceDefs="h=urn:hl7-org:v2xml"/>
                 <Param name="sendingApplication" value="${mllp.inbound.sendingApplication}"/>
                 <Param name="sendingFacility"    value="${mllp.inbound.sendingFacility}"/>
                 <Forward name="success" path="encodeResponse"/>
