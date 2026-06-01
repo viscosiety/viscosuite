@@ -31,12 +31,15 @@ variables:
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
 
-# Maven dependency cache — keyed per branch so branches don't invalidate each other
-default:
+# Maven dependency cache — keyed per branch so branches don't invalidate each other.
+# Applied explicitly only to Maven jobs; docker/manifest/cleanup jobs opt out via cache: []
+# so they don't emit "no matching files" warnings when .m2/repository/ doesn't exist.
+.maven-cache: &maven-cache
   cache:
     key: "maven-$CI_COMMIT_REF_SLUG"
     paths:
       - .m2/repository/
+    policy: pull-push
 
 # Ladybug fork install is handled by ./mvnw automatically (see the block at the
 # top of that script).  No extra CI step needed — the first ./mvnw call in each
@@ -50,6 +53,7 @@ default:
 test:
   stage: test
   image: maven:3.9-eclipse-temurin-21
+  <<: *maven-cache
   before_script:
     - apt-get update
     - apt-get install -y curl ca-certificates
@@ -76,6 +80,7 @@ test:
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
+  <<: *maven-cache
   before_script:
     - apt-get update
     - apt-get install -y curl ca-certificates
@@ -107,6 +112,7 @@ package:
 integration-test:
   stage: integration-test
   image: maven:3.9-eclipse-temurin-21
+  <<: *maven-cache
   before_script:
     - apt-get update
     - apt-get install -y curl ca-certificates
