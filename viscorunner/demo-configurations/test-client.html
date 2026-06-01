@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Integration Test Client — ViscoSuite</title>
+  <title>Demo Pipeline Tester — ViscoSuite</title>
   <style>
     *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -80,6 +80,15 @@
     .config-bar input[type=number]   { width: 62px; }
     .config-bar input[type=password] { width: 100px; }
     .config-bar input:focus { outline: none; border-color: var(--brand); }
+    .config-bar select {
+      background: var(--mono-bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 3px 7px;
+      border-radius: 4px;
+      font-size: 0.8rem;
+    }
+    .config-bar select:focus { outline: none; border-color: var(--brand); }
     .config-sep { width: 1px; height: 18px; background: var(--border); }
 
     /* ── Layout ──────────────────────────────────────────────────────── */
@@ -468,10 +477,16 @@
 
 <header>
   <a href="/">← ViscoSuite</a>
-  <h1>Integration Test Client</h1>
+  <h1>Demo Pipeline Tester</h1>
 </header>
 
 <div class="config-bar">
+  <label>Protocol
+    <select id="cfg-proto">
+      <option value="http">http</option>
+      <option value="https">https</option>
+    </select>
+  </label>
   <label>Host <input id="cfg-host" type="text" placeholder="localhost" title="Leave empty to use current host"></label>
   <label>Port <input id="cfg-port" type="number" min="1" max="65535" placeholder="8180" title="Leave empty to use current port"></label>
   <div class="config-sep"></div>
@@ -997,7 +1012,7 @@ const ALL_ITEMS = GROUPS.flatMap(g => g.items);
 
 // ── Config ────────────────────────────────────────────────────────────────
 
-const CFG_KEYS = ['host', 'port', 'user', 'pass', 'validate'];
+const CFG_KEYS = ['proto', 'host', 'port', 'user', 'pass', 'validate'];
 const cfgEls = {};
 CFG_KEYS.forEach(k => { cfgEls[k] = document.getElementById('cfg-' + k); });
 
@@ -1008,7 +1023,8 @@ async function loadCfg() {
     if (r.ok) env = await r.json();
   } catch {}
 
-  // Priority: localStorage (explicit user edit) > env var > hardcoded fallback
+  // Priority: localStorage (explicit user edit) > env var > auto-detect fallback
+  cfgEls.proto.value      = localStorage.getItem('tc:proto')    ?? env.protocol ?? window.location.protocol.replace(':', '');
   cfgEls.host.value       = localStorage.getItem('tc:host')     ?? env.host     ?? '';
   cfgEls.port.value       = localStorage.getItem('tc:port')     ?? env.port     ?? '';
   cfgEls.user.value       = localStorage.getItem('tc:user')     ?? env.user     ?? 'ADMIN';
@@ -1018,16 +1034,18 @@ async function loadCfg() {
 
 function saveCfg(key, val) { localStorage.setItem('tc:' + key, val); }
 
-cfgEls.host.addEventListener('change',    () => saveCfg('host',     cfgEls.host.value));
-cfgEls.port.addEventListener('change',    () => saveCfg('port',     cfgEls.port.value));
-cfgEls.user.addEventListener('change',    () => saveCfg('user',     cfgEls.user.value));
-cfgEls.pass.addEventListener('change',    () => saveCfg('pass',     cfgEls.pass.value));
-cfgEls.validate.addEventListener('change',() => saveCfg('validate', cfgEls.validate.checked));
+cfgEls.proto.addEventListener('change', () => { saveCfg('proto',    cfgEls.proto.value);           updateUrlDisplay(); });
+cfgEls.host.addEventListener('input',   () => { saveCfg('host',     cfgEls.host.value);            updateUrlDisplay(); });
+cfgEls.port.addEventListener('input',   () => { saveCfg('port',     cfgEls.port.value);            updateUrlDisplay(); });
+cfgEls.user.addEventListener('change',  () =>   saveCfg('user',     cfgEls.user.value));
+cfgEls.pass.addEventListener('change',  () =>   saveCfg('pass',     cfgEls.pass.value));
+cfgEls.validate.addEventListener('change', () => { saveCfg('validate', cfgEls.validate.checked);   updateUrlDisplay(); });
 
 function baseUrl() {
+  const proto = cfgEls.proto.value || window.location.protocol.replace(':', '');
   const h = cfgEls.host.value.trim() || window.location.hostname;
   const p = cfgEls.port.value.trim() || window.location.port;
-  return p ? `http://${h}:${p}` : `http://${h}`;
+  return p ? `${proto}://${h}:${p}` : `${proto}://${h}`;
 }
 
 function buildAuthHeader() {

@@ -42,12 +42,14 @@ public class ToolsServlet extends HttpServlet {
 
     private void handleConfig(HttpServletResponse resp) throws IOException {
         AppConstants props = AppConstants.getInstance();
+        String protocol = props.getProperty("test-client.protocol", "");
         String host     = props.getProperty("test-client.host",     "");
         String port     = props.getProperty("test-client.port",     "");
         String user     = props.getProperty("test-client.user",     "");
         String password = props.getProperty("test-client.password", "");
         writeJson(resp, 200,
-            "{\"host\":"     + jsonStr(host)     +
+            "{\"protocol\":" + jsonStr(protocol) +
+            ",\"host\":"     + jsonStr(host)     +
             ",\"port\":"     + jsonStr(port)     +
             ",\"user\":"     + jsonStr(user)     +
             ",\"password\":" + jsonStr(password) + "}");

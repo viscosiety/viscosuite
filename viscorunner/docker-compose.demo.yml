@@ -45,18 +45,19 @@ services:
 
       amqp.events.active: "true"
 
-      viscolink.views.names: viscoflow,lab-code-mapper,integration-test-client
+      viscolink.views.names: viscoflow,lab-code-mapper,pipeline-console
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/loinc-mapping.html
       viscolink.views.lab-code-mapper.description: Map local lab codes to LOINC
       viscolink.views.viscoflow.name: ViscoFlow
       viscolink.views.viscoflow.url: /viscolink/flow/
       viscolink.views.viscoflow.description: ViscoFlow — modular message flow viewer
-      viscolink.views.integration-test-client.name: Integration Test Client
-      viscolink.views.integration-test-client.url: /viscolink/test-client.html
-      viscolink.views.integration-test-client.description: Drive all three demo pipelines end-to-end
+      viscolink.views.pipeline-console.name: Demo Pipeline Tester
+      viscolink.views.pipeline-console.url: /viscolink/test-client.html
+      viscolink.views.pipeline-console.description: Drive demo pipelines end-to-end
 
-      # Integration Test Client — default connection settings
+      # Demo Pipeline Tester — default connection settings
+      test-client.protocol: "http"
       test-client.host: localhost
       test-client.port: "8180"
       test-client.user: ADMIN
