@@ -92,7 +92,7 @@ async function fetchTraces(reset = false) {
     const limit = reset ? PAGE_SIZE_INITIAL : Math.max(currentOffset, PAGE_SIZE_INITIAL);
     if (patientFilter || flowFilter) { totalCount = null; } else { fetchTraceCount(); }
     const page = await getTraces({ storage, limit, offset: 0, flowFilter, patientFilter });
-    allTraces     = (patientFilter && flowFilter) ? page.filter(r => r.flow === flowFilter) : page;
+    allTraces     = page;
     currentOffset = Math.max(currentOffset, page.length);
     if (reset) lastPageFull = page.length >= PAGE_SIZE_INITIAL;
     rebuildTable();
@@ -117,9 +117,8 @@ async function loadMoreRows() {
       storage, limit: PAGE_SIZE_MORE, offset: currentOffset, flowFilter, patientFilter,
     });
     if (!patientFilter && !flowFilter) await fetchTraceCount();
-    const filtered = (patientFilter && flowFilter) ? page.filter(r => r.flow === flowFilter) : page;
     if (page.length > 0) {
-      allTraces     = [...allTraces, ...filtered];
+      allTraces     = [...allTraces, ...page];
       currentOffset += page.length;
       lastPageFull   = page.length >= PAGE_SIZE_MORE;
       document.getElementById('load-more-sentinel')?.remove();
@@ -171,6 +170,7 @@ function updateFlowDropdown() {
   const sel     = document.getElementById('flow-filter');
   const current = sel.value;
   const flows   = [...new Set(allTraces.map(r => r.flow).filter(Boolean))].sort();
+  if (current && !flows.includes(current)) flows.push(current);
   sel.innerHTML = '<option value="">All flows</option>' +
     flows.map(f => `<option value="${esc(f)}"${f === current ? ' selected' : ''}>${esc(f)}</option>`).join('');
 }

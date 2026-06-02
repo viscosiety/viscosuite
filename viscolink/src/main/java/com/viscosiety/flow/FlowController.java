@@ -16,6 +16,8 @@
 
 package com.viscosiety.flow;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
@@ -25,6 +27,8 @@ import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.net.HttpURLConnection;
+import java.net.URL;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
@@ -90,12 +94,22 @@ public class FlowController extends HttpServlet {
         resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Unknown flow path: " + path);
     }
 
+    private static final ObjectMapper MAPPER = new ObjectMapper();
+    private static final int COMBINED_BATCH = 200;
+
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp)
             throws IOException, ServletException {
         String path = req.getPathInfo();
         if (path == null) path = "/";
         String qs = req.getQueryString() != null ? req.getQueryString() : "";
+
+        if ("/traces".equals(path)
+                && !param(qs, "patientFilter", "").isEmpty()
+                && !param(qs, "flowFilter", "").isEmpty()) {
+            handleCombinedTraces(req, resp, qs);
+            return;
+        }
 
         String target = resolveTarget(path, qs);
         if (target == null) {
@@ -115,6 +129,86 @@ public class FlowController extends HttpServlet {
         };
         RequestDispatcher dispatcher = getServletContext().getRequestDispatcher(target);
         dispatcher.forward(wrapped, resp);
+    }
+
+    @SuppressWarnings("unchecked")
+    private void handleCombinedTraces(HttpServletRequest req, HttpServletResponse resp, String qs)
+            throws IOException {
+        String storage       = param(qs, "storage",       "DatabaseDebugStorage");
+        String patientFilter = param(qs, "patientFilter", "");
+        String flowFilter    = param(qs, "flowFilter",    "");
+        int    limit         = parseIntParam(qs, "limit",  50);
+        int    offset        = parseIntParam(qs, "offset",  0);
+        List<String> metadataNames = paramValues(qs, "metadataNames");
+
+        int need = offset + limit;
+        List<Map<String, Object>> matching = new ArrayList<>();
+        int ladybugOffset = 0;
+        boolean exhausted = false;
+
+        while (matching.size() < need && !exhausted) {
+            String url = buildLadybugMetadataUrl(req, storage, "patientId", patientFilter,
+                    metadataNames, COMBINED_BATCH, ladybugOffset);
+            List<Map<String, Object>> page = fetchJsonList(url);
+            if (page.isEmpty()) { exhausted = true; break; }
+            for (Map<String, Object> record : page) {
+                if (flowFilter.equals(record.get("flow"))) matching.add(record);
+            }
+            if (page.size() < COMBINED_BATCH) exhausted = true;
+            ladybugOffset += page.size();
+        }
+
+        int from = Math.min(offset, matching.size());
+        int to   = Math.min(need,   matching.size());
+        resp.setContentType("application/json");
+        resp.setCharacterEncoding("UTF-8");
+        MAPPER.writeValue(resp.getWriter(), matching.subList(from, to));
+    }
+
+    private String buildLadybugMetadataUrl(HttpServletRequest req, String storage,
+            String filterHeader, String filter, List<String> metadataNames, int limit, int offset) {
+        StringBuilder sb = new StringBuilder();
+        sb.append("http://localhost:").append(req.getLocalPort())
+          .append(req.getContextPath())
+          .append("/iaf/ladybug/api/metadata/").append(enc(storage))
+          .append("?filterHeader=").append(enc(filterHeader))
+          .append("&filter=").append(enc(filter))
+          .append("&limit=").append(limit)
+          .append("&offset=").append(offset);
+        for (String name : metadataNames) {
+            sb.append("&metadataNames=").append(enc(name));
+        }
+        return sb.toString();
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<Map<String, Object>> fetchJsonList(String urlStr) throws IOException {
+        HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
+        conn.setRequestMethod("GET");
+        int status = conn.getResponseCode();
+        if (status >= 400) return Collections.emptyList();
+        try (var is = conn.getInputStream()) {
+            return MAPPER.readValue(is, List.class);
+        }
+    }
+
+    private static int parseIntParam(String qs, String name, int def) {
+        String v = param(qs, name, null);
+        if (v == null) return def;
+        try { return Integer.parseInt(v); } catch (NumberFormatException e) { return def; }
+    }
+
+    private static List<String> paramValues(String qs, String name) {
+        List<String> result = new ArrayList<>();
+        if (qs == null || qs.isEmpty()) return result;
+        String prefix = name + "=";
+        for (String kv : qs.split("&")) {
+            if (kv.startsWith(prefix)) {
+                try { result.add(URLDecoder.decode(kv.substring(prefix.length()), StandardCharsets.UTF_8)); }
+                catch (Exception e) { result.add(kv.substring(prefix.length())); }
+            }
+        }
+        return result;
     }
 
     private String resolveTarget(String path, String qs) {

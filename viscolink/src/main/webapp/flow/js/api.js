@@ -16,9 +16,19 @@ export async function getTraces({ storage, limit, offset, flowFilter, patientFil
   url.searchParams.set('offset', String(offset));
   ['storageId', 'endTime', 'duration', 'name', 'flow', 'patientId', 'correlationId', 'status']
     .forEach(n => url.searchParams.append('metadataNames', n));
-  if (patientFilter)    { url.searchParams.set('filterHeader', 'patientId'); url.searchParams.set('filter', patientFilter); }
-  else if (flowFilter)  { url.searchParams.set('filterHeader', 'flow');      url.searchParams.set('filter', flowFilter); }
-  else                  { url.searchParams.set('filterHeader', 'name');       url.searchParams.set('filter', 'Pipeline'); }
+  if (patientFilter && flowFilter) {
+    url.searchParams.set('patientFilter', patientFilter);
+    url.searchParams.set('flowFilter', flowFilter);
+  } else if (patientFilter) {
+    url.searchParams.set('filterHeader', 'patientId');
+    url.searchParams.set('filter', patientFilter);
+  } else if (flowFilter) {
+    url.searchParams.set('filterHeader', 'flow');
+    url.searchParams.set('filter', flowFilter);
+  } else {
+    url.searchParams.set('filterHeader', 'name');
+    url.searchParams.set('filter', 'Pipeline');
+  }
   const r = await fetch(url);
   if (!r.ok) throw new Error(r.status);
   return r.json();
