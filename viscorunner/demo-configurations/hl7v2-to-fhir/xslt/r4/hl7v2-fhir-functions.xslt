@@ -515,5 +515,134 @@
         </Patient>
     </xsl:template>
 
+    <!-- Appointment, driven by SCH segment -->
+    <xsl:template match="hl7:SCH" mode="Appointment">
+        <xsl:param name="appointmentId"    as="xs:string?"/>
+        <xsl:param name="status"           as="xs:string?"/>
+        <xsl:param name="patientReference" as="xs:string?"/>
+        <xsl:param name="siuRoot"          as="element()"/>
+
+        <xsl:variable name="fillerId"      select="(hl7:SCH.2/hl7:EI.1, '')[1]"/>
+        <xsl:variable name="placerId"      select="(hl7:SCH.1/hl7:EI.1, '')[1]"/>
+        <xsl:variable name="apptId"        select="($appointmentId, $fillerId, $placerId, '')[1]"/>
+        <!-- HAPI HL7v2 prefixes group element names: SIU_S12.RESOURCES, SIU_S12.SERVICE, etc.
+             AIS start: spec says AIS.4 but HAPI v2.6 serialises pipe-field-4 at AIS.5 when
+             parsing a v2.5 message — check both.  Duration: AIS.7 (NM) per spec, AIS.8/CE.1 fallback. -->
+        <xsl:variable name="apptStart"    select="(
+            $siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.SERVICE/hl7:AIS/hl7:AIS.4/hl7:TS.1[normalize-space(.) != ''],
+            $siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.SERVICE/hl7:AIS/hl7:AIS.5/hl7:TS.1[normalize-space(.) != ''],
+            '')[1]"/>
+        <xsl:variable name="apptDuration" select="(
+            $siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.SERVICE/hl7:AIS/hl7:AIS.7[. castable as xs:integer],
+            $siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.SERVICE/hl7:AIS/hl7:AIS.8/hl7:CE.1[. castable as xs:integer],
+            '')[1]"/>
+        <!-- Compute end from start + duration; app-2/app-3 require both or neither -->
+        <xsl:variable name="apptEnd" select="
+            if ($apptStart != '' and $apptDuration castable as xs:integer)
+            then format-dateTime(
+                xs:dateTime(fn:toFhirDateTime($apptStart)) + xs:dayTimeDuration(concat('PT', $apptDuration, 'M')),
+                '[Y0001]-[M01]-[D01]T[H01]:[m01]:[s01][Z]')
+            else ''"/>
+        <!-- normalize-space: XCN.2 is FN type in HL7v2.5; HAPI serialises FN.1 as child element,
+             so string-value has embedded whitespace from XML indentation -->
+        <xsl:variable name="practName"    select="normalize-space(($siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.PERSONNEL_RESOURCE/hl7:AIP/hl7:AIP.3/hl7:XCN.2, '')[1])"/>
+        <xsl:variable name="locName"      select="(
+            $siuRoot/hl7:SIU_S12.RESOURCES/hl7:SIU_S12.LOCATION_RESOURCE/hl7:AIL/hl7:AIL.3/hl7:PL.1,
+            '')[1]"/>
+
+        <Appointment xmlns="http://hl7.org/fhir">
+            <text>
+                <status value="generated"/>
+                <div xmlns="http://www.w3.org/1999/xhtml">
+                    <p>Generated Appointment resource from HL7v2 SCH segment.</p>
+                </div>
+            </text>
+
+            <xsl:if test="$apptId != ''">
+                <identifier>
+                    <use value="usual"/>
+                    <value value="{$apptId}"/>
+                </identifier>
+            </xsl:if>
+
+            <status value="{($status, 'booked')[1]}"/>
+
+            <!-- Service type from SCH.6 -->
+            <xsl:if test="hl7:SCH.6/hl7:CE.1 or hl7:SCH.6/hl7:CE.2">
+                <serviceType>
+                    <coding>
+                        <xsl:if test="hl7:SCH.6/hl7:CE.1">
+                            <code value="{hl7:SCH.6/hl7:CE.1}"/>
+                        </xsl:if>
+                        <xsl:if test="hl7:SCH.6/hl7:CE.2">
+                            <display value="{hl7:SCH.6/hl7:CE.2}"/>
+                        </xsl:if>
+                    </coding>
+                </serviceType>
+            </xsl:if>
+
+            <!-- Appointment type from SCH.7 -->
+            <xsl:if test="hl7:SCH.7/hl7:CE.1 or hl7:SCH.7/hl7:CE.2">
+                <appointmentType>
+                    <coding>
+                        <xsl:if test="hl7:SCH.7/hl7:CE.3 = 'HL70276'">
+                            <system value="http://terminology.hl7.org/CodeSystem/v2-0276"/>
+                        </xsl:if>
+                        <xsl:if test="hl7:SCH.7/hl7:CE.1">
+                            <code value="{hl7:SCH.7/hl7:CE.1}"/>
+                        </xsl:if>
+                        <xsl:if test="hl7:SCH.7/hl7:CE.2">
+                            <display value="{hl7:SCH.7/hl7:CE.2}"/>
+                        </xsl:if>
+                    </coding>
+                </appointmentType>
+            </xsl:if>
+
+            <!-- Start/end: app-2 requires both or neither -->
+            <xsl:if test="$apptStart != ''">
+                <start value="{fn:toFhirDateTime($apptStart)}"/>
+                <xsl:if test="$apptEnd != ''">
+                    <end value="{$apptEnd}"/>
+                </xsl:if>
+            </xsl:if>
+
+            <!-- Duration in minutes from AIS.6 -->
+            <xsl:if test="$apptDuration castable as xs:integer">
+                <minutesDuration value="{$apptDuration}"/>
+            </xsl:if>
+
+            <!-- Patient participant -->
+            <xsl:if test="($patientReference, '')[1] != ''">
+                <participant>
+                    <actor>
+                        <reference value="{$patientReference}"/>
+                    </actor>
+                    <status value="accepted"/>
+                </participant>
+            </xsl:if>
+
+            <!-- Practitioner from AIP.3 -->
+            <xsl:if test="$practName != ''">
+                <participant>
+                    <actor>
+                        <display value="{$practName}"/>
+                    </actor>
+                    <status value="accepted"/>
+                </participant>
+            </xsl:if>
+
+            <!-- Location from AIL.3 -->
+            <xsl:if test="$locName != ''">
+                <participant>
+                    <actor>
+                        <display value="{$locName}"/>
+                    </actor>
+                    <status value="accepted"/>
+                </participant>
+            </xsl:if>
+
+        </Appointment>
+    </xsl:template>
+
 
 </xsl:stylesheet>

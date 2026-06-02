@@ -48,7 +48,8 @@ import java.util.stream.Collectors;
  *
  * <p>The input encoding (JSON or XML) is detected automatically from the content.
  * On success the original message is passed through unchanged. On failure the pipe outputs
- * an {@code OperationOutcome} JSON document and takes the {@code failure} forward; if no
+ * an {@code OperationOutcome} in the same encoding as the input (XML or JSON) and takes the
+ * {@code failure} forward; if no
  * {@code failure} forward is configured a {@link PipeRunException} is thrown instead,
  * listing the validation errors.</p>
  *
@@ -75,7 +76,7 @@ import java.util.stream.Collectors;
  * }</pre>
  */
 @Forward(name = "success", description = "the FHIR resource passed validation; the original message is passed through unchanged")
-@Forward(name = "failure", description = "the FHIR resource failed validation; message contains an OperationOutcome JSON document")
+@Forward(name = "failure", description = "the FHIR resource failed validation; message contains an OperationOutcome in the same encoding as the input")
 public class FhirValidatorPipe extends FixedForwardPipe {
 
     private static final Logger LOG = LoggerFactory.getLogger(FhirValidatorPipe.class);
@@ -122,10 +123,18 @@ public class FhirValidatorPipe extends FixedForwardPipe {
             throw new PipeRunException(this, "Could not read input message", e);
         }
 
+        boolean inputIsXml = input.stripLeading().startsWith("<");
+
         ValidationResult result;
         try {
             IBaseResource resource = parseResource(input);
             result = validator.validateWithResult(resource);
+        } catch (NullPointerException e) {
+            // HAPI stitchBundleCrossReferences throws NPE when a Bundle entry's <resource/>
+            // element is empty — typically caused by an XSLT that produced no output for
+            // a resource template (wrong element paths, missing match, etc.)
+            throw new PipeRunException(this,
+                    "FHIR parse failed: Bundle entry contains an empty or unrecognised <resource/> element — check XSLT output", e);
         } catch (Exception e) {
             throw new PipeRunException(this, "FHIR validation error", e);
         }
@@ -134,7 +143,8 @@ public class FhirValidatorPipe extends FixedForwardPipe {
             return new PipeRunResult(getSuccessForward(), message);
         }
 
-        String operationOutcome = fhirContext.newJsonParser()
+        var outcomeParser = inputIsXml ? fhirContext.newXmlParser() : fhirContext.newJsonParser();
+        String operationOutcome = outcomeParser
                 .setPrettyPrint(true)
                 .encodeResourceToString(result.toOperationOutcome());
 

@@ -69,6 +69,10 @@
                 <Forward name="A08" path="extractDept"/>
                 <Forward name="A11" path="extractDept"/>
                 <Forward name="A13" path="extractDept"/>
+                <Forward name="S12" path="restoreForFhir"/>
+                <Forward name="S13" path="restoreForFhir"/>
+                <Forward name="S14" path="restoreForFhir"/>
+                <Forward name="S15" path="restoreForFhir"/>
                 <Forward name="notFound" path="restoreForUnsupportedType"/>
             </SwitchPipe>
 

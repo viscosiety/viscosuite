@@ -564,7 +564,7 @@
 <body>
 
 <header>
-  <a href="/">← ViscoSuite</a>
+  <a href="/viscolink/">← ViscoLink</a>
   <h1>Demo Pipeline Tester</h1>
 </header>
 
@@ -980,9 +980,9 @@ const GROUPS = [
     ],
   },
 
-  // ── C: HL7v2 over HTTP ─────────────────────────────────────────────
+  // ── C: HL7v2 ADT — Patient Administration ──────────────────────────
   {
-    label: 'HL7v2 over HTTP',
+    label: 'HL7v2 ADT — Patient Administration',
     desc: `<p>This group demonstrates the <strong>message-based ADT integration pathway</strong>. Legacy hospital systems — HIS, PAS, ward management terminals — generate HL7 v2 pipe-delimited messages for every patient movement event. ViscoLink receives these messages over HTTP (ER7 format), extracts the message type from <code>MSH.9</code>, applies the matching XSLT transformation (e.g. <code>ADT_A04.xslt</code>), and persists the resulting FHIR resources to ViscoStore as a transaction Bundle. The pipeline returns an HL7 v2 ACK response (<code>AA</code> / <code>AE</code> / <code>AR</code>) as expected by the sending system.</p>
 <p>The demo follows a coherent clinical narrative for patient Jan de Vries through a complete hospital episode: outpatient registration → inpatient admission → ward transfer → demographics update → discharge. Cancel events (A11, A13) demonstrate undo and correction workflows.</p>
 <p>Two negative-path scenarios are also included:</p>
@@ -1109,6 +1109,87 @@ const GROUPS = [
           'ORC|NW|6417^EPC|||||||20050305|351^SIMPSON^SALLY^^^^',
           'RQD|1|41|45452^SECOND ONE|5500^^SID|2|Box|10000^MAIN||10000^MAIN|20050305',
           'ZQD|SN1234|LN5678|20211221||||1||||||1|0PR1|2|||LAP APPENDECTOMIE|20210202141500',
+        ].join('\r'),
+      },
+    ],
+  },
+
+  // ── D: HL7v2 SIU — Appointment Scheduling ─────────────────────────
+  {
+    label: 'HL7v2 SIU — Appointment Scheduling',
+    desc: `<p>The <strong>SIU (Scheduling Information Unsolicited)</strong> pathway bridges legacy scheduling systems — outpatient clinic planners, ward management terminals — with FHIR-based care coordination. ViscoLink receives SIU messages over HTTP (ER7 format), transforms them to FHIR R4 <code>Appointment + Patient</code> transaction Bundles, validates them, and persists the result to ViscoStore via conditional PUT (idempotent upsert on the appointment identifier).</p>
+<p>The demo follows a complete appointment lifecycle for patient Maria van den Berg at the CARDIO department. All four events target the same appointment identifier (<code>APT-2026-001</code>), so ViscoStore updates the single Appointment resource in place rather than creating duplicates:</p>
+<ul>
+  <li><strong>S12 — New booking</strong>: initial consultation booked for 10 Jun 09:00, <code>status=booked</code></li>
+  <li><strong>S13 — Reschedule</strong>: appointment moved to 12 Jun 14:00, <code>status=booked</code></li>
+  <li><strong>S14 — Modification</strong>: service changed to ECG, duration extended to 45 min</li>
+  <li><strong>S15 — Cancellation</strong>: appointment cancelled, <code>status=cancelled</code></li>
+</ul>
+<ul>
+  <li><strong>Source:</strong> Legacy scheduling system (SIU ER7 over HTTP)</li>
+  <li><strong>Adapter type:</strong> HL7v2 message → XSLT → FHIR R4 Bundle</li>
+  <li><strong>Output:</strong> FHIR R4 <code>Appointment</code> + <code>Patient</code> → persisted in ViscoStore</li>
+</ul>`,
+    items: [
+      {
+        id: 'siu-s12', code: 'S12', label: 'Book Appointment', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'SIU^S12 — Maria van den Berg (PAT-9901) books CARDIO consultation APT-2026-001 on 10 Jun 09:00. Creates Appointment (status=booked) + Patient in ViscoStore. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SchedSystem|HospitalA|viscolink|viscosiety|{TS}||SIU^S12^SIU_S12|{MSG_ID}|P|2.5',
+          'SCH|APT-2026-001^HospitalA|APT-2026-001^HospitalA||||CARDIO-CONS^Cardiology Consultation^L|WALKIN^Walk-in^HL70276||30',
+          'PID|1||PAT-9901^^^HospitalA^MR||van den Berg^Maria^A||19750422|F|||Herengracht 789^^Amsterdam^NH^1017CB^NLD||+31687654321^CP^CP',
+          'NK1|1|van den Berg^Peter^A|SPO^Spouse^HL70063',
+          'PV1|1|O',
+          'RGS|1|A',
+          'AIS|1||CARDIO-CONS^Cardiology Consultation^L|20260610090000||||30',
+          'AIP|1||DR001^de Boer^Erik^^^Dr.^MD|MD',
+          'AIL|1||CARDIO^CARDIO-OPD-1^A^HospitalA',
+        ].join('\r'),
+      },
+      {
+        id: 'siu-s13', code: 'S13', label: 'Reschedule Appointment', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'SIU^S13 — APT-2026-001 rescheduled from 10 Jun 09:00 to 12 Jun 14:00. Updates Appointment start in ViscoStore. Requires prior S12. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SchedSystem|HospitalA|viscolink|viscosiety|{TS}||SIU^S13^SIU_S12|{MSG_ID}|P|2.5',
+          'SCH|APT-2026-001^HospitalA|APT-2026-001^HospitalA||||CARDIO-CONS^Cardiology Consultation^L|WALKIN^Walk-in^HL70276||30',
+          'PID|1||PAT-9901^^^HospitalA^MR||van den Berg^Maria^A||19750422|F',
+          'PV1|1|O',
+          'RGS|1|A',
+          'AIS|1||CARDIO-CONS^Cardiology Consultation^L|20260612140000||||30',
+          'AIP|1||DR001^de Boer^Erik^^^Dr.^MD|MD',
+          'AIL|1||CARDIO^CARDIO-OPD-1^A^HospitalA',
+        ].join('\r'),
+      },
+      {
+        id: 'siu-s14', code: 'S14', label: 'Modify Appointment', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'SIU^S14 — APT-2026-001 modified: service changed to CARDIO-ECG, duration extended to 45 min. Requires prior S12. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SchedSystem|HospitalA|viscolink|viscosiety|{TS}||SIU^S14^SIU_S12|{MSG_ID}|P|2.5',
+          'SCH|APT-2026-001^HospitalA|APT-2026-001^HospitalA||||CARDIO-ECG^Cardiology ECG^L|WALKIN^Walk-in^HL70276||45',
+          'PID|1||PAT-9901^^^HospitalA^MR||van den Berg^Maria^A||19750422|F',
+          'PV1|1|O',
+          'RGS|1|A',
+          'AIS|1||CARDIO-ECG^Cardiology ECG^L|20260612140000||||45',
+          'AIP|1||DR001^de Boer^Erik^^^Dr.^MD|MD',
+          'AIL|1||CARDIO^CARDIO-OPD-1^A^HospitalA',
+        ].join('\r'),
+      },
+      {
+        id: 'siu-s15', code: 'S15', label: 'Cancel Appointment', method: 'HL7', pipeline: 'hl7v2',
+        desc: 'SIU^S15 — APT-2026-001 cancelled. Updates Appointment status=cancelled in ViscoStore. Requires prior S12. Expects AA.',
+        expect: 'AA',
+        msg: [
+          'MSH|^~\\&|SchedSystem|HospitalA|viscolink|viscosiety|{TS}||SIU^S15^SIU_S12|{MSG_ID}|P|2.5',
+          'SCH|APT-2026-001^HospitalA|APT-2026-001^HospitalA||||CARDIO-CONS^Cardiology Consultation^L|WALKIN^Walk-in^HL70276||30',
+          'PID|1||PAT-9901^^^HospitalA^MR||van den Berg^Maria^A||19750422|F',
+          'PV1|1|O',
+          'RGS|1|A',
+          'AIS|1||CARDIO-CONS^Cardiology Consultation^L|20260612140000||||30',
+          'AIP|1||DR001^de Boer^Erik^^^Dr.^MD|MD',
+          'AIL|1||CARDIO^CARDIO-OPD-1^A^HospitalA',
         ].join('\r'),
       },
     ],

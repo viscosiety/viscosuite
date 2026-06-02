@@ -21,12 +21,19 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.net.URLDecoder;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Enumeration;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Routes ViscoFlow frontend requests to the embedded Ladybug and F!F APIs via
@@ -96,22 +103,30 @@ public class FlowController extends HttpServlet {
             return;
         }
 
+        // Build a clean parameter map from the original QS (minus "storage") so that
+        // Tomcat's RequestDispatcher param-merging does not duplicate values.
+        // Forward to a path WITHOUT a query string; all params come from the wrapper.
+        final Map<String, String[]> cleanParams = parseQueryString(dropParam(qs, "storage"));
+        HttpServletRequestWrapper wrapped = new HttpServletRequestWrapper(req) {
+            @Override public Map<String, String[]> getParameterMap()          { return cleanParams; }
+            @Override public String   getParameter(String n)                  { String[] v = cleanParams.get(n); return v != null && v.length > 0 ? v[0] : null; }
+            @Override public String[] getParameterValues(String n)            { return cleanParams.get(n); }
+            @Override public Enumeration<String> getParameterNames()          { return Collections.enumeration(cleanParams.keySet()); }
+        };
         RequestDispatcher dispatcher = getServletContext().getRequestDispatcher(target);
-        dispatcher.forward(req, resp);
+        dispatcher.forward(wrapped, resp);
     }
 
     private String resolveTarget(String path, String qs) {
         String storage  = param(qs, "storage", "DatabaseDebugStorage");
         String storageE = enc(storage);
-        String fwdQs    = dropParam(qs, "storage");
 
         return switch (path) {
             case "/storage" ->
                 "/iaf/ladybug/api/testtool/views";
 
             case "/traces" ->
-                "/iaf/ladybug/api/metadata/" + storageE
-                        + (fwdQs.isEmpty() ? "" : "?" + fwdQs);
+                "/iaf/ladybug/api/metadata/" + storageE;
 
             case "/trace-count" ->
                 "/iaf/ladybug/api/metadata/" + storageE + "/count";
@@ -160,6 +175,26 @@ public class FlowController extends HttpServlet {
             sb.append(kv);
         }
         return sb.toString();
+    }
+
+    private static Map<String, String[]> parseQueryString(String qs) {
+        Map<String, List<String>> multi = new LinkedHashMap<>();
+        if (qs != null && !qs.isEmpty()) {
+            for (String kv : qs.split("&")) {
+                if (kv.isEmpty()) continue;
+                int eq = kv.indexOf('=');
+                String key = eq >= 0 ? kv.substring(0, eq) : kv;
+                String val = eq >= 0 ? kv.substring(eq + 1) : "";
+                try {
+                    key = URLDecoder.decode(key, StandardCharsets.UTF_8);
+                    val = URLDecoder.decode(val, StandardCharsets.UTF_8);
+                } catch (Exception ignored) {}
+                multi.computeIfAbsent(key, k -> new ArrayList<>()).add(val);
+            }
+        }
+        Map<String, String[]> result = new LinkedHashMap<>();
+        multi.forEach((k, v) -> result.put(k, v.toArray(new String[0])));
+        return result;
     }
 
     private static String enc(String s) {

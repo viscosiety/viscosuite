@@ -24,6 +24,14 @@ html, body { height: 100%; overflow: hidden; font-family: var(--font); font-size
   background: var(--teal-dark); color: #F3F5F6;
 }
 #topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; margin-right: 4px; }
+#back-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 4px; font-size: 12px; font-weight: 500;
+  background: rgba(255,255,255,.10); color: rgba(255,255,255,.80);
+  border: 1px solid rgba(255,255,255,.22); text-decoration: none;
+  transition: background .12s, color .12s;
+}
+#back-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
 #live-badge {
   display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
   padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.15);
@@ -278,6 +286,7 @@ pre.payload-pre {
 <body>
 
 <div id="topbar">
+  <a id="back-btn" href="../">← ViscoLink</a>
   <h1>◈ ViscoFlow</h1>
   <div id="live-badge"><span class="dot" id="dot"></span><span id="live-txt">Live</span></div>
   <span id="countdown"></span>

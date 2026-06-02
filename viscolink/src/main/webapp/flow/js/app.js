@@ -90,9 +90,9 @@ async function fetchTraces(reset = false) {
   if (reset) { currentOffset = 0; allTraces = []; lastPageFull = false; }
   try {
     const limit = reset ? PAGE_SIZE_INITIAL : Math.max(currentOffset, PAGE_SIZE_INITIAL);
-    if (patientFilter) { totalCount = null; } else { fetchTraceCount(); }
+    if (patientFilter || flowFilter) { totalCount = null; } else { fetchTraceCount(); }
     const page = await getTraces({ storage, limit, offset: 0, flowFilter, patientFilter });
-    allTraces     = page;
+    allTraces     = (patientFilter && flowFilter) ? page.filter(r => r.flow === flowFilter) : page;
     currentOffset = Math.max(currentOffset, page.length);
     if (reset) lastPageFull = page.length >= PAGE_SIZE_INITIAL;
     rebuildTable();
@@ -116,9 +116,10 @@ async function loadMoreRows() {
     const page = await getTraces({
       storage, limit: PAGE_SIZE_MORE, offset: currentOffset, flowFilter, patientFilter,
     });
-    if (!patientFilter) await fetchTraceCount();
+    if (!patientFilter && !flowFilter) await fetchTraceCount();
+    const filtered = (patientFilter && flowFilter) ? page.filter(r => r.flow === flowFilter) : page;
     if (page.length > 0) {
-      allTraces     = [...allTraces, ...page];
+      allTraces     = [...allTraces, ...filtered];
       currentOffset += page.length;
       lastPageFull   = page.length >= PAGE_SIZE_MORE;
       document.getElementById('load-more-sentinel')?.remove();
@@ -153,13 +154,13 @@ function updateTraceCount() {
 function updateSentinel(tbody) {
   tbody = tbody || document.getElementById('trace-body');
   document.getElementById('load-more-sentinel')?.remove();
-  const moreOnServer = patientFilter
+  const moreOnServer = (patientFilter || flowFilter)
     ? lastPageFull
     : (totalCount == null || currentOffset < totalCount);
   if (!moreOnServer) return;
   const tr = document.createElement('tr');
   tr.id = 'load-more-sentinel';
-  const remaining = (!patientFilter && totalCount != null) ? totalCount - currentOffset : '?';
+  const remaining = (!patientFilter && !flowFilter && totalCount != null) ? totalCount - currentOffset : '?';
   tr.innerHTML = `<td colspan="6" class="load-more-row" title="Load the next page of traces" onclick="loadMoreRows()">${
     loadingMore ? 'Loading…' : `↓ ${remaining} more — load next page`
   }</td>`;
