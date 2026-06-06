@@ -4,38 +4,13 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ViscoLink</title>
+<link rel="stylesheet" href="/viscolink.css">
 <style>
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-:root {
-  --teal: #0B707A; --teal-light: #e3f4f6; --teal-mid: #a8d8dd;
-  --teal-dark: #063B3E;
-  --border: #C9D1D3; --text: #1F2A2C; --muted: #5a8a90;
-  --font: system-ui, -apple-system, sans-serif;
-}
-html, body { height: 100%; font-family: var(--font); font-size: 14px; color: var(--text); background: #FAFBFB; }
-
-header {
-  background: var(--teal-dark); color: #F3F5F6;
-  padding: 0 32px; height: 52px;
-  display: flex; align-items: center; gap: 10px;
-}
-header h1 { font-size: 16px; font-weight: 600; letter-spacing: .3px; }
-header .sub { font-size: 12px; color: rgba(255,255,255,.6); }
-#back-btn {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 5px 10px; border-radius: 5px;
-  background: rgba(255,255,255,.10); color: rgba(255,255,255,.80);
-  text-decoration: none; font-size: 12px; font-weight: 500;
-  transition: background .12s, color .12s;
-}
-#back-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
-
+html, body { height: 100%; font-size: 14px; color: var(--text); background: #FAFBFB; }
+#topbar .sub { font-size: 12px; color: rgba(255,255,255,.6); }
 main { max-width: 680px; margin: 48px auto; padding: 0 24px; }
 
-.section-title {
-  font-size: 11px; font-weight: 700; text-transform: uppercase;
-  letter-spacing: .6px; color: var(--muted); margin-bottom: 10px;
-}
+.section-title { margin-bottom: 10px; }
 
 .tool-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 40px; }
 
@@ -68,19 +43,19 @@ main { max-width: 680px; margin: 48px auto; padding: 0 24px; }
 </head>
 <body>
 
-<header>
+<div id="topbar">
   <a id="back-btn" href="/">← ViscoSuite</a>
   <h1>◈ ViscoLink</h1>
   <span class="sub">Integration Layer</span>
-</header>
+</div>
 
 <main>
-  <div class="section-title">Tools</div>
+  <div class="vs-label section-title">Tools</div>
   <div class="tool-list" id="tool-list">
     <div class="tools-loading">Loading…</div>
   </div>
 
-  <div class="section-title">Framework</div>
+  <div class="vs-label section-title">Framework</div>
   <div class="tool-list">
     <a class="tool-card" href="./iaf/gui/">
       <div class="tool-icon icon-gray">⚙</div>

@@ -4,35 +4,26 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Demo Pipeline Tester — ViscoSuite</title>
+  <link rel="stylesheet" href="/viscolink.css">
   <style>
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-
     :root {
-      --bg:       #063B3E;
-      --card:     #0a4f54;
-      --border:   #0d676e;
-      --brand:    #0F8A96;
-      --hover:    #0B707A;
-      --text:     #F3F5F6;
-      --muted:    #8eb8bc;
-      --mono-bg:  #041f21;
-      --mono-fg:  #a5d6da;
-      --get:      #1a4d30;
-      --get-fg:   #4ade80;
-      --post:     #1a2d5a;
-      --post-fg:  #93c5fd;
-      --aa-bg:    #1a4d30;
-      --aa-fg:    #4ade80;
-      --ae-bg:    #4d2c0a;
-      --ae-fg:    #fb923c;
-      --ar-bg:    #4d1a1a;
-      --ar-fg:    #f87171;
-      --err-bg:   #3d1a4d;
-      --err-fg:   #e879f9;
+      /* light page chrome — inherits --border, --text, --muted, --teal* from viscolink.css */
+      --bg:      #FAFBFB;
+      --card:    var(--teal-light);   /* sidebar hover bg */
+      --brand:   #0F8A96;
+      --hover:   var(--teal);
+      --mono-bg: #1e1e2e;             /* code panels stay dark */
+      --mono-fg: #cdd6f4;
+      /* method / ack badge palette */
+      --get:     #1a4d30; --get-fg:  #4ade80;
+      --post:    #1a2d5a; --post-fg: #93c5fd;
+      --aa-bg:   #1a4d30; --aa-fg:   #4ade80;
+      --ae-bg:   #4d2c0a; --ae-fg:   #fb923c;
+      --ar-bg:   #4d1a1a; --ar-fg:   #f87171;
+      --err-bg:  #3d1a4d; --err-fg:  #e879f9;
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
       background: var(--bg);
       color: var(--text);
       min-height: 100vh;
@@ -42,21 +33,22 @@
 
     /* ── Header ──────────────────────────────────────────────────────── */
     header {
-      padding: 14px 22px;
+      padding: 0 14px;
+      height: 46px;
       border-bottom: 1px solid var(--border);
-      background: var(--card);
+      background: var(--teal-dark);
+      color: #F3F5F6;
       display: flex;
       align-items: center;
-      gap: 14px;
+      gap: 10px;
       flex-shrink: 0;
     }
-    header a { color: var(--muted); text-decoration: none; font-size: 0.82rem; }
-    header a:hover { color: var(--text); }
-    header h1 { font-size: 1.05rem; font-weight: 700; flex: 1; }
+    header h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; flex: 1; }
 
     /* ── Config bar ──────────────────────────────────────────────────── */
     .config-bar {
-      padding: 9px 22px;
+      padding: 9px 14px;
+      background: #fff;
       border-bottom: 1px solid var(--border);
       display: flex;
       align-items: center;
@@ -69,7 +61,7 @@
     .config-bar input[type=text],
     .config-bar input[type=number],
     .config-bar input[type=password] {
-      background: var(--mono-bg);
+      background: #fff;
       border: 1px solid var(--border);
       color: var(--text);
       padding: 3px 7px;
@@ -81,7 +73,7 @@
     .config-bar input[type=password] { width: 100px; }
     .config-bar input:focus { outline: none; border-color: var(--brand); }
     .config-bar select {
-      background: var(--mono-bg);
+      background: #fff;
       border: 1px solid var(--border);
       color: var(--text);
       padding: 3px 7px;
@@ -103,24 +95,14 @@
     .sidebar {
       width: 248px;
       flex-shrink: 0;
+      background: #fff;
       border-right: 1px solid var(--border);
       overflow-y: auto;
       padding: 8px 0 16px;
     }
 
-    .sg-label {
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--brand);
-      padding: 10px 14px 4px;
-    }
-    .sg-label:not(:first-child) {
-      border-top: 1px solid var(--border);
-      padding-top: 12px;
-      margin-top: 4px;
-    }
+    .sg-label { padding: 10px 14px 4px; }
+    .sg-label:not(:first-child) { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 4px; }
 
     .sc-row {
       display: flex;
@@ -130,8 +112,8 @@
       gap: 7px;
       transition: background 0.1s;
     }
-    .sc-row:hover  { background: var(--card); }
-    .sc-row.active { background: var(--hover); }
+    .sc-row:hover  { background: var(--teal-light); }
+    .sc-row.active { background: var(--teal-mid); }
 
     .method-badge {
       font-size: 0.6rem;
@@ -208,35 +190,20 @@
 
     input.url-display {
       flex: 1;
-      background: var(--mono-bg);
+      background: var(--gray-bg);
       border: 1px solid var(--border);
       border-radius: 5px;
       padding: 5px 10px;
       font-family: "SF Mono", Consolas, monospace;
       font-size: 0.78rem;
-      color: #c4b5fd;
+      color: var(--text);
       min-width: 0;
       outline: none;
     }
     input.url-display:focus {
       border-color: var(--brand);
-      color: var(--mono-fg);
+      background: #fff;
     }
-
-    button.run-btn {
-      background: var(--brand);
-      color: #fff;
-      border: none;
-      border-radius: 5px;
-      padding: 6px 18px;
-      font-size: 0.83rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.14s;
-      flex-shrink: 0;
-    }
-    button.run-btn:hover    { background: var(--hover); }
-    button.run-btn:disabled { background: var(--border); cursor: not-allowed; opacity: 0.65; }
 
     .run-info { font-size: 0.75rem; color: var(--muted); flex-shrink: 0; }
 
@@ -252,14 +219,7 @@
 
     .params-area.hidden { display: none; }
 
-    .param-section-label {
-      font-size: 0.7rem;
-      font-weight: 600;
-      letter-spacing: 0.07em;
-      text-transform: uppercase;
-      color: var(--muted);
-      margin-bottom: 4px;
-    }
+    .param-section-label { margin-bottom: 4px; }
 
     .param-grid {
       display: grid;
@@ -284,7 +244,7 @@
 
     .param-grid input[type=text],
     .param-grid input[type=number] {
-      background: var(--mono-bg);
+      background: #fff;
       border: 1px solid var(--border);
       color: var(--text);
       padding: 4px 8px;
@@ -295,12 +255,12 @@
       min-width: 120px;
     }
     .param-grid input:focus { outline: none; border-color: var(--brand); }
-    .param-grid input[readonly] { color: var(--muted); }
+    .param-grid input[readonly] { color: var(--muted); background: var(--gray-bg); }
 
     .param-chip {
       font-size: 0.68rem;
       padding: 2px 7px;
-      background: var(--card);
+      background: var(--gray-bg);
       border: 1px solid var(--border);
       border-radius: 10px;
       color: var(--muted);
@@ -308,7 +268,7 @@
       transition: background 0.1s, color 0.1s;
       white-space: nowrap;
     }
-    .param-chip:hover { background: var(--hover); color: var(--text); }
+    .param-chip:hover { background: var(--teal-light); color: var(--teal); }
 
     .param-version-select {
       display: flex;
@@ -324,7 +284,7 @@
       font-weight: 600;
       cursor: pointer;
       color: var(--muted);
-      background: var(--mono-bg);
+      background: var(--gray-bg);
       border: none;
       text-align: center;
       transition: background 0.1s, color 0.1s;
@@ -345,58 +305,12 @@
     }
     .hl7-area.hidden { display: none; }
 
-    textarea.hl7-editor {
-      flex: 1;
-      background: var(--mono-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--mono-fg);
-      font-family: "SF Mono", Consolas, monospace;
-      font-size: 0.77rem;
-      line-height: 1.65;
-      padding: 10px 12px;
-      resize: none;
-      outline: none;
-      min-height: 0;
-    }
-    textarea.hl7-editor:focus { border-color: var(--brand); }
+    textarea.hl7-editor { flex: 1; resize: none; min-height: 0; }
 
     /* Body editor (FHIR POST) */
-    .body-area {
-      flex: 1;
-      padding: 0 18px 0;
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
-      min-height: 0;
-    }
+    .body-area { flex: 1; padding: 0 18px 0; display: flex; flex-direction: column; gap: 6px; min-height: 0; }
     .body-area.hidden { display: none; }
-
-    textarea.body-editor {
-      flex: 1;
-      background: var(--mono-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      color: var(--mono-fg);
-      font-family: "SF Mono", Consolas, monospace;
-      font-size: 0.76rem;
-      line-height: 1.6;
-      padding: 10px 12px;
-      resize: none;
-      outline: none;
-      min-height: 0;
-    }
-    textarea.body-editor:focus { border-color: var(--brand); }
-
-    /* Empty state */
-    .empty-state {
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: var(--muted);
-      font-size: 0.85rem;
-    }
+    textarea.body-editor { flex: 1; resize: none; min-height: 0; }
 
     /* ── Response ────────────────────────────────────────────────────── */
     .response-wrap {
@@ -451,21 +365,7 @@
       margin-left: auto;
     }
 
-    pre.resp-body {
-      flex: 1;
-      background: var(--mono-bg);
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 8px 12px;
-      font-family: "SF Mono", Consolas, monospace;
-      font-size: 0.76rem;
-      line-height: 1.58;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
-      color: var(--mono-fg);
-      min-height: 0;
-    }
+    pre.resp-body { flex: 1; min-height: 0; }
     pre.resp-body.ok   { border-color: #1a5c30; }
     pre.resp-body.nack { border-color: var(--ae-bg); }
     pre.resp-body.err  { border-color: var(--ar-bg); }
@@ -505,7 +405,7 @@
     .si-chevron.open { transform: rotate(90deg); }
 
     .si-body {
-      background: var(--mono-bg);
+      background: var(--gray-bg);
       border: 1px solid var(--border);
       border-radius: 6px;
       padding: 10px 14px 12px;
@@ -516,14 +416,7 @@
     }
     .si-body.collapsed { display: none; }
 
-    .si-section-label {
-      font-size: 0.6rem;
-      font-weight: 700;
-      letter-spacing: 0.1em;
-      text-transform: uppercase;
-      color: var(--brand);
-      margin-bottom: 3px;
-    }
+    .si-section-label { margin-bottom: 3px; }
 
     .si-group-desc {
       font-size: 0.78rem;
@@ -538,10 +431,10 @@
     .si-group-desc code {
       font-family: "SF Mono", Consolas, monospace;
       font-size: 0.72rem;
-      background: var(--card);
+      background: var(--gray-bg);
       padding: 1px 4px;
       border-radius: 3px;
-      color: var(--mono-fg);
+      color: var(--text);
     }
 
     .si-scenario-desc {
@@ -554,17 +447,17 @@
     .si-scenario-desc code {
       font-family: "SF Mono", Consolas, monospace;
       font-size: 0.72rem;
-      background: var(--card);
+      background: var(--gray-bg);
       padding: 1px 4px;
       border-radius: 3px;
-      color: var(--mono-fg);
+      color: var(--text);
     }
   </style>
 </head>
 <body>
 
 <header>
-  <a href="/viscolink/">← ViscoLink</a>
+  <a id="back-btn" href="/viscolink/">← ViscoLink</a>
   <h1>Demo Pipeline Tester</h1>
 </header>
 
@@ -579,7 +472,7 @@
   <nav class="sidebar" id="sidebar"></nav>
 
   <div class="content" id="content">
-    <div class="empty-state">Select a scenario on the left to begin.</div>
+    <div class="vs-empty">Select a scenario on the left to begin.</div>
   </div>
 </div>
 
@@ -1222,7 +1115,7 @@ function renderScenarioInfo(item) {
         <span class="si-chevron${siCollapsed ? '' : ' open'}" id="si-chevron">▶</span>
       </div>
       <div class="si-body${siCollapsed ? ' collapsed' : ''}" id="si-body">
-        ${group.desc ? `<div><div class="si-section-label">Integration scenario</div><div class="si-group-desc">${group.desc}</div></div>` : ''}
+        ${group.desc ? `<div><div class="si-section-label vs-label vs-label-brand">Integration scenario</div><div class="si-group-desc">${group.desc}</div></div>` : ''}
         <div class="si-scenario-desc"><strong>${esc(item.label)}:</strong> ${esc(item.desc)}</div>
       </div>
     </div>`;
@@ -1340,7 +1233,7 @@ let activeId = null;
 
 function renderSidebar() {
   document.getElementById('sidebar').innerHTML = GROUPS.map(g => `
-    <div class="sg-label">${esc(g.label)}</div>
+    <div class="vs-label vs-label-brand sg-label">${esc(g.label)}</div>
     ${g.items.map(item => `
       <div class="sc-row${item.id === activeId ? ' active' : ''}"
            id="sr-${item.id}"
@@ -1383,12 +1276,12 @@ function renderContent(item) {
   if (item.method === 'HL7') {
     hl7Html = `
       <div class="hl7-area" id="hl7-area">
-        <div class="param-section-label">Message</div>
-        <textarea class="hl7-editor" id="hl7-editor" spellcheck="false">${esc(hl7ToDisplay(substituteHl7(item.msg)))}</textarea>
+        <div class="vs-label param-section-label">Message</div>
+        <textarea class="vs-code-pre hl7-editor" id="hl7-editor" spellcheck="false">${esc(hl7ToDisplay(substituteHl7(item.msg)))}</textarea>
       </div>`;
   } else if (item.method === 'POST') {
     const versionSel = item.versionParam ? `
-      <div class="param-section-label">FHIR Version</div>
+      <div class="vs-label param-section-label">FHIR Version</div>
       <div class="param-version-select">
         ${['r4', 'r5', 'dstu3'].map(v => `
           <input type="radio" name="fhir-ver" id="ver-${v}" value="${v}" ${v === selectedVersion ? 'checked' : ''}
@@ -1402,8 +1295,8 @@ function renderContent(item) {
         ${versionSel}
       </div>
       <div class="body-area" id="body-area">
-        <div class="param-section-label">Request Body <span style="color:var(--muted);font-weight:400">(${esc(item.contentType || 'application/fhir+xml')})</span></div>
-        <textarea class="body-editor" id="body-editor" spellcheck="false">${esc(substituteFhir(bodyTemplate))}</textarea>
+        <div class="vs-label param-section-label">Request Body <span style="color:var(--muted);font-weight:400;text-transform:none;letter-spacing:0">(${esc(item.contentType || 'application/fhir+xml')})</span></div>
+        <textarea class="vs-code-pre body-editor" id="body-editor" spellcheck="false">${esc(substituteFhir(bodyTemplate))}</textarea>
       </div>`;
   } else {
     // GET
@@ -1451,7 +1344,7 @@ function renderContent(item) {
     <div class="url-bar">
       <span class="url-method ${methodCls}">${esc(methodLabel)}</span>
       <input class="url-display" id="url-display" type="text" spellcheck="false" autocomplete="off">
-      <button class="run-btn" id="run-btn" onclick="executeRequest()">Run →</button>
+      <button class="vs-btn" id="run-btn" onclick="executeRequest()">Run →</button>
       <span class="run-info" id="run-info"></span>
     </div>
     ${paramsHtml}
@@ -1464,7 +1357,7 @@ function renderContent(item) {
         <span class="http-status-badge" id="http-status-badge"></span>
         <span class="resp-ct" id="resp-ct"></span>
       </div>
-      <pre class="resp-body" id="resp-body"><span class="resp-placeholder">No response yet — click Run.</span></pre>
+      <pre class="vs-code-pre resp-body" id="resp-body"><span class="resp-placeholder">No response yet — click Run.</span></pre>
     </div>
   `;
 
@@ -1618,7 +1511,7 @@ async function executeHl7(item) {
 function clearResponse() {
   const pre = document.getElementById('resp-body');
   if (pre) {
-    pre.className = 'resp-body';
+    pre.className = 'vs-code-pre resp-body';
     pre.innerHTML = '<span class="resp-placeholder">Waiting…</span>';
   }
   setEl('ack-badge', '', '');
@@ -1634,7 +1527,7 @@ function showFhirResponse(resp, text) {
 
   const pre = document.getElementById('resp-body');
   if (!pre) return;
-  pre.className = 'resp-body ' + (ok ? 'ok' : 'err');
+  pre.className = 'vs-code-pre resp-body ' + (ok ? 'ok' : 'err');
   pre.textContent = ct.includes('xml') || ct.includes('fhir') ? prettyXml(text) : (text || '(empty)');
 }
 
@@ -1649,10 +1542,10 @@ function showHl7Response(resp, text) {
     const ackMap = { AA: ['ab-aa', 'ok'], AE: ['ab-ae', 'nack'], AR: ['ab-ar', 'nack'] };
     const [bc, rc] = ackMap[ack] || ['ab-err', 'err'];
     setEl('ack-badge', ack, bc);
-    pre.className = 'resp-body ' + rc;
+    pre.className = 'vs-code-pre resp-body ' + rc;
   } else if (!resp.ok) {
     setEl('ack-badge', 'ERR', 'ab-err');
-    pre.className = 'resp-body err';
+    pre.className = 'vs-code-pre resp-body err';
   }
 
   pre.textContent = hl7ToDisplay(text) || '(empty)';

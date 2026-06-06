@@ -1,0 +1,113 @@
+/* ViscoSuite shared design tokens and base components */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --teal: #0B707A; --teal-light: #e3f4f6; --teal-mid: #a8d8dd;
+  --teal-dark: #063B3E;
+  --green: #2a7a3b; --green-bg: #e8f5eb;
+  --red: #c0392b; --red-bg: #fdecea;
+  --gray: #6b7280; --gray-bg: #f3f4f6;
+  --border: #C9D1D3; --text: #1F2A2C; --muted: #6b7280;
+  --font: system-ui, -apple-system, sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', 'Cascadia Code', Consolas, monospace;
+}
+
+body { font-family: var(--font); }
+
+/* ── Dark app topbar ── */
+#topbar {
+  display: flex; align-items: center; gap: 10px;
+  padding: 0 14px; height: 46px; flex-shrink: 0;
+  background: var(--teal-dark); color: #F3F5F6;
+}
+#topbar h1 { font-size: 15px; font-weight: 600; letter-spacing: .3px; margin: 0 4px 0 0; line-height: 1; }
+#topbar .spacer { flex: 1; }
+#topbar select, #topbar input {
+  height: 28px; padding: 0 8px; border-radius: 4px; border: 1px solid rgba(255,255,255,.3);
+  background: rgba(255,255,255,.12); color: #fff; font-size: 12px; outline: none;
+}
+#topbar input::placeholder { color: rgba(255,255,255,.6); }
+#topbar input:focus, #topbar select:focus { border-color: rgba(255,255,255,.6); }
+#topbar select option { background: var(--teal-dark); }
+
+/* ── Back button (inside dark topbar) ── */
+#back-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 4px; font-size: 12px; font-weight: 500;
+  background: rgba(255,255,255,.10); color: rgba(255,255,255,.80);
+  border: 1px solid rgba(255,255,255,.22); text-decoration: none;
+  transition: background .12s, color .12s;
+}
+#back-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
+
+/* ── Live status badge ── */
+#live-badge {
+  display: flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500;
+  padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,.15);
+}
+#live-badge .dot { width: 7px; height: 7px; border-radius: 50%; background: #4ade80; }
+#live-badge .dot.paused { background: #fbbf24; }
+#countdown { font-size: 11px; color: rgba(255,255,255,.65); min-width: 30px; }
+#report-count, #trace-count { font-size: 11px; color: rgba(255,255,255,.65); white-space: nowrap; }
+
+/* ── Teal primary action button ── */
+.vs-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  background: #0F8A96; color: #fff;
+  border: none; border-radius: 4px;
+  padding: 5px 14px; font-size: 12px; font-weight: 600;
+  cursor: pointer; text-decoration: none;
+  transition: background .12s;
+}
+.vs-btn:hover, .vs-btn:focus { background: var(--teal); color: #fff; }
+.vs-btn:disabled { opacity: .6; cursor: not-allowed; }
+
+/* ── Small uppercase section label ── */
+.vs-label {
+  display: block;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .08em;
+  color: var(--muted);
+}
+.vs-label-brand { color: var(--teal); }
+
+/* ── Centered empty / placeholder state ── */
+.vs-empty {
+  flex: 1;
+  display: flex; align-items: center; justify-content: center;
+  color: var(--muted); font-size: 13px;
+}
+
+/* ── Dark monospace code panel (standalone, not embedded in a dark container) ── */
+.vs-code-pre {
+  background: #1e1e2e;
+  border: 1px solid #2a2a3e;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 1.55;
+  color: #cdd6f4;
+  overflow-y: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+  outline: none;
+}
+.vs-code-pre:focus { border-color: #0F8A96; }
+
+/* ── Status pills ── */
+.pill { display: inline-flex; align-items: center; gap: 4px; font-size: 10px; font-weight: 600; padding: 2px 6px; border-radius: 10px; }
+.pill-ok  { background: var(--green-bg); color: var(--green); }
+.pill-err { background: var(--red-bg);   color: var(--red); }
+.pill-run { background: var(--gray-bg);  color: var(--gray); }
+
+/* ── Generic icon/action button inside dark topbar ── */
+.vs-topbar-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 9px; border-radius: 4px; font-size: 13px;
+  background: rgba(255,255,255,.10); color: rgba(255,255,255,.80);
+  border: 1px solid rgba(255,255,255,.22); cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.vs-topbar-btn:hover { background: rgba(255,255,255,.20); color: #fff; }
