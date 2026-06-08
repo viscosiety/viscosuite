@@ -26,6 +26,8 @@ Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunne
 
 **ViscoStore owns the persistence concern.** It is a standard HAPI FHIR JPA Server with no integration logic. It stores FHIR resources, serves them over a FHIR REST API, and exposes an MCP endpoint for AI/LLM access. Consumers that only need to query stored data — a clinical dashboard, an AI assistant, a reporting tool — go directly to ViscoStore without passing through ViscoLink.
 
+ViscoSuite ships a set of demo configurations that are working reference implementations of the most common integration patterns in healthcare: HL7v2 ADT and SIU ingest over MLLP and HTTP, FHIR-to-FHIR facade and proxy endpoints, database-sourced FHIR generation, and terminology enrichment at query time. Each configuration is a self-contained F!F configuration directory that can be used as a starting point, studied as a pattern, or run as-is to explore the platform. See `viscorunner/README.md` for how to activate them.
+
 ViscoLink can expose FHIR-shaped facades and proxies, but these are not a substitute for a CDR. The `loinc-enriched` facade is a good illustration: it fetches Observations from ViscoStore and injects LOINC codings in flight before returning them to the caller — no data is written back. The caller sees fully coded FHIR, but the underlying stored resources remain unchanged. This is useful for terminology enrichment at query time, not for building a persistent clinical record. Persistent storage is always ViscoStore's responsibility.
 
 This separation means the two components can evolve independently: ViscoStore can be replaced with any FHIR-compliant server, ViscoLink can route to multiple targets, and neither side carries the concerns of the other.
