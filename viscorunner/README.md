@@ -11,48 +11,77 @@ Docker packaging module for ViscoSuite. Assembles both WAR files into a single T
 **To run the schema update script** (`scripts/update-frankconfig-xsd.sh`):
 
 - `mvn` (Maven 3.9+) — the script calls `mvn` directly to download artifacts from Maven Central. Install via [maven.apache.org](https://maven.apache.org/download.cgi) or a package manager (`brew install maven`, `apt-get install maven`).
-- `unzip` — used to extract the XSD from the downloaded JAR. Pre-installed on most systems; on Debian/Ubuntu: `apt-get install unzip`.
 
 ---
 
 ## Mode 1 — Demo
 
-Runs the full reference implementation: HL7v2-to-FHIR conversion, FHIR R4/DSTU3 endpoints, and the fake-EMR integration.
+Runs the full reference implementation: HL7v2-to-FHIR conversion, SIU appointment scheduling, FHIR R4/DSTU3/R5 endpoints, LOINC enrichment, and the fake-EMR integration. Also starts RabbitMQ for AMQP-based event routing.
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 ```
 
 The demo overlay:
-- Mounts `demo-configurations/` as the Frank!Framework configuration directory and enables auto-discovery, so all three reference configurations are loaded without any manual setup.
-- Replaces the base Tomcat context with `conf-demo/context.xml`, which adds the `jdbc/fake-emr` JNDI datasource needed by the fake-EMR configuration.
+- Mounts `demo-configurations/` as the Frank!Framework configuration directory with auto-discovery enabled, so all reference configurations load without manual setup.
+- Replaces the base Tomcat context with `demo-conf/context.xml`, which adds the `jdbc/fake-emr` JNDI datasource.
+- Starts a RabbitMQ instance and wires it to ViscoLink via the AMQP event bus (`amqp.events.active=true`).
+- Mounts `demo-tools/` at `/opt/frank/webapp-overlay/viscolink/demo-tools/` so the browser tools are served without a WAR rebuild.
+- Mounts `demo-resources/resources.yml` with MLLP listener (`inbound-2575`) and AMQP connection pre-configured.
 
 ### What loads
 
 | F!F Configuration | Description |
 |---|---|
-| `hl7v2-to-fhir` | Receives HL7v2 ADT messages over HTTP or MLLP and converts them to FHIR R4 Bundles |
+| `hl7v2-to-fhir` | Receives HL7v2 ADT (A01/A02/A03/A04/A08/A11/A13) and SIU (S12/S13/S14/S15) messages over HTTP (`POST /viscolink/api/hl7v2`) or MLLP (port 2575) and converts them to FHIR R4 Bundles |
+| `hl7v2-to-xml` | Converts HL7v2 messages to a structured XML representation |
 | `fhir-to-fhir` | FHIR R4 / DSTU3 / R5 facade endpoints (bundle transactions, patient reads) bridged to F!F pipelines |
 | `fhir-store-proxy` | Transparent reverse proxy from a ViscoLink FHIR endpoint to ViscoStore, with credential injection |
-| `loinc-mapping-api` | Looks up LOINC codes from a CSV file and returns enriched FHIR Observations |
+| `loinc-mapping-api` | CRUD API for the LOINC mapping table; used by the lab-enrichment facade to inject LOINC codings into uncoded Observations |
 | `fake-emr` | Demonstrates querying a PostgreSQL-backed EMR and emitting FHIR Bundles |
+
+### Demo tools
+
+Three browser-based tools are served directly from ViscoLink in demo mode and accessible from the `/viscolink/` launcher:
+
+| Tool | URL | Purpose |
+|---|---|---|
+| ViscoFlow | `/viscolink/flow/` | Live pipeline trace viewer — shows every message flowing through F!F adapters with per-pipe input/output and forward routing |
+| Lab Code Mapper | `/viscolink/demo-tools/loinc-mapping-ui.html` | CRUD UI for the LOINC mapping table consumed by the `loinc-mapping-api` configuration. Illustrates a standalone tool with a specific functional purpose, served via the webapp overlay mechanism without modifying the WAR. |
+| Demo Pipeline Tester | `/viscolink/demo-tools/test-client.html` | Drives all demo pipelines end-to-end from the browser — sends HL7v2 ADT/SIU messages, FHIR requests, and EMR queries with configurable parameters and shows raw responses |
+
+Tools are mounted via `demo-tools:/opt/frank/webapp-overlay/viscolink/demo-tools:ro` in the demo overlay. New tools can be added to `demo-tools/` without rebuilding the image.
 
 ### Key endpoints (all at `http://localhost:8180`)
 
 | Endpoint | Description |
 |---|---|
+| `/` | ViscoSuite landing page — probes services and shows navigation cards |
+| `/viscolink/` | ViscoLink app launcher (tools registry + Frank!Console link) |
+| `/viscolink/flow/` | ViscoFlow — live message flow viewer and pipeline trace debugger |
+| `/viscolink/demo-tools/test-client.html` | Demo Pipeline Tester — drive all demo pipelines from the browser |
+| `/viscolink/demo-tools/loinc-mapping-ui.html` | Lab Code Mapper — CRUD UI for LOINC mappings |
 | `/viscolink/iaf/` | Frank!Console and Ladybug flow debugger |
+| `POST /viscolink/api/hl7v2` | HL7v2 message ingestion over HTTP |
+| `GET /viscolink/api/emr/patient/{id}` | Fake-EMR → FHIR patient pipeline |
+| `GET /viscolink/fhir/r4/loinc-enriched/Observation` | LOINC-enriched Observation search |
 | `POST /viscolink/fhir/r4/fhir-to-fhir` | FHIR R4 bundle transaction |
 | `GET /viscolink/fhir/r4/fhir-to-fhir/Patient/{id}` | FHIR R4 patient read |
 | `POST /viscolink/fhir/r5/fhir-to-fhir` | FHIR R5 bundle transaction |
 | `GET /viscolink/fhir/r5/fhir-to-fhir/Patient/{id}` | FHIR R5 patient read |
 | `POST /viscolink/fhir/dstu3/fhir-to-fhir` | FHIR DSTU3 bundle transaction |
 | `GET /viscolink/fhir/dstu3/fhir-to-fhir/Patient/{id}` | FHIR DSTU3 patient read |
-| `POST /viscolink/hl7v2` | HL7v2 message ingestion (HTTP) |
 | `/viscostore/fhir` | HAPI FHIR JPA Server REST API |
 | `/viscostore/tester/` | Interactive FHIR Tester UI |
 | `/viscostore/fhir/swagger-ui/` | Swagger API docs |
 | `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
+
+### Additional services (demo mode only)
+
+| Service | Port | Description |
+|---|---|---|
+| RabbitMQ AMQP | `5672` | AMQP event bus (credentials: `viscosuite` / `viscosuite`) |
+| RabbitMQ Management | `15672` | RabbitMQ management console |
 
 ---
 
@@ -99,15 +128,22 @@ Add a `<Resource>` entry to `conf/context.xml` and restart the container. The ba
 ```
 conf/                       Base Tomcat context — JNDI datasources for viscolink and viscostore
 demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
+demo-hapi-overlay/          Spring Boot config overlay for ViscoStore in demo mode
+demo-rabbitmq/              RabbitMQ config and exchange/queue definitions for demo mode
+demo-resources/             resources.yml with MLLP listener and AMQP connection pre-wired
+demo-secrets/               Credentials for the demo mode (not for production)
+demo-tools/                 Browser tools served at /viscolink/demo-tools/ in demo mode
+│                           (test-client.html, loinc-mapping-ui.html)
 configurations/             Mount point for user-created F!F configurations
 │                           Empty by default; contains FrankConfig.xsd for IDE support
-demo-configurations/        Reference implementation F!F configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
+demo-configurations/        Reference F!F configurations:
+│                           hl7v2-to-fhir, hl7v2-to-xml, fhir-to-fhir,
+│                           fhir-store-proxy, loinc-mapping-api, fake-emr
+postgres/                   PostgreSQL init scripts (database + schema setup)
 scripts/                    Developer utilities (see below)
 secrets/                    Runtime credentials (gitignored; copy from .example)
 src/scripts/                Build-time scripts baked into the Docker image (entrypoint, Tomcat settings)
 ```
-
-The `conf` / `demo-conf` and `configurations` / `demo-configurations` pairs follow the same pattern: the base directory is for your own work; the `demo-` counterpart contains the reference implementation and is activated by the demo overlay.
 
 ---
 
@@ -130,3 +166,6 @@ The script reads the version from `viscolink/pom.xml`, downloads the matching `f
 | `8180` | `8080` | HTTP (viscolink + viscostore) |
 | `5005` | `5005` | JPDA remote debugger |
 | `2575` | `2575` | MLLP inbound (HL7v2 over TCP) |
+| `5432` | `5432` | PostgreSQL |
+| `5672` | `5672` | RabbitMQ AMQP (demo mode only) |
+| `15672` | `15672` | RabbitMQ management (demo mode only) |

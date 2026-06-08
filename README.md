@@ -2,7 +2,7 @@
 
 ViscoSuite is a self-hosted healthcare integration platform. It combines two components:
 
-- **ViscoLink** — a Frank!Framework integration middleware that accepts messages in any protocol (HL7v2 MLLP, HL7v2 over HTTP, REST, FHIR, database queries, …) and routes or transforms them into FHIR resources. You extend it by dropping Frank!Framework XML configurations into a mounted directory and reloading — no rebuild required.
+- **ViscoLink** — a Frank!Framework integration layer that receives, validates, transforms, and routes healthcare messages from source systems into ViscoStore. Supports HL7v2 (MLLP and HTTP), FHIR, REST, and database-backed integrations. Extend by dropping Frank!Framework XML configurations into a mounted directory — no rebuild required.
 - **ViscoStore** — a HAPI FHIR JPA Server that acts as the canonical FHIR repository. It exposes a standard FHIR REST API, a browser-based tester UI, Swagger docs, and an MCP endpoint for AI/LLM integration.
 
 Both run as WARs inside a single Tomcat instance, packaged by **ViscoRunner**.
@@ -15,12 +15,48 @@ viscoSuite/
 ├── viscostore/              HAPI FHIR JPA Server (persistent FHIR storage + MCP)
 └── viscorunner/             Docker packaging and configuration hub
     ├── configurations/          empty scaffold — mount your own integrations here
-    ├── demo-configurations/     reference configurations (hl7v2-to-fhir, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
+    ├── demo-configurations/     reference configurations (hl7v2-to-fhir, hl7v2-to-xml, fhir-to-fhir, fhir-store-proxy, loinc-mapping-api, fake-emr)
     ├── docker-compose.yml       base service definitions
-    └── docker-compose.demo.yml  demo overlay (activates demo-configurations)
+    └── docker-compose.demo.yml  demo overlay (activates demo-configurations + RabbitMQ)
 ```
 
 Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunner`.
+
+## Why Frank!Framework
+
+Most integration middleware in healthcare falls into one of two traps: either configuration lives in a proprietary database — invisible to version control, CI/CD, and locked into a vendor silo you cannot migrate out of — or pipelines are written as imperative scripts that require a full build cycle for every change. Frank!Framework avoids both.
+
+**Config-first, git-native.** Every integration is a plain XML file that lives in version control alongside the rest of the codebase. It gets code review, branching, CI, and rollback for free. Tools that store configuration in a proprietary database or GUI-generated binary make this impossible — the config cannot be diffed, reviewed in a pull request, or rolled back atomically with the application code it serves. F!F inverts this: the configuration *is* the source of truth.
+
+**Stateless and DevOps-friendly.** F!F pipelines are stateless — each message flows through independently with no shared in-memory state between executions. Containers can be replaced, scaled horizontally, or rolled back without session drain or coordination. Health checks are trivial. CI/CD is natural: configurations are files, tested in git, deployed by volume mount. Integration platforms that embed session state, channel locks, or in-process queues make zero-downtime deployments fragile. F!F avoids this entirely.
+
+**Declarative transformations, LLM-friendly.** F!F pipelines transform data through XSLT stylesheets and equivalent declarative mapping documents, not imperative scripts. Declarative transformations are pure functions: given an input they produce an output with no side effects and no implicit runtime state. This matters especially in LLM-aided development. An LLM can generate an XSLT from a mapping description, validate it against a FHIR profile or HL7v2 schema, explain what a transformation does, or review a diff in a pull request — because the transformation is a *document* with a known grammar. Script-based middleware embeds transformation logic as JavaScript or Groovy with implicit dependencies and side effects; LLMs can produce such code, but cannot reliably validate it against a structural contract. When the pipeline config itself is also a document (F!F XML, validated by FrankConfig.xsd), the entire integration surface is reviewable, generatable, and auditable by an LLM.
+
+**Open source, healthcare-native.** F!F originated in the Dutch healthcare ecosystem and has first-class support for HL7v2 (MLLP and HTTP), FHIR, and the protocol patterns common in hospital environments. EHR-bundled integration products are locked to one vendor's data model. General-purpose enterprise service buses carry large operational footprints and expensive licensing. Code-first integration frameworks require a build and deploy for every pipeline change. F!F is the only open-source middleware that combines healthcare-native protocols, file-based configuration, and a no-rebuild deployment model.
+
+## What ViscoSuite adds
+
+Frank!Framework provides the pipeline engine, tooling, and runtime. ViscoSuite extends it with healthcare-specific components and a purpose-built operational interface.
+
+**Custom pipes**
+
+| Pipe | Description |
+|---|---|
+| `Hl7v2ToXmlPipe` | Converts pipe-delimited HL7v2 to HL7v2 XML Encoding Syntax using HAPI HL7v2; supports version enforcement and message validation |
+| `XmlToHl7v2Pipe` | Inverse: converts HL7v2 XML back to pipe-delimited format for MLLP transmission or ACK generation |
+| `FhirValidatorPipe` | Validates FHIR resources (XML or JSON) against R4, R5, or DSTU3 profiles using the HAPI FHIR instance validator; routes to an exception forward with an `OperationOutcome` on failure |
+
+**Custom listener and sender**
+
+| Component | Description |
+|---|---|
+| `MllpListener` | TCP server that accepts persistent MLLP connections, frames HL7v2 messages, and returns synchronous ACKs |
+| `MllpSender` | TCP client sender that maintains persistent connections to remote MLLP endpoints and reads ACK responses |
+| `FhirListener` | Extends F!F's JavaListener; registers FHIR operation endpoints (read, search, bundle-transaction, proxy) with ViscoLink's FHIR facade servlet |
+
+**ViscoFlow**
+
+F!F records every pipeline execution as a structured trace — input and output at every pipe, session key values, the forward taken, and duration — stored via its Ladybug debugger backbone. ViscoFlow is a purpose-built frontend on top of this: it surfaces those traces with healthcare context (patient ID, correlation ID, flow name, pipeline exit state) and makes them navigable without Ladybug's developer-oriented interface. Filtering by patient or flow, inspecting a specific message's transformation step by step, and auditing routing decisions are first-class operations — accessible to integration engineers and clinical informatics staff alike.
 
 ## Prerequisites
 
@@ -28,12 +64,9 @@ Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunne
 |---|---|---|
 | Docker with Compose V2 | Docker ≥ 24 | Running the application (`docker compose` subcommand) |
 | Java JDK | 21+ | Building from source |
-| `mvn` (Maven) | 3.9+ | Schema update scripts (`update-frankconfig-xsd.sh`, `update-fhir-xsd.sh`) |
-| `unzip` | any | Same schema update scripts (extracts XSDs from downloaded JARs) |
+| `mvn` (Maven) | 3.9+ | Schema update script (`update-frankconfig-xsd.sh`) |
 
-The Maven **wrapper** (`./mvnw`) is included and downloads the correct Maven version automatically for all `./mvnw` build commands — no separate Maven installation needed for those. The update scripts are the only place that call `mvn` directly.
-
-`unzip` is pre-installed on most Linux distributions and macOS. On Debian/Ubuntu: `apt-get install unzip`.
+The Maven **wrapper** (`./mvnw`) is included and downloads the correct Maven version automatically for all `./mvnw` build commands — no separate Maven installation needed for those. The update script is the only place that calls `mvn` directly.
 
 ---
 
@@ -54,21 +87,25 @@ The application is available at `http://localhost:8180`. See `viscorunner/README
 
 | Endpoint | Description |
 |---|---|
+| `/` | ViscoSuite landing page — service discovery |
+| `/viscolink/` | ViscoLink app launcher (tools + Frank!Console) |
+| `/viscolink/flow/` | ViscoFlow — live message flow viewer and trace debugger |
 | `/viscolink/iaf/` | Frank!Console / Ladybug flow debugger |
 | `/viscostore/fhir` | FHIR REST API (HAPI JPA Server) |
 | `/viscostore/tester/` | Interactive FHIR Tester UI |
 | `/viscostore/fhir/swagger-ui/` | Swagger API docs |
 | `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
 
-Ports: `8180` HTTP · `2575` MLLP (HL7v2 over TCP) · `5005` JPDA debugger.
+Ports: `8180` HTTP · `2575` MLLP (HL7v2 over TCP) · `5432` PostgreSQL · `5005` JPDA debugger.
 
 ## Reference Implementations
 
-The demo overlay ships five working Frank!Framework configurations that you can use as starting points:
+The demo overlay ships six working Frank!Framework configurations that you can use as starting points:
 
 | Configuration | What it shows |
 |---|---|
-| `hl7v2-to-fhir` | Receives HL7v2 ADT messages over HTTP or MLLP and converts them to FHIR R4 Bundles via XSLT |
+| `hl7v2-to-fhir` | Receives HL7v2 ADT (A01/A02/A03/A04/A08/A11/A13) and SIU (S12/S13/S14/S15) messages over HTTP or MLLP and converts them to FHIR R4 Bundles via XSLT |
+| `hl7v2-to-xml` | Converts HL7v2 to a structured XML representation — useful as a preprocessing step or standalone inspection tool |
 | `fhir-to-fhir` | FHIR R4 / DSTU3 / R5 facade endpoints that route through ViscoLink pipelines into ViscoStore |
 | `fhir-store-proxy` | Transparent reverse proxy from a ViscoLink FHIR endpoint to ViscoStore, with credential injection |
 | `loinc-mapping-api` | Looks up LOINC codes from a CSV file and returns enriched FHIR Observations |
