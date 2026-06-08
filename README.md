@@ -22,6 +22,12 @@ viscoSuite/
 
 Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunner`.
 
+**ViscoLink owns the integration concern.** It receives messages from source systems, validates and transforms them through F!F pipelines, and writes results to ViscoStore via the FHIR REST API. It holds no persistent state of its own — every pipeline execution is stateless and every outcome ends up in ViscoStore. Source systems talk to ViscoLink; ViscoLink talks to ViscoStore.
+
+**ViscoStore owns the persistence concern.** It is a standard HAPI FHIR JPA Server with no integration logic. It stores FHIR resources, serves them over a FHIR REST API, and exposes an MCP endpoint for AI/LLM access. Consumers that only need to query stored data — a clinical dashboard, an AI assistant, a reporting tool — go directly to ViscoStore without passing through ViscoLink.
+
+This separation means the two components can evolve independently: ViscoStore can be replaced with any FHIR-compliant server, ViscoLink can route to multiple targets, and neither side carries the concerns of the other.
+
 ## Why Frank!Framework
 
 Most integration middleware in healthcare falls into one of two traps: either configuration lives in a proprietary database — invisible to version control, CI/CD, and locked into a vendor silo you cannot migrate out of — or pipelines are written as imperative scripts that require a full build cycle for every change. Frank!Framework avoids both.
