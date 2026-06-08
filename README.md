@@ -26,6 +26,8 @@ Modules are built in reactor order: `viscolink` → `viscostore` → `viscorunne
 
 **ViscoStore owns the persistence concern.** It is a standard HAPI FHIR JPA Server with no integration logic. It stores FHIR resources, serves them over a FHIR REST API, and exposes an MCP endpoint for AI/LLM access. Consumers that only need to query stored data — a clinical dashboard, an AI assistant, a reporting tool — go directly to ViscoStore without passing through ViscoLink.
 
+ViscoLink can expose FHIR-shaped facades and proxies, but these are not a substitute for a CDR. The `loinc-enriched` facade is a good illustration: it fetches Observations from ViscoStore and injects LOINC codings in flight before returning them to the caller — no data is written back. The caller sees fully coded FHIR, but the underlying stored resources remain unchanged. This is useful for terminology enrichment at query time, not for building a persistent clinical record. Persistent storage is always ViscoStore's responsibility.
+
 This separation means the two components can evolve independently: ViscoStore can be replaced with any FHIR-compliant server, ViscoLink can route to multiple targets, and neither side carries the concerns of the other.
 
 ## Why Frank!Framework
