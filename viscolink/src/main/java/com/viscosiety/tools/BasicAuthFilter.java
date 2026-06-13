@@ -31,7 +31,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 
-@WebFilter("/*")
+@WebFilter(value = "/*", asyncSupported = true)
 public class BasicAuthFilter implements Filter {
 
     private static final String REALM = "ViscoLink";

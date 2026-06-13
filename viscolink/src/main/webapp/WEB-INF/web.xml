@@ -13,6 +13,10 @@
   <filter>
     <filter-name>BasicAuthFilter</filter-name>
     <filter-class>com.viscosiety.tools.BasicAuthFilter</filter-class>
+    <!-- Required so async endpoints in the filter chain (e.g. /iaf/api/file-viewer,
+         which streams via StreamingResponseBody) can call request.startAsync(). A
+         non-async filter anywhere in the chain makes Tomcat reject the async dispatch. -->
+    <async-supported>true</async-supported>
   </filter>
   <filter-mapping>
     <filter-name>BasicAuthFilter</filter-name>
