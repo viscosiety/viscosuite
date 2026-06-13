@@ -104,6 +104,13 @@
 	</dependencyManagement>
 
 	<dependencies>
+		<!-- Git-backed configuration classloader -->
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>7.1.0.202411261347-r</version>
+		</dependency>
+
 		<!-- Equivalent to frankframework-bundle-minimal, with explicit versions -->
 		<dependency>
 			<groupId>org.frankframework</groupId>
