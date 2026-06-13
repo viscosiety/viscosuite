@@ -1,0 +1,64 @@
+# Git-sourced configuration overlay — layer ON TOP of the demo overlay.
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.demo.yml -f docker-compose.git.yml up --build
+#
+# Keeps every demo INFRA service from docker-compose.demo.yml (RabbitMQ, the fake-emr
+# JNDI datasource, resources.yml, the HAPI overlay, demo credentials) but switches
+# Frank!Framework configuration loading from the filesystem mount to the GitClassLoader:
+# the six reference configurations are cloned from GitLab at startup instead of read
+# from ./demo-configurations.
+#
+# This is a TEMPORARY overlay to exercise git-based configuration delivery. The demo
+# overlay still bind-mounts ./demo-configurations at /opt/frank/configurations; disabling
+# filesystem auto-discovery (below) makes Frank!Framework ignore that mount entirely.
+#
+# Requires viscorunner/.env (gitignored) with:
+#   GITLAB_TOKEN=glpat-...   (project access token, Reporter role, read_repository scope)
+
+services:
+  viscorunner:
+    environment:
+      # Turn off filesystem auto-discovery. With autoLoad=false, Frank!Framework no longer
+      # scans /opt/frank/configurations (the demo-configurations mount, inherited from the
+      # demo overlay, is left in place but unused) — configurations come from git only.
+      configurations.directory.autoLoad: "false"
+
+      # Explicit configuration list (ConfigurationAutoDiscovery#scan loads these regardless of
+      # the directory scanner). Each name maps to a same-named subdirectory of the public-demo
+      # repository, selected at resource-resolution time via the F!F basePath (= config name).
+      configurations.names.application: "fake-emr,fhir-store-proxy,fhir-to-fhir,hl7v2-to-fhir,hl7v2-to-xml,loinc-mapping-api"
+
+      # Per-configuration GitClassLoader wiring. One repository hosting many configurations,
+      # each under ff-configurations/<name>. repoUrl and repoToken are shared (one repo);
+      # repoSubdir is the full subpath to each configuration root within the repo. The token
+      # is interpolated from viscorunner/.env at compose parse time.
+      configurations.fake-emr.classLoaderType: &gitloader "com.viscosiety.classloaders.GitClassLoader"
+      configurations.fake-emr.repoUrl: &repourl "https://git.viscosiety.com/viscolink-managed-configurations/public-demo.git"
+      configurations.fake-emr.repoToken: &repotoken "${GITLAB_TOKEN:?set GITLAB_TOKEN in viscorunner/.env}"
+      configurations.fake-emr.repoSubdir: "ff-configurations/fake-emr"
+
+      configurations.fhir-store-proxy.classLoaderType: *gitloader
+      configurations.fhir-store-proxy.repoUrl: *repourl
+      configurations.fhir-store-proxy.repoToken: *repotoken
+      configurations.fhir-store-proxy.repoSubdir: "ff-configurations/fhir-store-proxy"
+
+      configurations.fhir-to-fhir.classLoaderType: *gitloader
+      configurations.fhir-to-fhir.repoUrl: *repourl
+      configurations.fhir-to-fhir.repoToken: *repotoken
+      configurations.fhir-to-fhir.repoSubdir: "ff-configurations/fhir-to-fhir"
+
+      configurations.hl7v2-to-fhir.classLoaderType: *gitloader
+      configurations.hl7v2-to-fhir.repoUrl: *repourl
+      configurations.hl7v2-to-fhir.repoToken: *repotoken
+      configurations.hl7v2-to-fhir.repoSubdir: "ff-configurations/hl7v2-to-fhir"
+
+      configurations.hl7v2-to-xml.classLoaderType: *gitloader
+      configurations.hl7v2-to-xml.repoUrl: *repourl
+      configurations.hl7v2-to-xml.repoToken: *repotoken
+      configurations.hl7v2-to-xml.repoSubdir: "ff-configurations/hl7v2-to-xml"
+
+      configurations.loinc-mapping-api.classLoaderType: *gitloader
+      configurations.loinc-mapping-api.repoUrl: *repourl
+      configurations.loinc-mapping-api.repoToken: *repotoken
+      configurations.loinc-mapping-api.repoSubdir: "ff-configurations/loinc-mapping-api"
