@@ -16,4 +16,15 @@
             <column name="patientid" type="java.sql.Types.VARCHAR(255)"/>
         </addColumn>
     </changeSet>
+    <changeSet id="LadybugCustom:3" author="Tom Peeters">
+        <comment>Metadata columns for de-identified ("shareable") stubbed runs on the single LADYBUG table:
+                 sharable (the report is a PHI-free synthetic copy) and originid (source report id). Required
+                 because the global extractors add them to every DatabaseLogStorage insert. NOT shown in the
+                 default views — only the Shareable view's own metadataNames surfaces originId. Lowercase to
+                 avoid the PostgreSQL quoted-identifier mismatch.</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="sharable" type="java.sql.Types.VARCHAR(255)"/>
+            <column name="originid" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
 </databaseChangeLog>

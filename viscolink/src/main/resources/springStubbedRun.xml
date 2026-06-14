@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Loaded by ViscoLinkModule.getSpringConfigurationFiles() — merged into the F!F
+    IbisApplicationContext before refresh, so StubbedRunner can resolve the IbisManager.
+
+    StubbedRunner is a generic, product-neutral "run an adapter with all senders stubbed"
+    capability. It exposes itself statically so the /flow-api/stubbed-run servlet delegates
+    in-process (no network round-trip).
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="stubbedRunner" class="com.viscosiety.ladybug.StubbedRunner"/>
+
+</beans>

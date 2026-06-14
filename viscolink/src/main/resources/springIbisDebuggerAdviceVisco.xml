@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Ladybug debugger-advice customization, selected by `ibistesttool.custom=Visco`
+    (DeploymentSpecifics.properties) via LadybugDebugModule#getSpringConfigurationFiles,
+    which loads springIbisDebuggerAdvice<custom>.xml in place of the default.
+
+    Mirrors the upstream Tibet2 pattern (springIbisDebuggerAdviceTibet2.xml): import the
+    base advice config, then override the `ibisDebugger` bean. Here the override swaps in
+    StubbingDebugger — a generic, product-neutral debugger that can run a single pipeline
+    with all senders stubbed (no-op). Normal runs are unaffected; only correlation ids that
+    explicitly opted in via StubbingDebugger.enableStubAllSenders are stubbed.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <import resource="springIbisDebuggerAdvice.xml"/>
+
+    <bean name="ibisDebugger" class="com.viscosiety.ladybug.StubbingDebugger" autowire="byName"/>
+
+</beans>
