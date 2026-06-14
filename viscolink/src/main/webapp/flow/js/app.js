@@ -34,8 +34,8 @@ let _exitStateMap = {};
 let _extensions  = window.__viscoFlowExtensions ?? [];
 
 // Size the action column to the actual number of buttons a row renders: the two base actions
-// (rerun + copy-test) plus however many ViscoFlow extension buttons are registered (e.g. ViscoForge
-// adds a share button). Driven via a CSS var so the column never clips and never over-reserves —
+// (rerun + copy-test) plus however many ViscoFlow extension buttons are registered (an extension
+// may add e.g. a share button). Driven via a CSS var so the column never clips and never over-reserves —
 // the flexible Flow/Pipeline column absorbs the difference. (~27px per button slot + padding.)
 const _actionBtnCount = 2 + _extensions.length;
 document.documentElement.style.setProperty('--action-w', (27 * _actionBtnCount + 14) + 'px');
@@ -247,7 +247,7 @@ async function copyTraceToTest(storageId) {
   }
 }
 
-// ── ViscoForge extensions ─────────────────────────────────────────────────────
+// ── Extensions ────────────────────────────────────────────────────────────────
 async function triggerExtension(id, storageId) {
   const ext = _extensions.find(e => e.id === id);
   if (!ext) return;
