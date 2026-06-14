@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ViscoSuite</title>
+  <script src="branding.js"></script>
   <style>
     /*
      * Palette mirrors viscostore/tester.css:
@@ -135,7 +136,7 @@
 <body>
 
   <header>
-    <h1>ViscoSuite</h1>
+    <h1 data-product-name>ViscoSuite</h1>
     <p>Healthcare integration platform</p>
   </header>
 
@@ -165,7 +166,16 @@
 
   </div>
 
-  <footer>ViscoSuite &mdash; Viscosiety B.V.%%BUILD_TIMESTAMP%%</footer>
+  <footer><span data-product-name>ViscoSuite</span> &mdash; Viscosiety B.V.%%BUILD_TIMESTAMP%%</footer>
+
+  <script>
+    // Apply the (overridable) suite product name to the title and every [data-product-name] node.
+    (function () {
+      var name = window.__viscoProductName || 'ViscoSuite';
+      document.title = name;
+      document.querySelectorAll('[data-product-name]').forEach(function (el) { el.textContent = name; });
+    })();
+  </script>
 
   <script>
     // Probe each app's health endpoint. Reveal each card as soon as its probe
