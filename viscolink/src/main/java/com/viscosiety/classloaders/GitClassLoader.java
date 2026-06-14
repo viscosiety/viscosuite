@@ -7,11 +7,13 @@ import java.net.URL;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.ObjectId;
+import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import org.frankframework.configuration.ClassLoaderException;
 import org.frankframework.configuration.IbisContext;
 import org.frankframework.configuration.classloaders.AbstractClassLoader;
+import org.frankframework.util.AppConstants;
 
 /**
  * Loads a Frank!Framework configuration from a remote Git repository. A single
@@ -92,7 +94,38 @@ public class GitClassLoader extends AbstractClassLoader {
             resourceDir = localDir;
         }
 
+        // Expose the checked-out git ref (branch name, or tag when HEAD is detached) as the F!F
+        // configuration.version. Without this, configurations loaded from git have no BuildInfo.properties
+        // and the framework logs "unable to determine [configuration.version]". The version is read from
+        // this classloader's AppConstants by ConfigurationUtils#getConfigurationVersion during the
+        // Configuration context refresh, which happens after configure(), so setting it here is in time.
+        String gitVersion = resolveGitVersion();
+        if (gitVersion != null) {
+            AppConstants.getInstance(this).setProperty("configuration.version", gitVersion);
+            log.info("[{}] configuration.version set to git ref [{}]", configurationName, gitVersion);
+        }
+
         log.info("[{}] GitClassLoader ready — local clone at [{}], resources at [{}]", configurationName, localDir, resourceDir);
+    }
+
+    /**
+     * The checked-out git ref to report as the configuration version: the branch name when HEAD is on a
+     * branch (the normal clone-of-default-branch case), otherwise the nearest tag (detached HEAD checked
+     * out at a tag), falling back to the short commit id. Returns null if the ref cannot be determined.
+     */
+    private String resolveGitVersion() {
+        try (Git git = Git.open(localDir)) {
+            Repository repo = git.getRepository();
+            String fullBranch = repo.getFullBranch();
+            if (fullBranch != null && fullBranch.startsWith("refs/heads/")) {
+                return repo.getBranch();
+            }
+            String described = git.describe().setTags(true).call();
+            return described != null ? described : repo.getBranch();
+        } catch (Exception e) {
+            log.warn("[{}] could not determine git ref for configuration.version", getConfigurationName(), e);
+            return null;
+        }
     }
 
     @Override
