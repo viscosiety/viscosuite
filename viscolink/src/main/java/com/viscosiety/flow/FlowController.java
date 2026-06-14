@@ -91,7 +91,55 @@ public class FlowController extends HttpServlet {
             return;
         }
 
+        if ("/stubbed-run".equals(path)) {
+            handleStubbedRun(req, resp, qs);
+            return;
+        }
+
         resp.sendError(HttpServletResponse.SC_NOT_FOUND, "Unknown flow path: " + path);
+    }
+
+    /**
+     * Generic, product-neutral "run with stubbed senders" endpoint.
+     *
+     * <p>{@code POST /flow-api/stubbed-run?config=..&adapter=..} with the input message as the
+     * request body runs that adapter in-process with every sender stubbed to a no-op (see
+     * {@link com.viscosiety.ladybug.StubbedRunner} / {@link com.viscosiety.ladybug.StubbingDebugger}).
+     * All transform pipes execute; the run is captured as a Ladybug report under the returned
+     * {@code correlationId}, with zero outbound side effects. A general testing aid — not a
+     * share-specific path.</p>
+     */
+    private void handleStubbedRun(HttpServletRequest req, HttpServletResponse resp, String qs)
+            throws IOException {
+        String configuration = param(qs, "config", "");
+        String adapter       = param(qs, "adapter", "");
+        // Optional provenance: the source report this run was derived from, carried through as a session
+        // key so it lands on the produced report (surfaced as `originId` in the Ladybug Shareable view).
+        String originId = param(qs, "originId", "");
+        // Optional caller-chosen correlation-id prefix (blank -> StubbedRunner.DEFAULT_CID_PREFIX).
+        String cidPrefix = param(qs, "cidPrefix", "");
+        if (adapter.isEmpty()) {
+            resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "adapter query param is required");
+            return;
+        }
+        com.viscosiety.ladybug.StubbedRunner runner = com.viscosiety.ladybug.StubbedRunner.getInstance();
+        if (runner == null) {
+            resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "stubbed runner not initialised");
+            return;
+        }
+        byte[] input = req.getInputStream().readAllBytes();
+        try {
+            com.viscosiety.ladybug.StubbedRunner.Result result = runner.runStubbed(configuration, adapter, input, originId, cidPrefix);
+            resp.setStatus(HttpServletResponse.SC_OK);
+            resp.setContentType("application/json");
+            MAPPER.writeValue(resp.getWriter(), new LinkedHashMap<>(Map.of(
+                    "correlationId", result.correlationId(),
+                    "configuration", configuration,
+                    "adapter", adapter,
+                    "state", result.state())));
+        } catch (IllegalArgumentException e) {
+            resp.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
+        }
     }
 
     private static final ObjectMapper MAPPER = new ObjectMapper();

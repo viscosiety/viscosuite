@@ -33,6 +33,13 @@ let _rows        = [];
 let _exitStateMap = {};
 let _extensions  = window.__viscoFlowExtensions ?? [];
 
+// Size the action column to the actual number of buttons a row renders: the two base actions
+// (rerun + copy-test) plus however many ViscoFlow extension buttons are registered (e.g. ViscoForge
+// adds a share button). Driven via a CSS var so the column never clips and never over-reserves —
+// the flexible Flow/Pipeline column absorbs the difference. (~27px per button slot + padding.)
+const _actionBtnCount = 2 + _extensions.length;
+document.documentElement.style.setProperty('--action-w', (27 * _actionBtnCount + 14) + 'px');
+
 // ── Expose window functions for inline onclick handlers ───────────────────────
 // Function declarations are hoisted so these assignments work at module top.
 window.selectRow      = selectRow;
@@ -247,12 +254,30 @@ async function triggerExtension(id, storageId) {
   const btn = document.getElementById(`ext-${id}-${storageId}`);
   if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
-    const r = await fetch(`/viscoforge${ext.endpoint}`, {
+    // endpoint is a full absolute path supplied by the extension (product-neutral hook):
+    // POST to it as-is. ViscoLink must not hardcode any extension's context path.
+    const r = await fetch(ext.endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ storageId }),
     });
     if (btn) { btn.textContent = r.ok ? '✓' : '✗'; btn.classList.add(r.ok ? 'rerun-ok' : 'rerun-err'); }
+    if (r.ok) {
+      // Product-neutral directive: an extension may ask ViscoFlow to open a resulting report in
+      // Ladybug by returning { openReport: { storage, storageId } }. ViscoFlow fetches that report
+      // and opens it — same as the "copy to test" flow. ViscoLink stays agnostic to the extension.
+      let data = null;
+      try { data = await r.json(); } catch { /* non-JSON response is fine */ }
+      const open = data && data.openReport;
+      if (open && open.storageId) {
+        try {
+          const storageName = open.storage || STORAGE_DEFAULT;
+          const full = await getTrace(storageName, open.storageId);
+          const reportNode = full && full.report ? full.report : full;
+          if (reportNode) openReportInLadybug(reportNode, storageName);
+        } catch { /* opening is best-effort; the share itself already succeeded */ }
+      }
+    }
   } catch {
     if (btn) { btn.textContent = '✗'; btn.classList.add('rerun-err'); }
   } finally {
@@ -264,11 +289,11 @@ async function triggerExtension(id, storageId) {
   }
 }
 
-function openReportInLadybug(report) {
+function openReportInLadybug(report, storageName = 'Test') {
   const lbWin = window.open(`${BASE}/iaf/ladybug/`, 'ladybug');
   if (!lbWin) return; // popup blocked
 
-  const send = () => lbWin.postMessage({ action: 'ladybug-openReport', report, currentView: { storageName: 'Test' } }, location.origin);
+  const send = () => lbWin.postMessage({ action: 'ladybug-openReport', report, currentView: { storageName } }, location.origin);
 
   // Listen for ladybug-ready (fires from Angular ngOnInit on fresh load, or in response to ping)
   const onMsg = (e) => {
