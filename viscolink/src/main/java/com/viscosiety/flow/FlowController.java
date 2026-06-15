@@ -18,15 +18,20 @@ package com.viscosiety.flow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletInputStream;
 import jakarta.servlet.annotation.WebServlet;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -70,24 +75,11 @@ public class FlowController extends HttpServlet {
         if (path.startsWith("/copy-to-test/")) {
             String storageId = path.substring("/copy-to-test/".length());
             String storage   = param(qs, "storage", "DatabaseDebugStorage");
-            String body      = "{\"" + storage + "\": [" + storageId + "]}";
-            String url       = "http://localhost:" + req.getLocalPort()
-                    + req.getContextPath() + "/iaf/ladybug/api/report/store/Test";
-            java.net.HttpURLConnection conn =
-                    (java.net.HttpURLConnection) new java.net.URL(url).openConnection();
-            conn.setRequestMethod("PUT");
-            conn.setRequestProperty("Content-Type", "application/json");
-            conn.setDoOutput(true);
-            try (var os = conn.getOutputStream()) {
-                os.write(body.getBytes(StandardCharsets.UTF_8));
-            }
-            int status = conn.getResponseCode();
-            resp.setStatus(status);
-            resp.setContentType("application/json");
-            java.io.InputStream is = status < 400 ? conn.getInputStream() : conn.getErrorStream();
-            try (is; var os = resp.getOutputStream()) {
-                is.transferTo(os);
-            }
+            byte[] body      = ("{\"" + storage + "\": [" + storageId + "]}")
+                    .getBytes(StandardCharsets.UTF_8);
+            // In-process forward to Ladybug's store API (PUT) — stays inside the authenticated
+            // request, so no credential-less localhost loopback (which 401s on secured stages).
+            forwardWithBody(req, resp, "PUT", "/iaf/ladybug/api/report/store/Test", body);
             return;
         }
 
@@ -140,6 +132,34 @@ public class FlowController extends HttpServlet {
         } catch (IllegalArgumentException e) {
             resp.sendError(HttpServletResponse.SC_NOT_FOUND, e.getMessage());
         }
+    }
+
+    /**
+     * In-process forward to an embedded API endpoint with a synthesized HTTP method and JSON body.
+     * Unlike a localhost HTTP loopback this stays within the original authenticated request, so the
+     * forwarded call inherits its credentials/security context (works on auth-enabled stages).
+     */
+    private void forwardWithBody(HttpServletRequest req, HttpServletResponse resp,
+            String method, String target, byte[] body) throws ServletException, IOException {
+        HttpServletRequest wrapped = new HttpServletRequestWrapper(req) {
+            @Override public String getMethod()            { return method; }
+            @Override public String getContentType()       { return "application/json"; }
+            @Override public int    getContentLength()     { return body.length; }
+            @Override public long   getContentLengthLong() { return body.length; }
+            @Override public ServletInputStream getInputStream() {
+                ByteArrayInputStream in = new ByteArrayInputStream(body);
+                return new ServletInputStream() {
+                    @Override public int read()                          { return in.read(); }
+                    @Override public boolean isFinished()                { return in.available() == 0; }
+                    @Override public boolean isReady()                   { return true; }
+                    @Override public void setReadListener(ReadListener l) { throw new UnsupportedOperationException(); }
+                };
+            }
+            @Override public BufferedReader getReader() {
+                return new BufferedReader(new InputStreamReader(getInputStream(), StandardCharsets.UTF_8));
+            }
+        };
+        getServletContext().getRequestDispatcher(target).forward(wrapped, resp);
     }
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -197,7 +217,7 @@ public class FlowController extends HttpServlet {
         while (matching.size() < need && !exhausted) {
             String url = buildLadybugMetadataUrl(req, storage, "patientId", patientFilter,
                     metadataNames, COMBINED_BATCH, ladybugOffset);
-            List<Map<String, Object>> page = fetchJsonList(url);
+            List<Map<String, Object>> page = fetchJsonList(url, req.getHeader("Authorization"));
             if (page.isEmpty()) { exhausted = true; break; }
             for (Map<String, Object> record : page) {
                 if (flowFilter.equals(record.get("flow"))) matching.add(record);
@@ -230,9 +250,11 @@ public class FlowController extends HttpServlet {
     }
 
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> fetchJsonList(String urlStr) throws IOException {
+    private List<Map<String, Object>> fetchJsonList(String urlStr, String authHeader) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setRequestMethod("GET");
+        // Re-use the caller's credentials so this localhost loopback passes auth on secured stages.
+        if (authHeader != null) conn.setRequestProperty("Authorization", authHeader);
         int status = conn.getResponseCode();
         if (status >= 400) return Collections.emptyList();
         try (var is = conn.getInputStream()) {
