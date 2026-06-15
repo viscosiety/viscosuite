@@ -243,7 +243,7 @@ async function copyTraceToTest(storageId) {
       const b = document.getElementById(`copy-test-${storageId}`);
       if (b) { b.textContent = 'T'; b.classList.remove('rerun-ok', 'rerun-err'); }
     }, 2000);
-    if (report) openReportInLadybug(report);
+    if (report) openReportInLadybug('Test', report.storageId);
   }
 }
 
@@ -270,12 +270,7 @@ async function triggerExtension(id, storageId) {
       try { data = await r.json(); } catch { /* non-JSON response is fine */ }
       const open = data && data.openReport;
       if (open && open.storageId) {
-        try {
-          const storageName = open.storage || STORAGE_DEFAULT;
-          const full = await getTrace(storageName, open.storageId);
-          const reportNode = full && full.report ? full.report : full;
-          if (reportNode) openReportInLadybug(reportNode, storageName);
-        } catch { /* opening is best-effort; the share itself already succeeded */ }
+        openReportInLadybug(open.storage || STORAGE_DEFAULT, open.storageId);
       }
     }
   } catch {
@@ -289,11 +284,13 @@ async function triggerExtension(id, storageId) {
   }
 }
 
-function openReportInLadybug(report, storageName = 'Test') {
+function openReportInLadybug(storageName, storageId) {
   const lbWin = window.open(`${BASE}/iaf/ladybug/`, 'ladybug');
   if (!lbWin) return; // popup blocked
 
-  const send = () => lbWin.postMessage({ action: 'ladybug-openReport', report, currentView: { storageName } }, location.origin);
+  // Ladybug opens the report by navigating to its (storageName, storageId) route and fetching it
+  // itself; it no longer accepts an inline report object over postMessage.
+  const send = () => lbWin.postMessage({ action: 'ladybug-openReport', storageName, storageId }, location.origin);
 
   // Listen for ladybug-ready (fires from Angular ngOnInit on fresh load, or in response to ping)
   const onMsg = (e) => {
