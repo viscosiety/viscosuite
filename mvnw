@@ -32,36 +32,6 @@
 set -euf
 [ "${MVNW_VERBOSE-}" != debug ] || set -x
 
-# ---------------------------------------------------------------------------
-# Ladybug fork — temporary until wearefrank/ladybug merges our PRs.
-# https://github.com/tommy2d/ladybug/tree/viscoSuiteDev
-#
-# Installs at 4.0-SNAPSHOT so the version matches viscolink/pom.xml.
-# Detects the effective local repo from MAVEN_OPTS so this works both locally
-# (default ~/.m2) and in CI (project-local .m2 set via maven.repo.local).
-# Remove this block once upstream merges and the official release is published.
-# ---------------------------------------------------------------------------
-LADYBUG_VERSION="4.0-SNAPSHOT"
-case "${MAVEN_OPTS:-}" in
-  *maven.repo.local=*)
-    _LB_REPO=$(echo "$MAVEN_OPTS" | grep -o 'maven.repo.local=[^ ]*' | cut -d= -f2)
-    ;;
-  *)
-    _LB_REPO="${HOME}/.m2/repository"
-    ;;
-esac
-LADYBUG_MARKER="${_LB_REPO}/org/wearefrank/ladybug-common/${LADYBUG_VERSION}/ladybug-common-${LADYBUG_VERSION}.jar"
-if [ ! -f "${LADYBUG_MARKER}" ]; then
-  echo "[mvnw] Installing ladybug fork (tommy2d/viscoSuiteDev)..."
-  LADYBUG_TMP="$(mktemp -d)"
-  git clone --branch viscoSuiteDev --depth 1 \
-    https://github.com/tommy2d/ladybug.git "${LADYBUG_TMP}"
-  mvn -f "${LADYBUG_TMP}/pom.xml" install -DskipTests -B -Dmaven.skip.copyright=true \
-    -Drevision="${LADYBUG_VERSION}" --no-transfer-progress
-  rm -rf "${LADYBUG_TMP}"
-  echo "[mvnw] Ladybug fork installed."
-fi
-
 # OS specific support.
 native_path() { printf %s\\n "$1"; }
 case "$(uname)" in

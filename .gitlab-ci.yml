@@ -23,8 +23,10 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   # -B: batch mode (no ANSI colours, no interactive prompts)
+  # -U: force re-resolution of SNAPSHOT deps (the ladybug fork) so the cached .m2
+  #     never serves a stale 4.1-SNAPSHOT timestamp instead of the latest published one
   # --no-transfer-progress: suppresses the per-chunk download progress lines
-  MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
+  MAVEN_CLI_OPTS: "-B -U -s .mvn/settings.xml"
   IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # combined image
   IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # ViscoLink-only image
   IMAGE_VISCOSTORE: $CI_REGISTRY_IMAGE/viscostore   # ViscoStore-only image

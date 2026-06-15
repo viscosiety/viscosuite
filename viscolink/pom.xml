@@ -405,6 +405,10 @@
 		<repository>
 			<id>gitlab-ladybug</id>
 			<url>https://git.viscosiety.com/api/v4/projects/6/packages/maven</url>
+			<!-- The ladybug fork is published only as a SNAPSHOT; enable snapshot resolution
+			     (Maven disables it by default) and skip release lookups against this repo. -->
+			<releases><enabled>false</enabled></releases>
+			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
 </project>
