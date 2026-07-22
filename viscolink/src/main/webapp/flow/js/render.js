@@ -95,22 +95,38 @@ export function prettyXml(xml) {
 
 // ── Trace list row ────────────────────────────────────────────────────────────
 
+/**
+ * Provenance test (Axis 2): a report whose correlation id carries a replay prefix did NOT enter
+ * through a live listener — it is synthetic (viscoFlow StubbedRunner `stubbed-run-*`, or a native
+ * Ladybug rerun `<LadybugName>-*`). Mirrors the server-side StubMetadataFieldExtractor and the
+ * detail-view banner, and stays correct for old rows whose stored `stubbed` column predates it.
+ */
+export function isSyntheticCid(cid) {
+  return /^(stubbed-run-|ladybug)/i.test(cid || '');
+}
+
 export function renderTraceRow(row, selectedId, extensions = []) {
   const id   = row.storageId;
   const flow = row.flow || shortName(row.name || '');
   const pat  = row.patientId || '';
-  const sel  = id === selectedId ? ' class="selected"' : '';
+  const synthetic = isSyntheticCid(row.correlationId);
+  const cls  = [id === selectedId ? 'selected' : '', synthetic ? 'row-synthetic' : '']
+    .filter(Boolean).join(' ');
+  const sel  = cls ? ` class="${cls}"` : '';
+  const mark = synthetic
+    ? `<span class="origin-tag" title="Synthetic — replay / clone; did not enter through a listener">synthetic</span>`
+    : '';
   const extBtns = extensions.map(e =>
     `<button id="ext-${esc(e.id)}-${id}" class="action-btn ext-btn" title="${esc(e.tooltip)}" onclick="event.stopPropagation();triggerExtension('${esc(e.id)}','${id}')">${esc(e.icon)}</button>`
   ).join('');
   return `<tr${sel} onclick="selectRow('${id}')">
     <td class="td-status">${pill(row.status)}</td>
     <td class="td-name">
-      <span class="flow-name" title="${esc(row.flow || '')}">${esc(flow)}</span>
+      <span class="flow-name" title="${esc(row.flow || '')}">${esc(flow)}</span>${mark}
       ${row.flow ? `<span class="pipe-name-small">${esc(shortName(row.name || ''))}</span>` : ''}
       ${row.correlationId ? `<span class="row-cid" title="${esc(row.correlationId)}">${esc(row.correlationId)}</span>` : ''}
     </td>
-    <td class="td-patient"><span class="patient-id">${esc(pat)}</span></td>
+    <td class="td-patient"><span class="patient-id" title="${esc(pat)}">${esc(pat)}</span></td>
     <td class="td-time">${esc(fmtTime(row.endTime))}</td>
     <td class="td-dur">${esc(fmtDur(row.duration))}</td>
     <td class="td-action"><div class="row-actions"><button id="rerun-${id}" class="action-btn rerun-btn" title="Replay trace" onclick="event.stopPropagation();rerunTrace('${id}')">↺</button><button id="copy-test-${id}" class="action-btn" title="Copy to Ladybug test" onclick="event.stopPropagation();copyTraceToTest('${id}')">T</button>${extBtns}</div></td>
@@ -205,7 +221,11 @@ export function renderRow(row, idx, exitStateMap = {}) {
 
   const senderClass = row.isSender ? ' sender-row' : '';
   const abortClass  = row.aborted  ? ' abort-row'  : '';
-  return `<div class="pipe-row${senderClass}${abortClass}" id="row-${idx}" style="margin-left:${indent}px">
+  const stubClass   = row.stubbed  ? ' stubbed-row' : '';
+  const stubBadge   = row.stubbed
+    ? `<span class="pipe-stub-badge" title="Ladybug stubbed this sender call (isStubbed): output came from a captured stub, the sender was not executed">stubbed</span>`
+    : '';
+  return `<div class="pipe-row${senderClass}${abortClass}${stubClass}" id="row-${idx}" style="margin-left:${indent}px">
     <div class="pipe-row-hdr">
       <button class="toggle" title="Expand / collapse pipe details" onclick="toggleRow(${idx})">▷</button>
       ${row.isSender ? '<span class="sender-icon">↗</span>' : ''}
@@ -213,6 +233,7 @@ export function renderRow(row, idx, exitStateMap = {}) {
         <span class="pname" title="${esc(row.name)}">${esc(row.name)}</span>
         ${row.className ? `<span class="pclass">${esc(row.className)}</span>` : ''}
       </div>
+      ${stubBadge}
       ${preserveBadge}
       ${httpBadge}
       <div class="io-btns">${inBtn}${outBtn}${cfgBtn}</div>

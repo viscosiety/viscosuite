@@ -14,7 +14,7 @@ export async function getTraces({ storage, limit, offset, flowFilter, patientFil
   url.searchParams.set('storage', storage);
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
-  ['storageId', 'endTime', 'duration', 'name', 'flow', 'patientId', 'correlationId', 'status']
+  ['storageId', 'endTime', 'duration', 'name', 'flow', 'patientId', 'correlationId', 'status', 'stubbed']
     .forEach(n => url.searchParams.append('metadataNames', n));
   if (patientFilter && flowFilter) {
     url.searchParams.set('patientFilter', patientFilter);

@@ -30,12 +30,19 @@ export function processCheckpoints(checkpoints) {
         className: parentPipeRow?.senderClassName ?? null,
         configXml: parentPipeRow?.senderConfigXml ?? null,
         input: cp.message ?? null, output: null, aborted: false,
+        // Ladybug's own per-checkpoint stub flag (Checkpoint.isStubbed()): the sender call was
+        // replaced by a captured stub instead of executed. Set on the start and/or end checkpoint.
+        stubbed: !!cp.stubbed,
         params: [], sessionReads: [], sessionWrites: [],
         preserveInput: false, forwardName: null, forwards: null,
       });
     } else if (cp.type === 2 && cp.name.startsWith('Sender ')) {
       const si = findLastIndex(pipeStack, e => e.name === cp.name);
-      if (si >= 0) { rows[pipeStack[si].rowIdx].output = cp.message ?? null; pipeStack.splice(si, 1); }
+      if (si >= 0) {
+        rows[pipeStack[si].rowIdx].output = cp.message ?? null;
+        if (cp.stubbed) rows[pipeStack[si].rowIdx].stubbed = true;
+        pipeStack.splice(si, 1);
+      }
 
     } else if (cp.type === 1 && cp.name.startsWith('Pipeline ')) {
       const rowIdx = rows.length;

@@ -1,6 +1,6 @@
 'use strict';
 
-import { BASE, getStorage, getTraces, getTraceCount, getTrace, getAdapterFlow, getConfigXml, copyToTest } from './api.js';
+import { BASE, getStorage, getTraces, getTrace, getAdapterFlow, getConfigXml, copyToTest } from './api.js';
 import { onRoute, navigate, currentRoute } from './router.js';
 import { processCheckpoints } from './checkpoints.js';
 import { parseAdapterFlow, extractAdaptersFromReport, annotateForwardsFromConfig } from './forwards.js';
@@ -22,7 +22,6 @@ let storage      = STORAGE_DEFAULT;
 let allTraces    = [];
 let selectedId   = null;
 let currentOffset = 0;
-let totalCount   = null;
 let lastPageFull = false;
 let loadingMore  = false;
 let cdTimer      = null;
@@ -96,12 +95,14 @@ async function discoverStorage() {
 async function fetchTraces(reset = false) {
   if (reset) { currentOffset = 0; allTraces = []; lastPageFull = false; }
   try {
+    // The list is always server-side filtered (name~Pipeline by default, or the user's
+    // patient/flow filter), so the unfiltered storage count is never a valid denominator.
+    // Pagination is driven purely by whether the last page came back full — see updateSentinel.
     const limit = reset ? PAGE_SIZE_INITIAL : Math.max(currentOffset, PAGE_SIZE_INITIAL);
-    if (patientFilter || flowFilter) { totalCount = null; } else { fetchTraceCount(); }
     const page = await getTraces({ storage, limit, offset: 0, flowFilter, patientFilter });
     allTraces     = page;
-    currentOffset = Math.max(currentOffset, page.length);
-    if (reset) lastPageFull = page.length >= PAGE_SIZE_INITIAL;
+    currentOffset = page.length;
+    lastPageFull  = page.length >= limit;
     rebuildTable();
     updateFlowDropdown();
     updateTraceCount();
@@ -109,10 +110,6 @@ async function fetchTraces(reset = false) {
     document.getElementById('trace-body').innerHTML =
       `<tr><td colspan="6" class="loading">Could not load traces</td></tr>`;
   }
-}
-
-async function fetchTraceCount() {
-  try { totalCount = await getTraceCount(storage); } catch { /* non-fatal */ }
 }
 
 async function loadMoreRows() {
@@ -123,7 +120,6 @@ async function loadMoreRows() {
     const page = await getTraces({
       storage, limit: PAGE_SIZE_MORE, offset: currentOffset, flowFilter, patientFilter,
     });
-    if (!patientFilter && !flowFilter) await fetchTraceCount();
     if (page.length > 0) {
       allTraces     = [...allTraces, ...page];
       currentOffset += page.length;
@@ -153,22 +149,20 @@ function rebuildTable() {
 
 function updateTraceCount() {
   const shown = allTraces.length;
-  const total = totalCount != null ? totalCount : `${shown}${lastPageFull ? '+' : ''}`;
-  document.getElementById('trace-count').textContent = `${shown} / ${total} traces`;
+  // No reliable total (the storage count is unfiltered); show a "+" when more pages may exist.
+  document.getElementById('trace-count').textContent = `${shown}${lastPageFull ? '+' : ''} traces`;
 }
 
 function updateSentinel(tbody) {
   tbody = tbody || document.getElementById('trace-body');
   document.getElementById('load-more-sentinel')?.remove();
-  const moreOnServer = (patientFilter || flowFilter)
-    ? lastPageFull
-    : (totalCount == null || currentOffset < totalCount);
-  if (!moreOnServer) return;
+  // A full last page is the only signal that more may exist on the server, for both the
+  // default (name~Pipeline) list and the user-filtered lists. A short page means we are done.
+  if (!lastPageFull) return;
   const tr = document.createElement('tr');
   tr.id = 'load-more-sentinel';
-  const remaining = (!patientFilter && !flowFilter && totalCount != null) ? totalCount - currentOffset : '?';
   tr.innerHTML = `<td colspan="6" class="load-more-row" title="Load the next page of traces" onclick="loadMoreRows()">${
-    loadingMore ? 'Loading…' : `↓ ${remaining} more — load next page`
+    loadingMore ? 'Loading…' : '↓ load next page'
   }</td>`;
   tbody.appendChild(tr);
 }
@@ -366,15 +360,31 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
 
   const flow      = meta?.flow || shortName(report.name || '');
   const patientId = sessionMeta.patientId || meta?.patientId || '—';
-  const cid       = report.correlationId  || sessionMeta.cid || '—';
+  const cid       = meta?.correlationId || report.correlationId || sessionMeta.cid || '—';
   const received  = sessionMeta.tsReceived || fmtTime(meta?.endTime) || '—';
   const dur       = report.endTime && report.startTime
     ? fmtDur(String(report.endTime - report.startTime))
     : fmtDur(meta?.duration);
 
-  const isReplay = rows.some(r => r.forwardName === 'stub');
-  const replayBanner = isReplay
-    ? `<div class="replay-banner" title="One or more senders were stubbed — this trace was produced by a Ladybug replay, not a live message">⚠ Replayed — senders stubbed</div>`
+  // Provenance (Axis 2): a replay/synthetic run is recognized by its correlation-id prefix — every
+  // replay path bypasses the listener and stamps one (stubbed-run-* from ViscoFlow's StubbedRunner,
+  // or <LadybugName>-* from a native Ladybug rerun). Live production messages carry the wire id or none.
+  // Read from the correlation id (list metadata carries it even when the trace payload omits it) so old
+  // reports (stored before the server-side field existed) are also detected correctly.
+  const cidRaw = meta?.correlationId || report.correlationId || sessionMeta.cid || '';
+  const isSynthetic = /^(stubbed-run-|ladybug)/i.test(cidRaw);
+  const replayBanner = isSynthetic
+    ? `<div class="replay-banner" title="Correlation id '${esc(cidRaw)}' marks this as a replay / synthetic run (it did not enter through a listener), not a real production message">⚠ Synthetic — replay, not a live message</div>`
+    : '';
+
+  // Stubbed senders (Axis 1, 1-on-1 with Frank!Framework): Ladybug sets Checkpoint.isStubbed() on a
+  // sender checkpoint when the outgoing call was replaced by a captured stub instead of executed
+  // (Report.addCheckpoint → setStubbed(true)). Independent of provenance: a synthetic replay may run
+  // all senders live (no stub badge), and any run that stubbed a sender shows it. We surface the exact
+  // per-checkpoint flag the Ladybug report carries.
+  const stubbedSenders = rows.filter(r => r.isSender && r.stubbed).map(r => r.name);
+  const stubbedBanner = stubbedSenders.length
+    ? `<div class="stubbed-banner" title="Ladybug stubbed ${stubbedSenders.length} sender call${stubbedSenders.length > 1 ? 's' : ''} (isStubbed): ${esc(stubbedSenders.join(', '))} — replaced by a captured stub instead of executed">⇥ Stubbed senders: ${esc(stubbedSenders.join(', '))}</div>`
     : '';
 
   const header = `
@@ -386,7 +396,8 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
       ${metaItem('Duration', dur)}
       ${metaItem('Pipeline', shortName(report.name || ''))}
     </div>
-    ${replayBanner}`;
+    ${replayBanner}
+    ${stubbedBanner}`;
 
   let exitsBar = '';
   const exitEntries = Object.entries(exitMap)

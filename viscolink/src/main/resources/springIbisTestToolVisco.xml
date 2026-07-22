@@ -11,6 +11,11 @@
         <property name="extraMetadataFieldExtractors">
             <list>
                 <bean class="org.wearefrank.ladybug.metadata.StatusMetadataFieldExtractor" />
+                <!-- Origin-independent provenance flag: "true" when the report is a replay/synthetic run
+                     rather than a real production message, detected from the correlation-id prefix
+                     (stubbed-run-* from ViscoFlow's StubbedRunner, or <LadybugName>-* from a native
+                     Ladybug rerun). Independent of whether any sender was stubbed. See the class javadoc. -->
+                <bean class="com.viscosiety.ladybug.StubMetadataFieldExtractor" />
                 <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
                     <property name="name" value="flow"/>
                     <property name="label" value="Flow"/>
@@ -52,6 +57,7 @@
                 <value>patientId</value>
                 <value>correlationId</value>
                 <value>status</value>
+                <value>stubbed</value>
                 <value>numberOfCheckpoints</value>
                 <value>estimatedMemoryUsage</value>
                 <value>storageSize</value>

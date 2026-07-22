@@ -21,13 +21,13 @@ tbody tr.selected { background: var(--teal-mid) !important; }
 td { padding: 6px 8px; vertical-align: middle; }
 .td-status { width: 28px; }
 .td-name { overflow: hidden; }
-.td-patient { width: 68px; }
+.td-patient { width: 68px; overflow: hidden; }
 .td-time { width: 72px; white-space: nowrap; font-variant-numeric: tabular-nums; color: var(--muted); }
 .td-dur { width: 48px; white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right; }
 .flow-name { font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .pipe-name-small { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
 .row-cid { font-size: 10px; color: var(--muted); font-family: var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; opacity: .75; }
-.patient-id { font-size: 11px; color: var(--muted); }
+.patient-id { font-size: 11px; color: var(--muted); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .load-more-row { text-align: center; color: var(--muted); font-size: 11px; padding: 8px 0; cursor: pointer; background: var(--gray-bg); border-top: 1px solid var(--border); }
 .load-more-row:hover { background: var(--teal-light); color: var(--teal); }
