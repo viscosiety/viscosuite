@@ -51,6 +51,6 @@ public class ViscoLinkModule implements Module {
 
     @Override
     public List<String> getSpringConfigurationFiles() {
-        return List.of("springMllp.xml", "springFhir.xml", "springStubbedRun.xml");
+        return List.of("springMllp.xml", "springFhir.xml", "springStubbedRun.xml", "springK8sEvents.xml");
     }
 }
