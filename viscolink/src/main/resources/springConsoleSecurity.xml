@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Registered via ViscoLinkModule.getSpringConfigurationFiles() so it loads into the child
+    IbisApplicationContext, mirroring FhirServletRegistrar. ConsoleSecurityRegistrar resolves the
+    ServletContext during its InitializingBean callback and secures the ViscoLink tool pages by
+    reusing F!F's own console authentication chain (application.security.console.authentication.*):
+    IN_MEMORY keeps the browser Basic prompt, OAUTH2 starts an OIDC flow, NONE leaves it open — the
+    tools authenticate exactly like the Frank!Console. Replaces the former BasicAuthFilter.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
+
+    <bean id="consoleSecurityRegistrar" class="com.viscosiety.security.ConsoleSecurityRegistrar"/>
+</beans>
