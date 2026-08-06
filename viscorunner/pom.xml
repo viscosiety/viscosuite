@@ -47,6 +47,24 @@
 			<artifactId>h2</artifactId>
 			<version>2.4.240</version>
 		</dependency>
+
+		<!-- Kubernetes client for ContextFailureEventPublisher. Compile scope so it (and its runtime
+		     transitives) is assembled into target/lib and placed on Tomcat's common.loader at
+		     /opt/frank/lib. Version matches the copy bundled inside viscolink.war. -->
+		<dependency>
+			<groupId>io.fabric8</groupId>
+			<artifactId>kubernetes-client</artifactId>
+			<version>7.7.0</version>
+		</dependency>
+		<!-- Catalina API for the Server LifecycleListener. Provided: Tomcat supplies it at runtime,
+		     so it is NOT assembled into /opt/frank/lib. -->
+		<dependency>
+			<groupId>org.apache.tomcat</groupId>
+			<artifactId>tomcat-catalina</artifactId>
+			<version>11.0.18</version>
+			<scope>provided</scope>
+		</dependency>
+
 		<!-- ── Integration-test dependencies ─────────────────────────────────────────────── -->
 
 		<!-- JUnit 5 -->
@@ -68,6 +86,14 @@
 			<groupId>org.awaitility</groupId>
 			<artifactId>awaitility</artifactId>
 			<version>4.2.0</version>
+			<scope>test</scope>
+		</dependency>
+
+		<!-- Mockito — mock Catalina Server/Engine/Host/Context for ContextFailureEventPublisher tests -->
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<version>5.14.2</version>
 			<scope>test</scope>
 		</dependency>
 
@@ -252,6 +278,25 @@
 							<outputDirectory>${project.build.directory}/drivers</outputDirectory>
 							<includeArtifactIds>postgresql,h2</includeArtifactIds>
 							<stripVersion>true</stripVersion>
+							<overWriteSnapshots>true</overWriteSnapshots>
+						</configuration>
+					</execution>
+					<!-- Copy the Kubernetes client + its runtime transitives to target/lib/ — placed at
+					     /opt/frank/lib on Tomcat's common.loader so ContextFailureEventPublisher (in the
+					     viscorunner jar, copied there by the Dockerfile) can use fabric8. Runtime scope
+					     excludes the provided Catalina API and test deps; the WARs and JDBC drivers are
+					     excluded (they are placed elsewhere). -->
+					<execution>
+						<id>copy-lib</id>
+						<phase>package</phase>
+						<goals>
+							<goal>copy-dependencies</goal>
+						</goals>
+						<configuration>
+							<outputDirectory>${project.build.directory}/lib</outputDirectory>
+							<includeScope>runtime</includeScope>
+							<excludeTypes>war</excludeTypes>
+							<excludeArtifactIds>postgresql,h2</excludeArtifactIds>
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
 					</execution>

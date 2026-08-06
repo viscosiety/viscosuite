@@ -12,6 +12,7 @@ RUN set -eux && \
 	mkdir -p /opt/frank/secrets && \
 	mkdir -p /opt/frank/configurations && \
 	mkdir -p /opt/frank/drivers && \
+	mkdir -p /opt/frank/lib && \
 	mkdir -p /opt/frank/plugins && \
 	mkdir -p /opt/frank/resources && \
 	mkdir -p /opt/frank/testtool && \
@@ -31,6 +32,16 @@ RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.pr
 
 # JNDI datasource definitions (H2 for local dev; override in production via mounted context.xml)
 COPY --chown=tomcat conf/context-viscosuite.xml /usr/local/tomcat/conf/context.xml
+
+# Tomcat server.xml with the ContextFailureEventPublisher <Server> listener (emits a Kubernetes
+# Warning Event when a WAR context fails to start). Pinned copy of the tomcat:11.0.14 default —
+# re-sync on a base-image Tomcat bump.
+COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
+
+# Kubernetes client + the viscorunner jar (ContextFailureEventPublisher) on the shared classloader
+# via common.loader (/opt/frank/lib/*.jar in catalinaAdditional.properties).
+COPY --chown=tomcat target/lib/ /opt/frank/lib/
+COPY --chown=tomcat target/viscorunner-*.jar /opt/frank/lib/
 
 # Per-context config for viscolink: PostResources overlay so demo files can be injected
 # into /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/viscolink/ (which
