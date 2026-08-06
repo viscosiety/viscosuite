@@ -27,4 +27,15 @@
             <column name="originid" type="java.sql.Types.VARCHAR(255)"/>
         </addColumn>
     </changeSet>
+    <changeSet id="LadybugCustom:4" author="Tom Peeters">
+        <comment>Add column stubbed (provenance: report is a replay / synthetic run, not a live production
+                 message). Computed at write time by StubMetadataFieldExtractor from the correlation id and
+                 added to every DatabaseLogStorage insert via metadataNames, so the column must exist or the
+                 metadata-list query "select ..., stubbed, ... from LADYBUG" fails with
+                 "column stubbed does not exist". Lowercase to avoid the PostgreSQL quoted-identifier
+                 mismatch.</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="stubbed" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
 </databaseChangeLog>
