@@ -113,6 +113,13 @@ public class FhirServletRegistrar implements InitializingBean, ApplicationContex
     }
 
     private void registerFacadesApiServlet() {
+        // On a Frank!Framework config reload this bean re-runs while the ServletContext is already
+        // initialised; the servlet registered on first boot persists, so skip re-registration
+        // (addServlet would otherwise throw IllegalStateException).
+        if (servletContext.getServletRegistration("fhirFacadesApi") != null) {
+            log.debug("FhirServletRegistrar: fhirFacadesApi servlet already registered (config reload) — keeping it");
+            return;
+        }
         try {
             ServletRegistration.Dynamic reg = servletContext.addServlet("fhirFacadesApi", new FhirFacadesApiServlet());
             if (reg != null) {
@@ -131,6 +138,15 @@ public class FhirServletRegistrar implements InitializingBean, ApplicationContex
         ApplicationContext parentCtx = applicationContext.getParent();
         if (parentCtx == null) {
             log.warn("FhirServletRegistrar: no parent context — /fhir/** endpoints will be unprotected");
+            return;
+        }
+        // On a config reload the fhirSecurity filter registered on first boot persists (and F!F's
+        // FHIR authenticator lives in the surviving parent context), so /fhir/** stays protected.
+        // Skip rather than rebuild the chain and re-add the filter (addFilter would throw
+        // IllegalStateException on the already-initialised ServletContext, previously logged as a
+        // misleading "endpoints will be unprotected" error).
+        if (servletContext.getFilterRegistration("fhirSecurity") != null) {
+            log.debug("FhirServletRegistrar: fhirSecurity filter already registered (config reload) — keeping it");
             return;
         }
         try {
