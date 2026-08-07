@@ -107,15 +107,32 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
             return;
         }
 
-        Filter filter = new ConsoleReuseSecurityFilter(parentCtx);
-        FilterRegistration.Dynamic reg = servletContext.addFilter("consoleToolSecurity", filter);
-        if (reg != null) {
-            reg.setAsyncSupported(true);
-            reg.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
-            log.info("ConsoleSecurityRegistrar: tool pages secured with F!F console authentication ([{}]); {} is public",
-                    type, PUBLIC_HEALTH_PATH);
-        } else {
-            log.debug("ConsoleSecurityRegistrar: consoleToolSecurity filter already registered");
+        // On a Frank!Framework configuration reload only the child IbisApplicationContext is
+        // recreated, so this bean runs again while the WAR's ServletContext is already initialised.
+        // The filter registered on the first boot persists (and F!F's console chain lives in the
+        // surviving parent context), so re-registration is neither possible nor needed — skip it.
+        // Not skipping means servletContext.addFilter throws IllegalStateException, which would fail
+        // this bean and abort the whole reload.
+        if (servletContext.getFilterRegistration("consoleToolSecurity") != null) {
+            log.info("ConsoleSecurityRegistrar: consoleToolSecurity filter already registered (config reload) — keeping it");
+            return;
+        }
+        try {
+            Filter filter = new ConsoleReuseSecurityFilter(parentCtx);
+            FilterRegistration.Dynamic reg = servletContext.addFilter("consoleToolSecurity", filter);
+            if (reg != null) {
+                reg.setAsyncSupported(true);
+                reg.addMappingForUrlPatterns(EnumSet.allOf(DispatcherType.class), false, "/*");
+                log.info("ConsoleSecurityRegistrar: tool pages secured with F!F console authentication ([{}]); {} is public",
+                        type, PUBLIC_HEALTH_PATH);
+            } else {
+                log.debug("ConsoleSecurityRegistrar: consoleToolSecurity filter already registered");
+            }
+        } catch (IllegalStateException e) {
+            // ServletContext already initialised (e.g. an edge-case reload) — the existing filter
+            // stays in place; do not fail the context refresh.
+            log.info("ConsoleSecurityRegistrar: ServletContext already initialised — keeping existing console security ({})",
+                    e.getMessage());
         }
     }
 
