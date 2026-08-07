@@ -38,9 +38,9 @@ COPY --chown=tomcat conf/context-viscosuite.xml /usr/local/tomcat/conf/context.x
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
-# Kubernetes client + the viscorunner jar (ContextFailureEventPublisher) on the shared classloader
-# via common.loader (/opt/frank/lib/*.jar in catalinaAdditional.properties).
-COPY --chown=tomcat target/lib/ /opt/frank/lib/
+# ContextFailureEventPublisher: the shaded viscorunner jar (fabric8 Kubernetes client + transitives,
+# with Jackson/SnakeYAML relocated so they don't leak onto the shared classloader) on common.loader
+# (/opt/frank/lib/*.jar in catalinaAdditional.properties).
 COPY --chown=tomcat target/viscorunner-*.jar /opt/frank/lib/
 
 # Per-context config for viscolink: PostResources overlay so demo files can be injected
