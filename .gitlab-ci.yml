@@ -18,6 +18,7 @@ stages:
   - integration-test
   - docker
   - manifest
+  - downstream
   - cleanup
 
 variables:
@@ -342,6 +343,35 @@ manifest:viscostore:
         -t "$IMAGE_VISCOSTORE:latest"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Stage: downstream
+# Once the combined multi-arch viscorunner image is published, trigger the
+# ViscoForge pipeline so it rebuilds against the new base image. GitLab cannot
+# start a pipeline "on registry push", so the upstream pipeline emits the trigger.
+#
+# Requires (ViscoForge side): Settings -> CI/CD -> Token Access must allow this
+# project (public-applications/viscosuite) to trigger via CI_JOB_TOKEN, and its
+# .gitlab-ci.yml must run on `$CI_PIPELINE_SOURCE == "pipeline"`.
+#
+# allow_failure keeps the ViscoSuite pipeline green while the ViscoForge side is
+# being wired up; drop it once the trigger is confirmed working.
+# ---------------------------------------------------------------------------
+trigger:viscoforge:
+  stage: downstream
+  needs:
+    - manifest:viscosuite
+  allow_failure: true
+  variables:
+    # The exact multi-arch tag just pushed; ViscoForge builds FROM this (or :latest).
+    UPSTREAM_VISCORUNNER_IMAGE: "$IMAGE"
+    UPSTREAM_VISCORUNNER_TAG: "$CI_COMMIT_SHA"
+  trigger:
+    project: commercial/viscoforge   # << confirm ViscoForge's project path
+    branch: main
+    # strategy: depend   # uncomment to make THIS pipeline wait for / reflect ViscoForge's result
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
