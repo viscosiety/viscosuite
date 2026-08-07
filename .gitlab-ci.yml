@@ -361,13 +361,15 @@ manifest:viscostore:
 # ---------------------------------------------------------------------------
 trigger:viscoforge:
   stage: downstream
+  # Wait for BOTH base images ViscoForge builds FROM: viscorunner (suite stack) and
+  # viscolink (link stack). Both carry the same $CI_COMMIT_SHA tag.
   needs:
     - manifest:viscosuite
+    - manifest:viscolink
   allow_failure: true
   variables:
-    # The exact multi-arch tag just pushed; ViscoForge builds FROM this (or :latest).
-    UPSTREAM_VISCORUNNER_IMAGE: "$IMAGE"
-    UPSTREAM_VISCORUNNER_TAG: "$CI_COMMIT_SHA"
+    # The exact tag just pushed for viscorunner AND viscolink; ViscoForge builds FROM it.
+    UPSTREAM_TAG: "$CI_COMMIT_SHA"
   trigger:
     project: commercial/viscoforge   # << confirm ViscoForge's project path
     branch: main
