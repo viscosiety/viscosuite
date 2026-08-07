@@ -15,6 +15,27 @@ context whose refresh aborts, so it never initializes, and the failure is a thro
 `FATAL`/`SEVERE` log, not a Frank!Framework `MessageEvent`. The shared Tomcat layer, which survives a
 single WAR's failure and sees every context, is the right place to report it.
 
+## Coverage: two failure subclasses (only one is a real gap)
+
+A context-start failure lands in one of two subclasses, and this feature deliberately targets only
+the second — verified against a live k3d cluster:
+
+1. **Startup aborts (`exit 1`).** Some failures propagate up `StandardContext → Host → Engine →
+   Service → Server` to `Catalina.start`, so `Server.start` throws and the JVM exits 1. The container
+   then crash-loops, and **kubelet already emits `Warning BackOff` / `CrashLoopBackOff` Events** on the
+   pod — Kubernetes covers this natively. (Also, `AFTER_START` never fires, and the cause often lives
+   only in the WAR's log4j2 `FATAL`, not JULI, so a shared-layer capture would add little.) A viscolink
+   `console.authentication.type=OAUTH2` with no client credentials is an example — observed to exit 1
+   and crash-loop, with a kubelet `BackOff` Event already present.
+2. **Context `FAILED`, Tomcat survives.** A descriptor/WAR context goes `FAILED` (HostConfig catches
+   it) while `Server.start` completes normally. The pod stays `Running` with a dead context and **no
+   Kubernetes signal at all** unless a probe happens to catch it. This is the silent gap this
+   listener fills: `AFTER_START` fires, the scan finds the `FAILED` context(s), and an Event is
+   emitted. Verified in k3d — a broken `/badapp` descriptor (missing Valve class) produced a real
+   `ContextStartFailed` Event while viscolink/viscostore deployed alongside it.
+
+So the `AFTER_START` scan is the correct hook: it catches exactly the subclass Kubernetes does not.
+
 ## Corrected premise (JUL, not log4j2)
 
 The rich cause (`Error deploying deployment descriptor [.../viscolink.xml] … Caused by:
