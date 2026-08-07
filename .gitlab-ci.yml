@@ -99,6 +99,10 @@ package:
       - viscorunner/target/viscolink.war
       - viscorunner/target/viscostore.war
       - viscorunner/target/drivers/
+      # Kubernetes client (fabric8) + the viscorunner jar (ContextFailureEventPublisher),
+      # placed on Tomcat's common.loader at /opt/frank/lib by the Dockerfile.
+      - viscorunner/target/lib/
+      - viscorunner/target/viscorunner-*.jar
     expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
