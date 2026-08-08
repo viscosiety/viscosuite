@@ -76,13 +76,17 @@ string, not `IbisAdmin`/`IbisTester`/etc.
 
 ### 2. `ReloadConfigurationServlet` (new Java class)
 
-Package `com.viscosiety.security` (co-located with `ConsoleSecurityRegistrar`), registered as an
-`@IbisInitializer`-scanned `DynamicRegistration.Servlet` bean under `org.frankframework.**` (same
-scan-visibility requirement `DeploymentSpecificsBeanPostProcessor` already satisfies — needed so
-`SpringEnvironmentContext.xml`'s include-filter picks it up in the *same* early context F!F's own
-authenticators build their chains in; a bean added only via `ViscoLinkModule`'s
-`getSpringConfigurationFiles()` XMLs would be too late, per the `ConsoleSecurityRegistrar` javadoc's
-own account of why it can't just add a plain new chain bean there).
+Package `org.frankframework.visco.security` — **not** `com.viscosiety.security` alongside
+`ConsoleSecurityRegistrar`. Verified directly against `SpringEnvironmentContext.xml`: its
+`@IbisInitializer` component-scan is `base-package="org.frankframework"`, with explicit excludes for
+`org.frankframework.ladybug.*`, `.web.*`, and `.console.*`. A class outside `org.frankframework.**`
+(or inside one of those three excluded subpackages) is never picked up by this scan — this is the
+same scan-visibility requirement `DeploymentSpecificsBeanPostProcessor` satisfies for an unrelated
+reason. This matters because the scan runs early enough to feed `ServletManager`'s
+`application.security.http.authenticators` SPI, in the *same* context F!F's own authenticators build
+their chains in; a bean added only via `ViscoLinkModule`'s `getSpringConfigurationFiles()` XMLs
+(where `ConsoleSecurityRegistrar` itself lives) would be too late, per that class's own javadoc
+account of why it can't just add a plain new chain bean there.
 
 Behavior on `PUT /api-service/configurations`:
 
