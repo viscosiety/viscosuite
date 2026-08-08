@@ -39,6 +39,9 @@ COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
+ARG BUILD_TIMESTAMP=""
+RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
+    sed -i "s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/viscolink.war
 
 # Fail fast if the WAR is a stale empty stub from .m2/ (< 1 MB)
