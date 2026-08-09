@@ -30,6 +30,9 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.context.request.RequestAttributes;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 import org.springframework.web.context.support.WebApplicationContextUtils;
 
 import org.frankframework.console.controllers.FrankApiService;
@@ -114,10 +117,26 @@ public class ReloadConfigurationServlet extends HttpServlet implements DynamicRe
 			return;
 		}
 
-		RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
-		builder.addHeader("action", Action.RELOAD.name());
-		builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, BusMessageUtils.ALL_CONFIGS_KEY);
-		frankApiService.callAsyncGateway(builder);
+		// FrankApiService transitively touches the console's session-scoped clientSession bean.
+		// This servlet is registered via ServletManager, OUTSIDE Spring's DispatcherServlet, so no
+		// RequestContextFilter ever binds the current request to RequestContextHolder -- without
+		// the binding below, every machine-to-machine call died with ScopeNotActiveException
+		// ("Scope 'session' is not active for the current thread"; observed live from
+		// ViscoFoundry's apply-configuration action). Binding ServletRequestAttributes here lets
+		// the scoped proxy resolve; the session it lazily creates per call is a throwaway
+		// (stateless bearer callers never send the JSESSIONID back), which is acceptable at
+		// apply-button volume. Previous attributes (normally none on this container thread) are
+		// restored, not cleared, to stay correct if a filter ever does bind them first.
+		RequestAttributes previous = RequestContextHolder.getRequestAttributes();
+		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(req, resp));
+		try {
+			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
+			builder.addHeader("action", Action.RELOAD.name());
+			builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, BusMessageUtils.ALL_CONFIGS_KEY);
+			frankApiService.callAsyncGateway(builder);
+		} finally {
+			RequestContextHolder.setRequestAttributes(previous);
+		}
 
 		resp.setStatus(HttpServletResponse.SC_ACCEPTED);
 	}

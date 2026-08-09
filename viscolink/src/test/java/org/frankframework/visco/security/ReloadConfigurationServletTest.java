@@ -42,6 +42,8 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.WebApplicationContext;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -87,6 +89,30 @@ class ReloadConfigurationServletTest {
         assertEquals(Action.RELOAD.name(), message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + "action"));
         assertEquals(BusMessageUtils.ALL_CONFIGS_KEY,
                 message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY));
+        verify(response).setStatus(HttpServletResponse.SC_ACCEPTED);
+    }
+
+    @Test
+    void bindsRequestAttributesAroundBusCallAndRestoresAfter() throws Exception {
+        // Regression guard for the M2M ScopeNotActiveException: FrankApiService needs the
+        // session-scoped clientSession bean, which only resolves when RequestContextHolder
+        // is bound -- something no filter does for this ServletManager-registered servlet.
+        authenticateAs(REQUIRED_ROLE);
+        givenConsoleContextWithFrankApiService();
+        RequestContextHolder.resetRequestAttributes();
+
+        doAnswer(invocation -> {
+            ServletRequestAttributes attrs = (ServletRequestAttributes) RequestContextHolder.getRequestAttributes();
+            assertNotNull(attrs, "request attributes must be bound while the bus call runs");
+            assertSame(request, attrs.getRequest(), "bound attributes must wrap the servlet's own request");
+            return null;
+        }).when(frankApiService).callAsyncGateway(any());
+
+        servlet.doPut(request, response);
+
+        assertNull(RequestContextHolder.getRequestAttributes(),
+                "attributes must not leak onto the container thread after the call");
+        verify(frankApiService).callAsyncGateway(any());
         verify(response).setStatus(HttpServletResponse.SC_ACCEPTED);
     }
 
