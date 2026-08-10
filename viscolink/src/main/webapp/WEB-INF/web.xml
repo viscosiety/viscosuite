@@ -12,7 +12,22 @@
 
   <!-- Tool-page security is registered programmatically by ConsoleSecurityRegistrar
        (com.viscosiety.security), which reuses F!F's own console authentication chain so the tools
-       authenticate exactly like the Frank!Console (Basic / OIDC / open). No filter is declared here. -->
+       authenticate exactly like the Frank!Console (Basic / OIDC / open). No security filter is
+       declared here. -->
+
+  <!-- Adds crossorigin="use-credentials" to the console index's manifest link: browsers fetch
+       <link rel="manifest"> without cookies by default, so behind OAuth2 the manifest request
+       302s to Keycloak and F!F's CSP (default-src 'self') blocks it with a console error on
+       every page load. Spring Security's programmatic filter (isMatchAfter=false) still runs
+       before declared filters, so authentication is unaffected. -->
+  <filter>
+    <filter-name>consoleManifestCredentials</filter-name>
+    <filter-class>com.viscosiety.security.ConsoleManifestCredentialsFilter</filter-class>
+  </filter>
+  <filter-mapping>
+    <filter-name>consoleManifestCredentials</filter-name>
+    <url-pattern>/iaf/gui/*</url-pattern>
+  </filter-mapping>
 
   <servlet>
     <servlet-name>ToolsServlet</servlet-name>

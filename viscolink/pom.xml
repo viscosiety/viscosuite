@@ -295,6 +295,13 @@
 			<artifactId>mockito-junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<!-- MockHttpServletRequest/Response for servlet-filter tests; version managed by the
+		     F!F BOM import (matches the spring-web the WAR already ships). -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-test</artifactId>
+			<scope>test</scope>
+		</dependency>
 		<!-- In-memory Kubernetes API server for testing LifecycleEventK8sPublisher.
 		     Version matches the fabric8 kubernetes-client (7.7.0) brought in transitively
 		     via frankframework-kubernetes. -->
