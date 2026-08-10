@@ -18,6 +18,7 @@ package org.frankframework.visco.security;
 
 import java.io.IOException;
 import java.io.Serial;
+import java.util.List;
 
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,7 +29,10 @@ import org.apache.logging.log4j.Logger;
 import org.springframework.beans.factory.NoSuchBeanDefinitionException;
 import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
 import org.springframework.web.context.WebApplicationContext;
 import org.springframework.web.context.request.RequestAttributes;
 import org.springframework.web.context.request.RequestContextHolder;
@@ -39,7 +43,6 @@ import org.frankframework.console.controllers.FrankApiService;
 import org.frankframework.lifecycle.DynamicRegistration;
 import org.frankframework.lifecycle.IbisInitializer;
 import org.frankframework.management.Action;
-import org.frankframework.management.bus.BusMessageUtils;
 import org.frankframework.management.bus.BusTopic;
 import org.frankframework.management.bus.message.RequestMessageBuilder;
 import org.frankframework.util.AppConstants;
@@ -127,15 +130,36 @@ public class ReloadConfigurationServlet extends HttpServlet implements DynamicRe
 		// (stateless bearer callers never send the JSESSIONID back), which is acceptable at
 		// apply-button volume. Previous attributes (normally none on this container thread) are
 		// restored, not cleared, to stay correct if a filter ever does bind them first.
-		RequestAttributes previous = RequestContextHolder.getRequestAttributes();
+		//
+		// The SecurityContext swap: the IBISACTION bus endpoint (HandleIbisManagerAction) is
+		// annotated @RolesAllowed({"IbisDataAdmin","IbisAdmin","IbisTester"}) and additionally
+		// gates FULLRELOAD on hasAnyRole("IbisAdmin","IbisTester") -- F!F console roles a tenant
+		// service-account token never carries. Without the swap the bus rejects the call AFTER
+		// this servlet's own check already passed (observed live as a 403 insufficient_scope:
+		// the AccessDeniedException propagates into the bearer chain's ExceptionTranslationFilter).
+		// This servlet's tenant-role check above is the real authorization gate for this endpoint;
+		// past it, the bus call runs elevated -- keeping the caller's principal name so the bus's
+		// own "on request of [...]" audit logging still names the actual caller.
+		RequestAttributes previousAttributes = RequestContextHolder.getRequestAttributes();
+		SecurityContext callerContext = SecurityContextHolder.getContext();
 		RequestContextHolder.setRequestAttributes(new ServletRequestAttributes(req, resp));
 		try {
+			SecurityContext elevated = SecurityContextHolder.createEmptyContext();
+			elevated.setAuthentication(new PreAuthenticatedAuthenticationToken(
+					callerContext.getAuthentication().getName(), "n/a",
+					List.of(new SimpleGrantedAuthority(ROLE_PREFIX + "IbisAdmin"))));
+			SecurityContextHolder.setContext(elevated);
+
+			// FULLRELOAD, not RELOAD: HandleIbisManagerAction passes RELOAD's configuration name
+			// verbatim to IbisContext.reload(), so RELOAD with the *ALL* sentinel is silently
+			// ignored ("classloader for configuration [*ALL*] not found" -- observed live).
+			// FULLRELOAD is the real reload-everything action; it takes no configuration name.
 			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
-			builder.addHeader("action", Action.RELOAD.name());
-			builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, BusMessageUtils.ALL_CONFIGS_KEY);
+			builder.addHeader("action", Action.FULLRELOAD.name());
 			frankApiService.callAsyncGateway(builder);
 		} finally {
-			RequestContextHolder.setRequestAttributes(previous);
+			SecurityContextHolder.setContext(callerContext);
+			RequestContextHolder.setRequestAttributes(previousAttributes);
 		}
 
 		resp.setStatus(HttpServletResponse.SC_ACCEPTED);

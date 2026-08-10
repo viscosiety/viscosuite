@@ -74,7 +74,7 @@ class ReloadConfigurationServletTest {
     }
 
     @Test
-    void authenticatedWithRequiredRoleTriggersReloadAndReturns202() throws Exception {
+    void authenticatedWithRequiredRoleTriggersFullReloadAndReturns202() throws Exception {
         authenticateAs(REQUIRED_ROLE);
         givenConsoleContextWithFrankApiService();
 
@@ -86,10 +86,42 @@ class ReloadConfigurationServletTest {
         assertEquals(BusTopic.IBISACTION.name(), message.getHeaders().get(BusTopic.TOPIC_HEADER_NAME));
         // Custom headers (addHeader) land under the "meta-" prefix -- see AbstractMessage.setMetaHeader --
         // distinct from the transport-layer "action"/"topic" headers build() also sets directly.
-        assertEquals(Action.RELOAD.name(), message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + "action"));
-        assertEquals(BusMessageUtils.ALL_CONFIGS_KEY,
-                message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY));
+        // FULLRELOAD, not RELOAD: HandleIbisManagerAction passes RELOAD's configuration name verbatim
+        // to IbisContext.reload(), so RELOAD with the *ALL* sentinel is silently ignored
+        // ("classloader for configuration [*ALL*] not found" -- observed live). FULLRELOAD is the
+        // real reload-everything action and takes no configuration name at all.
+        assertEquals(Action.FULLRELOAD.name(), message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + "action"));
+        assertNull(message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY),
+                "FULLRELOAD must not carry a configuration-name header");
         verify(response).setStatus(HttpServletResponse.SC_ACCEPTED);
+    }
+
+    @Test
+    void busCallRunsWithElevatedIbisRolesAndOriginalPrincipalThenRestores() throws Exception {
+        // The IBISACTION bus endpoint (HandleIbisManagerAction) is annotated
+        // @RolesAllowed({"IbisDataAdmin","IbisAdmin","IbisTester"}) and additionally gates FULLRELOAD
+        // on hasAnyRole("IbisAdmin","IbisTester") -- console roles a tenant service-account token never
+        // carries (observed live as a 403 insufficient_scope AFTER this servlet's own check passed).
+        // The servlet is the real authorization gate; past it, the bus call must run elevated.
+        authenticateAs(REQUIRED_ROLE);
+        Authentication original = SecurityContextHolder.getContext().getAuthentication();
+        givenConsoleContextWithFrankApiService();
+
+        doAnswer(invocation -> {
+            Authentication during = SecurityContextHolder.getContext().getAuthentication();
+            assertNotNull(during, "an Authentication must be bound while the bus call runs");
+            assertTrue(during.getAuthorities().stream().anyMatch(a -> "ROLE_IbisAdmin".equals(a.getAuthority())),
+                    "bus call must run with ROLE_IbisAdmin (passes @RolesAllowed and the FULLRELOAD isAdmin gate)");
+            assertEquals(original.getName(), during.getName(),
+                    "elevated token must keep the caller's principal name for the audit trail");
+            return null;
+        }).when(frankApiService).callAsyncGateway(any());
+
+        servlet.doPut(request, response);
+
+        assertSame(original, SecurityContextHolder.getContext().getAuthentication(),
+                "caller's own Authentication must be restored after the bus call");
+        verify(frankApiService).callAsyncGateway(any());
     }
 
     @Test
