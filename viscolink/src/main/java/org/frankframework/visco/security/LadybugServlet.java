@@ -44,9 +44,10 @@ import org.frankframework.lifecycle.IbisInitializer;
  * </ul>
  *
  * <p>Ladybug is NOT a management-bus citizen: its {@link TestTool} bean (and the debug
- * {@link Storage} hanging off it) is resolved from the console context directly. No SecurityContext
- * elevation is needed for that bean access, but the shared request-context binding still applies --
- * {@code callElevated} is reused for uniformity (the elevated roles are inert here).</p>
+ * {@link Storage} hanging off it) is resolved from the console context directly. The storage reads
+ * still run inside {@code callElevated} for family uniformity: the request-context binding costs
+ * nothing and protects against the bean graph ever growing a request/session-scoped edge, and the
+ * single inert IbisObserver role documents the read-only intent.</p>
  */
 @IbisInitializer
 public class LadybugServlet extends AbstractBearerServiceServlet {
@@ -97,12 +98,25 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 		try {
 			if ("/reports".equals(pathInfo)) {
 				int limit = clampLimit(req.getParameter("limit"));
-				writeJson(resp, listReports(storage, limit));
+				List<Map<String, Object>> reports = callElevated(req, resp, () -> {
+					try {
+						return listReports(storage, limit);
+					} catch (StorageException e) {
+						throw new IllegalStateException(e);
+					}
+				});
+				writeJson(resp, reports);
 				return;
 			}
 			Integer storageId = parseReportId(pathInfo);
 			if (storageId != null) {
-				Report report = storage.getReport(storageId);
+				Report report = callElevated(req, resp, () -> {
+					try {
+						return storage.getReport(storageId);
+					} catch (StorageException e) {
+						throw new IllegalStateException(e);
+					}
+				});
 				if (report == null) {
 					resp.sendError(HttpServletResponse.SC_NOT_FOUND, "no report with storageId " + storageId);
 					return;
@@ -110,8 +124,10 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 				writeJson(resp, describeReport(report));
 				return;
 			}
-		} catch (StorageException e) {
-			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "ladybug storage error: " + e.getMessage());
+		} catch (RuntimeException e) {
+			// Sanitized: storage/DB failure detail (paths, SQL) stays in the log, never the body.
+			logBusFailure("ladybug", e);
+			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "ladybug storage error: " + sanitizedReason(e));
 			return;
 		}
 		resp.sendError(HttpServletResponse.SC_NOT_FOUND, "unknown ladybug path " + pathInfo);
@@ -170,7 +186,8 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 			return null;
 		}
 		try {
-			return Integer.valueOf(pathInfo.substring("/report/".length()));
+			int parsed = Integer.parseInt(pathInfo.substring("/report/".length()));
+			return parsed >= 0 ? parsed : null;
 		} catch (NumberFormatException e) {
 			return null;
 		}

@@ -68,7 +68,8 @@ public class AdaptersServlet extends AbstractBearerServiceServlet {
 
 	@Override
 	protected String[] elevatedRoles() {
-		return new String[] { "IbisObserver", "IbisAdmin" };
+		// Minimal: ADAPTER/GET's @RolesAllowed already accepts IbisObserver alone.
+		return new String[] { "IbisObserver" };
 	}
 
 	@Override
@@ -82,11 +83,20 @@ public class AdaptersServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 
-		List<Map<String, String>> adapters = callElevated(req, resp, () -> {
-			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.ADAPTER, BusAction.GET);
-			Message<?> response = gateway.sendSyncMessage(builder.build(null));
-			return summarize(JSON.readTree(String.valueOf(response.getPayload())));
-		});
+		// Uncaught BusException would surface as a container error page (no Spring MVC
+		// exception translation out here) -- map to a clean 502 with a sanitized reason.
+		List<Map<String, String>> adapters;
+		try {
+			adapters = callElevated(req, resp, () -> {
+				RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.ADAPTER, BusAction.GET);
+				Message<?> response = gateway.sendSyncMessage(builder.build(null));
+				return summarize(JSON.readTree(String.valueOf(response.getPayload())));
+			});
+		} catch (RuntimeException e) {
+			logBusFailure("adapters", e);
+			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "adapter listing failed: " + sanitizedReason(e));
+			return;
+		}
 		writeJson(resp, adapters);
 	}
 

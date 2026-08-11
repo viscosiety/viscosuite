@@ -71,10 +71,20 @@ public class TestPipelineServlet extends AbstractBearerServiceServlet {
 		return SECURITY_ROLES_PROPERTY;
 	}
 
+	/** Request bodies larger than this are rejected before parsing (the result is capped too). */
+	static final int MAX_BODY_BYTES = 64 * 1024;
+
 	@Override
 	protected String[] elevatedRoles() {
-		// The TEST_PIPELINE bus endpoint is gated on IbisTester (console's own test screens).
-		return new String[] { "IbisAdmin", "IbisTester" };
+		// Minimal for TEST_PIPELINE's @RolesAllowed: IbisTester alone satisfies it. Review
+		// finding (2026-08-11): the bus endpoint executes the tenant's OWN pipeline
+		// synchronously inside this call, and F!F's SpringSecurityHandler captures the
+		// elevated Authentication -- so any isUserInRole() check inside tenant-authored
+		// pipeline logic sees this role for the duration of the test run. That residual
+		// exposure is tenant-scoped by construction (single-tenant instance, the caller
+		// already fully controls the configuration being run) and is accepted; keeping the
+		// grant to the single required role bounds it as tightly as the bus allows.
+		return new String[] { "IbisTester" };
 	}
 
 	@Override
@@ -82,7 +92,17 @@ public class TestPipelineServlet extends AbstractBearerServiceServlet {
 		if (rejectUnauthorized(resp)) {
 			return;
 		}
-		JsonNode body = JSON.readTree(req.getInputStream());
+		if (req.getContentLengthLong() > MAX_BODY_BYTES) {
+			resp.sendError(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE, "request body exceeds " + MAX_BODY_BYTES + " bytes");
+			return;
+		}
+		JsonNode body;
+		try {
+			body = JSON.readTree(req.getInputStream());
+		} catch (IOException e) {
+			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "request body is not valid JSON");
+			return;
+		}
 		String configuration = body.path("configuration").asText(null);
 		String adapter = body.path("adapter").asText(null);
 		String message = body.path("message").asText(null);
@@ -97,17 +117,28 @@ public class TestPipelineServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 
-		Map<String, String> result = callElevated(req, resp, () -> {
-			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.TEST_PIPELINE, BusAction.UPLOAD);
-			builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
-			builder.addHeader(BusMessageUtils.HEADER_ADAPTER_NAME_KEY, adapter);
-			builder.setPayload(message);
-			Message<?> response = gateway.sendSyncMessage(builder.build(null));
-			Map<String, String> out = new LinkedHashMap<>();
-			out.put("state", BusMessageUtils.getHeader(response, "state"));
-			out.put("result", truncate(String.valueOf(response.getPayload()), MAX_RESULT_CHARS));
-			return out;
-		});
+		// The bus throws unchecked BusException for ordinary bad input ("adapter [x] does
+		// not exist", ...) -- these servlets sit outside Spring MVC's exception translation,
+		// so an uncaught throw would surface as a container error page. Map to a clean 502
+		// with a sanitized message (full detail stays in the log).
+		Map<String, String> result;
+		try {
+			result = callElevated(req, resp, () -> {
+				RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.TEST_PIPELINE, BusAction.UPLOAD);
+				builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
+				builder.addHeader(BusMessageUtils.HEADER_ADAPTER_NAME_KEY, adapter);
+				builder.setPayload(message);
+				Message<?> response = gateway.sendSyncMessage(builder.build(null));
+				Map<String, String> out = new LinkedHashMap<>();
+				out.put("state", BusMessageUtils.getHeader(response, "state"));
+				out.put("result", truncate(String.valueOf(response.getPayload()), MAX_RESULT_CHARS));
+				return out;
+			});
+		} catch (RuntimeException e) {
+			logBusFailure("test-pipeline", e);
+			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "pipeline test failed: " + sanitizedReason(e));
+			return;
+		}
 		writeJson(resp, result);
 	}
 }

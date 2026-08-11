@@ -177,4 +177,22 @@ abstract class AbstractBearerServiceServlet extends HttpServlet implements Dynam
 		}
 		return text.substring(0, max) + " ...[truncated]";
 	}
+
+	/** Full failure detail belongs in the log; {@link #sanitizedReason} is what callers may see. */
+	protected final void logBusFailure(String operation, Exception e) {
+		log.warn("{} call failed", operation, e);
+	}
+
+	/**
+	 * First line of the exception message, capped -- enough for an agent/user to act on
+	 * ("adapter [X] does not exist") without relaying stack detail or nested causes.
+	 */
+	protected static String sanitizedReason(Exception e) {
+		String message = e.getMessage();
+		if (message == null || message.isBlank()) {
+			return e.getClass().getSimpleName();
+		}
+		String firstLine = message.lines().findFirst().orElse(message);
+		return truncate(firstLine, 300);
+	}
 }
