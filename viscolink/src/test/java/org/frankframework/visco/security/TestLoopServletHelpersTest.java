@@ -72,4 +72,14 @@ class TestLoopServletHelpersTest {
 		assertEquals(Map.of("configuration", "MyConfig", "adapter", "EchoAdapter", "state", "started"), rows.get(0));
 		assertEquals(Map.of("configuration", "", "adapter", "Bare", "state", "stopped"), rows.get(1));
 	}
+
+	@Test
+	void payloadAsStringReadsStreamsAndStringifiesTheRest() throws Exception {
+		// The bus hands back a streaming payload (SerializableInputStream); String.valueOf
+		// on it produced "org.frankframework...SerializableInputStream@1096dba6" in the
+		// live E2E (2026-08-11) instead of the pipeline result.
+		var stream = new java.io.ByteArrayInputStream("<result/>".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+		assertEquals("<result/>", TestPipelineServlet.payloadAsString(stream));
+		assertEquals("plain", TestPipelineServlet.payloadAsString("plain"));
+	}
 }

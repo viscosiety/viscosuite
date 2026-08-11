@@ -17,7 +17,9 @@
 package org.frankframework.visco.security;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.Serial;
+import java.nio.charset.StandardCharsets;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -131,7 +133,7 @@ public class TestPipelineServlet extends AbstractBearerServiceServlet {
 				Message<?> response = gateway.sendSyncMessage(builder.build(null));
 				Map<String, String> out = new LinkedHashMap<>();
 				out.put("state", BusMessageUtils.getHeader(response, "state"));
-				out.put("result", truncate(String.valueOf(response.getPayload()), MAX_RESULT_CHARS));
+				out.put("result", truncate(payloadAsString(response.getPayload()), MAX_RESULT_CHARS));
 				return out;
 			});
 		} catch (RuntimeException e) {
@@ -140,5 +142,23 @@ public class TestPipelineServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 		writeJson(resp, result);
+	}
+
+	/**
+	 * The bus returns the pipeline result as a streaming payload
+	 * (management-gateway's SerializableInputStream) -- the console streams it out
+	 * verbatim (ResponseUtils.convertToSpringStreamingResponse); String.valueOf would
+	 * yield the object's toString. Reads at most {@link #MAX_RESULT_CHARS} bytes: the
+	 * result is truncated to that length anyway, so an unbounded pipeline output can't
+	 * balloon memory here.
+	 */
+	static String payloadAsString(Object payload) throws IOException {
+		if (payload instanceof InputStream stream) {
+			try (stream) {
+				byte[] bytes = stream.readNBytes(MAX_RESULT_CHARS);
+				return new String(bytes, StandardCharsets.UTF_8);
+			}
+		}
+		return String.valueOf(payload);
 	}
 }
