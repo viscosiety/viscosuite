@@ -24,8 +24,8 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   # -B: batch mode (no ANSI colours, no interactive prompts)
-  # -U: force re-resolution of SNAPSHOT deps (the ladybug fork) so the cached .m2
-  #     never serves a stale 4.1-SNAPSHOT timestamp instead of the latest published one
+  # -U: force re-resolution of SNAPSHOT deps so the cached .m2 doesn't serve a stale
+  #     timestamp instead of the latest published one
   # --no-transfer-progress: suppresses the per-chunk download progress lines
   MAVEN_CLI_OPTS: "-B -U -s .mvn/settings.xml"
   IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # combined image
@@ -43,10 +43,6 @@ variables:
     paths:
       - .m2/repository/
     policy: pull-push
-
-# Ladybug fork install is handled by ./mvnw automatically (see the block at the
-# top of that script).  No extra CI step needed — the first ./mvnw call in each
-# job triggers the clone+install if the marker jar is absent from .m2/.
 
 # ---------------------------------------------------------------------------
 # Stage: test

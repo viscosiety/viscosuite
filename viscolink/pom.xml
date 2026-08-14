@@ -21,10 +21,12 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.2.0-20260528.042334</frankframework.version>
-		<!-- Published from viscoSuiteDev branch at git.viscosiety.com/public-applications/ladybug.
-		     Includes offset pagination support and postMessage bridge for ViscoFlow deep-link. -->
-		<ladybug.version>4.1-SNAPSHOT</ladybug.version>
+		<frankframework.version>10.3.0-20260811.042329</frankframework.version>
+		<!-- Official wearefrank/ladybug build (nexus.frankframework.org), no fork.
+		     wearefrank/ladybug#814 (offset pagination) merged 2026-08-13 and is included as of
+		     this build; postMessage bridge for ViscoFlow deep-link (ladybug-openReport/-ping)
+		     was already present upstream. Fork no longer needed, pending this holding up. -->
+		<ladybug.version>4.1-20260813.135649</ladybug.version>
 		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
@@ -78,8 +80,8 @@
 				<version>1.14.1</version>
 				<scope>test</scope>
 			</dependency>
-			<!-- Force the ladybug fork (offset-pagination) over the newer official build.
-			     Remove once wearefrank/ladybug#814 is merged and released. -->
+			<!-- Pin to the specific official snapshot with #814 (offset pagination) merged,
+			     newer than whatever frankframework-parent's BOM currently pins. -->
 			<dependency>
 				<groupId>org.wearefrank</groupId>
 				<artifactId>ladybug-common</artifactId>
@@ -417,14 +419,6 @@
 			<id>frankframework</id>
 			<name>Frank!Framework</name>
 			<url>https://nexus.frankframework.org/content/repositories/public</url>
-		</repository>
-		<repository>
-			<id>gitlab-ladybug</id>
-			<url>https://git.viscosiety.com/api/v4/projects/6/packages/maven</url>
-			<!-- The ladybug fork is published only as a SNAPSHOT; enable snapshot resolution
-			     (Maven disables it by default) and skip release lookups against this repo. -->
-			<releases><enabled>false</enabled></releases>
-			<snapshots><enabled>true</enabled></snapshots>
 		</repository>
 	</repositories>
 </project>

@@ -18,8 +18,8 @@ package com.viscosiety.mllp;
 
 import org.jspecify.annotations.NonNull;
 
-import org.frankframework.jdbc.datasource.FrankResource;
-import org.frankframework.jdbc.datasource.ObjectFactory;
+import org.frankframework.resourcelocator.FrankResource;
+import org.frankframework.resourcelocator.ObjectFactory;
 
 /**
  * Spring-managed factory that resolves {@code mllp} resource entries from
