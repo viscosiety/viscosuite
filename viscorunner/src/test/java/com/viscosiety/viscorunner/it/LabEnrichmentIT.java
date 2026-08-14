@@ -192,7 +192,10 @@ class LabEnrichmentIT {
         String viscoStoreUrl = "http://localhost:" + viscoStorePort + "/fhir/";
         log("Step 6: launching ViscoLink (fhir-to-fhir) → ViscoStore at " + viscoStoreUrl);
         ProcessBuilder pb = new ProcessBuilder(
-            javaExe, "-cp", classpath,
+            // spring.main.allow-circular-references: see same flag in Hl7v2ToFhirIT --
+            // ladybug-common's View gained setTestTool() (#814), cycling through
+            // testTool -> views -> whiteBoxView in this directly-launched JVM too.
+            javaExe, "-Dspring.main.allow-circular-references=true", "-cp", classpath,
             "com.viscosiety.viscorunner.it.ViscolinkLauncher",
             viscolinkWar.toString(),
             demoConfigs.toString(),
