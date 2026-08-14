@@ -48,7 +48,14 @@ services:
       # the container (port 8080, not the host-mapped 8180)
       HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
       # Pass JPDA debug flag; entrypoint.sh appends $JAVA_OPTS to the F!F JVM flags
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
+      # spring.main.allow-circular-references: as of ladybug-common 4.1-20260813.135649,
+      # org.wearefrank.ladybug.filter.View gained setTestTool(TestTool) (#814). whiteBoxView
+      # (springTestToolCommon.xml, autowire="byName") now autowires the "testTool" bean, which
+      # itself depends on "views" -> "whiteBoxView" -> cycle. Not our XML to edit (both files
+      # are vendored: springTestToolCommon.xml in frankframework-ladybug-common, View.class in
+      # ladybug-common) -- allow-circular-references is Spring's own suggested fallback for
+      # setter/field-injection cycles like this one.
+      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dspring.main.allow-circular-references=true -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
     depends_on:
       postgres:
         condition: service_healthy

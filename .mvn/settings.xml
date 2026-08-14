@@ -3,24 +3,6 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
 
-  <servers>
-    <!-- Authenticate to the gitlab-ladybug maven registry (project 6) in CI using the
-         pipeline job token. The id must match the <repository> id in viscolink/pom.xml.
-         Note: project 6 must also allow this project's CI job token (ladybug → Settings →
-         CI/CD → Job token permissions → allowlist). Local builds resolve from ~/.m2 cache. -->
-    <server>
-      <id>gitlab-ladybug</id>
-      <configuration>
-        <httpHeaders>
-          <property>
-            <name>Job-Token</name>
-            <value>${env.CI_JOB_TOKEN}</value>
-          </property>
-        </httpHeaders>
-      </configuration>
-    </server>
-  </servers>
-
   <profiles>
     <profile>
       <id>frankframework-nexus</id>

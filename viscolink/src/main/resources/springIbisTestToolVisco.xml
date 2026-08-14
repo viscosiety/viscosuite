@@ -65,7 +65,20 @@
         </constructor-arg>
     </bean>
 
-    <!-- Column set for the Shareable view: the defaults plus the originId provenance column. -->
+    <!-- Column set for the Shareable view: the defaults plus the originId provenance column, plus
+         sharable itself even though it's not displayed (see below).
+
+         sharable MUST be listed here even though the view never shows it as a column. The
+         frontend (ladybug-frontend main-*.js, as of 4.1-20260813.135649) builds the metadata-list
+         request as `metadataNames: currentView.metadataNames` and separately
+         `filterHeader/filter` from currentView.metadataFilter, but it does NOT merge filtered keys
+         into metadataNames the way the old fork's frontend did. The backend metadata query
+         silently no-ops any filterHeader whose column isn't also in the requested metadataNames
+         (confirmed: filterHeader=sharable&filter=true returns everything, unfiltered, unless
+         metadataNames=sharable is also present). Without this entry the Shareable view's
+         metadataFilter (sharable=true, below) is never actually applied and every report shows.
+         Filed upstream: TODO(wearefrank/ladybug), confirm/link issue for the metadataNames-vs-
+         filterHeader merge gap in the Views client. -->
     <bean name="shareableViewMetadataNames" class="java.util.ArrayList">
         <constructor-arg>
             <list>
@@ -74,6 +87,7 @@
                 <value>duration</value>
                 <value>name</value>
                 <value>originId</value>
+                <value>sharable</value>
                 <value>patientId</value>
                 <value>correlationId</value>
                 <value>status</value>
