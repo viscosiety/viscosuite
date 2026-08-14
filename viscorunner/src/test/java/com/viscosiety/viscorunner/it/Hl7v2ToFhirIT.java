@@ -203,7 +203,12 @@ class Hl7v2ToFhirIT {
         String viscoStoreUrl = "http://localhost:" + viscoStorePort + "/fhir/";
         log("Step 5: launching ViscoLink (hl7v2-to-fhir) → ViscoStore at " + viscoStoreUrl);
         ProcessBuilder pb = new ProcessBuilder(
-            javaExe, "-cp", classpath,
+            // spring.main.allow-circular-references: ladybug-common 4.1-20260813.135649's
+            // View gained setTestTool(TestTool) (#814); whiteBoxView (autowire="byName",
+            // vendored in frankframework-ladybug-common) now cycles through testTool ->
+            // views -> whiteBoxView. Same fix as docker-compose.yml's JAVA_OPTS, needed here
+            // too since this JVM is launched directly, not via that compose file.
+            javaExe, "-Dspring.main.allow-circular-references=true", "-cp", classpath,
             "com.viscosiety.viscorunner.it.ViscolinkLauncher",
             viscolinkWar.toString(),
             demoConfigs.toString(),
