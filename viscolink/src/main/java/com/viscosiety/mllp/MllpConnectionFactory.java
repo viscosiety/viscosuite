@@ -20,7 +20,7 @@ import java.net.URI;
 import java.nio.charset.Charset;
 import java.util.Properties;
 
-import org.frankframework.jdbc.datasource.FrankResource;
+import org.frankframework.resourcelocator.FrankResource;
 
 /**
  * Configuration holder for an MLLP resource entry from {@code resources.yml}.
