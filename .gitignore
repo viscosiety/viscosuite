@@ -26,3 +26,4 @@ ${ff:log.dir}/
 
 viscorunner/configurations/*
 .claude/*
+.worktrees/
