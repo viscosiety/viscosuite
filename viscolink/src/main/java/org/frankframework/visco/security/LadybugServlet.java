@@ -40,6 +40,9 @@ import org.frankframework.lifecycle.IbisInitializer;
  *
  * <ul>
  * <li>{@code GET /api-service/ladybug/reports?limit=N} -- most recent report summaries.</li>
+ * <li>{@code GET /api-service/ladybug/reports?correlationId=<id>} -- resolve a report's storageId
+ * by the correlationId it was captured under (404 if not found in the most recent
+ * {@value #CORRELATION_LOOKUP_SCAN_LIMIT} reports).</li>
  * <li>{@code GET /api-service/ladybug/report/<storageId>} -- one report with checkpoints.</li>
  * </ul>
  *
@@ -61,6 +64,10 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 
 	/** Metadata columns requested from the storage, in contract order. */
 	private static final List<String> METADATA_NAMES = List.of("storageId", "name", "status", "endTime", "duration");
+
+	private static final List<String> CORRELATION_LOOKUP_METADATA_NAMES = List.of("storageId", "correlationId");
+	/** Old unauthenticated LadybugClient scanned the most recent 30 rows; a little headroom here. */
+	static final int CORRELATION_LOOKUP_SCAN_LIMIT = 50;
 
 	@Override
 	public String getName() {
@@ -97,6 +104,22 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 		String pathInfo = req.getPathInfo() == null ? "" : req.getPathInfo();
 		try {
 			if ("/reports".equals(pathInfo)) {
+				String correlationId = req.getParameter("correlationId");
+				if (correlationId != null) {
+					Integer storageId = callElevated(req, resp, () -> {
+						try {
+							return findStorageIdByCorrelationId(storage, correlationId);
+						} catch (StorageException e) {
+							throw new IllegalStateException(e);
+						}
+					});
+					if (storageId == null) {
+						resp.sendError(HttpServletResponse.SC_NOT_FOUND, "no report with correlationId " + correlationId);
+						return;
+					}
+					writeJson(resp, Map.of("storageId", storageId));
+					return;
+				}
 				int limit = clampLimit(req.getParameter("limit"));
 				List<Map<String, Object>> reports = callElevated(req, resp, () -> {
 					try {
@@ -149,6 +172,26 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 			out.add(summary);
 		}
 		return out;
+	}
+
+	private static Integer findStorageIdByCorrelationId(Storage storage, String correlationId) throws StorageException {
+		List<String> noFilter = new ArrayList<>();
+		for (int i = 0; i < CORRELATION_LOOKUP_METADATA_NAMES.size(); i++) {
+			noFilter.add(null);
+		}
+		List<List<Object>> rows = storage.getMetadata(CORRELATION_LOOKUP_SCAN_LIMIT, CORRELATION_LOOKUP_METADATA_NAMES, noFilter, Storage.FILTER_RESET);
+		return findStorageIdInRows(rows, correlationId);
+	}
+
+	/** Pure helper (unit-testable without a live Storage) -- rows are [storageId, correlationId] pairs, positional per CORRELATION_LOOKUP_METADATA_NAMES. */
+	static Integer findStorageIdInRows(List<List<Object>> rows, String correlationId) {
+		for (List<Object> row : rows) {
+			if (correlationId.equals(row.get(1))) {
+				Object id = row.get(0);
+				return id instanceof Integer ? (Integer) id : Integer.valueOf(String.valueOf(id));
+			}
+		}
+		return null;
 	}
 
 	private static Map<String, Object> describeReport(Report report) {
