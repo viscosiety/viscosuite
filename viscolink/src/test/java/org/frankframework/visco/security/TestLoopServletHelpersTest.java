@@ -74,6 +74,13 @@ class TestLoopServletHelpersTest {
 	}
 
 	@Test
+	void findStorageIdInRowsMatchesByCorrelationId() {
+		List<List<Object>> rows = List.of(List.of(5, "corr-a"), List.of(7, "corr-b"));
+		assertEquals(7, LadybugServlet.findStorageIdInRows(rows, "corr-b"));
+		assertNull(LadybugServlet.findStorageIdInRows(rows, "corr-missing"));
+	}
+
+	@Test
 	void payloadAsStringReadsStreamsAndStringifiesTheRest() throws Exception {
 		// The bus hands back a streaming payload (SerializableInputStream); String.valueOf
 		// on it produced "org.frankframework...SerializableInputStream@1096dba6" in the
