@@ -74,6 +74,34 @@ class TestLoopServletHelpersTest {
 	}
 
 	@Test
+	@SuppressWarnings("unchecked")
+	void warningsSummarySlimsGlobalAndPerConfigWarningsTolerantly() throws Exception {
+		var payload = new ObjectMapper().readTree("""
+				{
+				  "totalErrorStoreCount": 3,
+				  "warnings": ["global plain string", {"message": "global object warning"}],
+				  "messages": [{"date": 1, "message": "noise"}],
+				  "tenant": {
+				    "errorStoreCount": 3,
+				    "warnings": ["EhCache attribute [keyXPath] has been deprecated since v10.2"],
+				    "monitorsRaised": ["m1"]
+				  },
+				  "broken": {"exception": "Could not load"},
+				  "quiet": {"errorStoreCount": 0}
+				}
+				""");
+		Map<String, Object> out = WarningsServlet.summarize(payload);
+		assertEquals(List.of("global plain string", "global object warning"), out.get("global"));
+		var configurations = (List<Map<String, Object>>) out.get("configurations");
+		assertEquals(2, configurations.size());
+		assertEquals("tenant", configurations.get(0).get("configuration"));
+		assertEquals(List.of("EhCache attribute [keyXPath] has been deprecated since v10.2"),
+				configurations.get(0).get("warnings"));
+		assertEquals("broken", configurations.get(1).get("configuration"));
+		assertEquals("Could not load", configurations.get(1).get("exception"));
+	}
+
+	@Test
 	void findStorageIdInRowsMatchesByCorrelationId() {
 		List<List<Object>> rows = List.of(List.of(5, "corr-a"), List.of(7, "corr-b"));
 		assertEquals(7, LadybugServlet.findStorageIdInRows(rows, "corr-b"));
