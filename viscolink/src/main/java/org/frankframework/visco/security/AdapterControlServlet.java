@@ -44,13 +44,17 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * instead of a browser session. See docs/superpowers/specs/2026-08-19-adapter-start-stop-tool-
  * design.md (viscoFoundry repo).
  *
- * <p>Unlike the console's own controller (and this repo's {@code ReloadConfigurationServlet}),
- * this call is SYNCHRONOUS: {@code IbisManager.handleAction()} runs {@code adapter.start()}/
- * {@code .stop()} inline before returning, so driving it via {@link OutboundGateway#sendSyncMessage}
- * (not {@code FrankApiService.callAsyncGateway}) blocks until the state change has actually
- * happened. A second sync call (BusTopic.ADAPTER/BusAction.FIND, the same endpoint
- * {@link AdaptersServlet} reads, single-adapter variant) then confirms the adapter's resulting
- * state, so callers get a real confirmed outcome in one request -- never a bare "accepted."</p>
+ * <p>The IBISACTION dispatch is fire-and-forget by necessity: the bus endpoint
+ * ({@code HandleIbisManagerAction.handleIbisAction}) returns void, so a sync send has no reply
+ * to wait for and burns its full receiveTimeout before throwing -- live-observed 2026-08-20
+ * ("no response found on reply-queue within receiveTimeout [2000]") with the action itself
+ * having succeeded. Confirmation instead comes from polling BusTopic.ADAPTER/BusAction.FIND
+ * (the same endpoint {@link AdaptersServlet} reads, single-adapter variant) until the adapter
+ * reaches the requested state, lands in a terminal failure state (error/exception_*), or the
+ * poll deadline passes -- whichever comes first, the response carries the adapter's REAL
+ * observed state at that moment, never a bare "accepted." Adapter start/stop is a genuine
+ * state machine (starting -> started) so a poll loop is the honest confirmation regardless of
+ * dispatch style.</p>
  *
  * <p>PUT JSON {@code {"configuration","adapter","action":"start"|"stop"}}; responds
  * {@code {"configuration","adapter","state"}} -- the same shape {@link AdaptersServlet} already
@@ -66,6 +70,10 @@ public class AdapterControlServlet extends AbstractBearerServiceServlet {
 
 	/** Request bodies larger than this are rejected before parsing -- three short strings, generous cap. */
 	static final int MAX_BODY_BYTES = 8 * 1024;
+
+	/** How long to poll for the adapter to reach the requested state before answering with the last observed state. */
+	static final long CONFIRM_DEADLINE_MS = 10_000;
+	static final long CONFIRM_POLL_INTERVAL_MS = 250;
 
 	@Override
 	public String getName() {
@@ -124,6 +132,8 @@ public class AdapterControlServlet extends AbstractBearerServiceServlet {
 		// Uncaught BusException would surface as a container error page (no Spring MVC
 		// exception translation out here) -- map to a clean 502 with a sanitized reason,
 		// same pattern as TestPipelineServlet/AdaptersServlet.
+		String targetState = "start".equals(action) ? "started" : "stopped";
+
 		Map<String, String> result;
 		try {
 			result = callElevated(req, resp, () -> {
@@ -131,14 +141,34 @@ public class AdapterControlServlet extends AbstractBearerServiceServlet {
 				actionBuilder.addHeader("action", busAction.name());
 				actionBuilder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
 				actionBuilder.addHeader(BusMessageUtils.HEADER_ADAPTER_NAME_KEY, adapter);
-				// Blocks until adapter.start()/stop() actually returns -- see class javadoc.
-				gateway.sendSyncMessage(actionBuilder.build(null));
+				// Fire-and-forget: the bus endpoint returns void, so there is no reply to
+				// wait for -- see class javadoc. Confirmation is the poll loop below.
+				gateway.sendAsyncMessage(actionBuilder.build(null));
 
-				RequestMessageBuilder statusBuilder = RequestMessageBuilder.create(BusTopic.ADAPTER, BusAction.FIND);
-				statusBuilder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
-				statusBuilder.addHeader(BusMessageUtils.HEADER_ADAPTER_NAME_KEY, adapter);
-				Message<?> statusResponse = gateway.sendSyncMessage(statusBuilder.build(null));
-				JsonNode adapterInfo = JSON.readTree(String.valueOf(statusResponse.getPayload()));
+				long deadline = System.currentTimeMillis() + CONFIRM_DEADLINE_MS;
+				JsonNode adapterInfo;
+				while (true) {
+					RequestMessageBuilder statusBuilder = RequestMessageBuilder.create(BusTopic.ADAPTER, BusAction.FIND);
+					statusBuilder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
+					statusBuilder.addHeader(BusMessageUtils.HEADER_ADAPTER_NAME_KEY, adapter);
+					Message<?> statusResponse = gateway.sendSyncMessage(statusBuilder.build(null));
+					adapterInfo = JSON.readTree(String.valueOf(statusResponse.getPayload()));
+					String state = adapterInfo.path("state").asText("");
+					// Reached the requested state, or a terminal failure state the caller
+					// must see (error / exception_starting / exception_stopping) -- either
+					// way this IS the confirmed outcome. Otherwise keep polling until the
+					// deadline, then answer with whatever state is real at that moment.
+					boolean terminalFailure = "error".equalsIgnoreCase(state) || state.toLowerCase().startsWith("exception");
+					if (targetState.equalsIgnoreCase(state) || terminalFailure || System.currentTimeMillis() >= deadline) {
+						break;
+					}
+					try {
+						Thread.sleep(CONFIRM_POLL_INTERVAL_MS);
+					} catch (InterruptedException e) {
+						Thread.currentThread().interrupt();
+						break;
+					}
+				}
 
 				Map<String, String> out = new LinkedHashMap<>();
 				out.put("configuration", adapterInfo.path("configuration").asText(configuration));
@@ -149,6 +179,10 @@ public class AdapterControlServlet extends AbstractBearerServiceServlet {
 		} catch (RuntimeException e) {
 			logBusFailure("adapter-control", e);
 			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "adapter " + action + " failed: " + sanitizedReason(e));
+			return;
+		} catch (IOException e) {
+			logBusFailure("adapter-control", new RuntimeException(e));
+			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "adapter " + action + " failed: status response was not readable JSON");
 			return;
 		}
 		writeJson(resp, result);
