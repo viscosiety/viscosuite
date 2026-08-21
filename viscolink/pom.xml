@@ -21,7 +21,7 @@
 	-->
 
 	<properties>
-		<frankframework.version>10.3.0-20260811.042329</frankframework.version>
+		<frankframework.version>10.3.0-20260818.042330</frankframework.version>
 		<!-- Official wearefrank/ladybug build (nexus.frankframework.org), no fork.
 		     wearefrank/ladybug#814 (offset pagination) merged 2026-08-13 and is included as of
 		     this build; postMessage bridge for ViscoFlow deep-link (ladybug-openReport/-ping)
