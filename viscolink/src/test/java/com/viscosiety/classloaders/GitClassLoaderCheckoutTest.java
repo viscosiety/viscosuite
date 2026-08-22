@@ -119,12 +119,38 @@ class GitClassLoaderCheckoutTest {
     @Test
     void validateRefRejectsUnsafeNames() {
         assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("../etc"));
+        assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("a..b"));
         assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("-evil"));
         assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("a b"));
         assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef(""));
         assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef(null));
+        // git's own check-ref-format rules: ".lock" names git's ref lockfiles, and HEAD is a
+        // symbolic ref, not a branch (accepting it would make "switch to HEAD" a silent no-op).
+        assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("x.lock"));
+        assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("assistant/demo/x.lock"));
+        assertThrows(IllegalArgumentException.class, () -> GitClassLoader.validateRef("HEAD"));
         assertDoesNotThrow(() -> GitClassLoader.validateRef("assistant/demo/draft-abc123"));
         assertDoesNotThrow(() -> GitClassLoader.validateRef("main"));
+        // Fully-qualified forms stay valid here on purpose -- they are not traversal risks, and
+        // checkout() answers them with the more useful "does not exist on the remote".
+        assertDoesNotThrow(() -> GitClassLoader.validateRef("refs/heads/main"));
+        assertDoesNotThrow(() -> GitClassLoader.validateRef("origin/main"));
+    }
+
+    /**
+     * Only a bare branch name may reach the remote. Whether a ref is rejected by
+     * {@link GitClassLoader#validateRef} (HEAD, {@code a..b}, {@code x.lock}) or by the
+     * remote-branch resolution inside {@code checkout} ({@code refs/heads/main},
+     * {@code origin/main} -- checkout prefixes the remote name itself, so these resolve to
+     * nothing) matters to the servlet's status code, but not here: what must hold for all of them
+     * is that HEAD does not move.
+     */
+    @Test
+    void checkoutRejectsNonBranchRefs() {
+        for (String ref : new String[] { "refs/heads/main", "origin/main", "HEAD", "a..b", "x.lock" }) {
+            assertThrows(Exception.class, () -> loader.checkout(ref), "expected checkout to reject [" + ref + "]");
+            assertEquals("main", loader.currentRef(), "checkout of [" + ref + "] moved HEAD");
+        }
     }
 
     @Test

@@ -9,6 +9,8 @@ import java.util.regex.Pattern;
 
 import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.MergeCommand;
+import org.eclipse.jgit.api.PullResult;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
@@ -64,6 +66,15 @@ public class GitClassLoader extends AbstractClassLoader {
     private static final Pattern SAFE_REF = Pattern.compile("^[A-Za-z0-9._/-]+$");
 
     /**
+     * Socket timeout (seconds) for every network git operation — clone, fetch, pull. JGit's
+     * default is 0 = wait forever, and these calls run while the caller holds this classloader's
+     * monitor (the ref servlet serialises checkout and reload on it): a GitLab that accepts the
+     * connection and then goes silent would otherwise wedge every later checkout/reload on this
+     * configuration for the lifetime of the process, with no way back short of a pod restart.
+     */
+    static final int GIT_NETWORK_TIMEOUT_SECONDS = 30;
+
+    /**
      * Configuration name -&gt; live classloader. The ref servlet (org.frankframework.visco.security.
      * ConfigRefServlet) reaches the classloader through this registry rather than a Spring bean
      * lookup: whether IbisManager is visible from the servlet's root WebApplicationContext depends
@@ -95,13 +106,32 @@ public class GitClassLoader extends AbstractClassLoader {
     /**
      * Rejects anything that is not a plain branch name: git would refuse most of these too, but
      * the servlet accepts the value from the network and must never pass it to a shell-like path.
+     *
+     * <p>Note what is deliberately <em>not</em> rejected here: fully-qualified forms like
+     * {@code refs/heads/x} and {@code origin/x}. They are not traversal risks — {@link
+     * #checkout(String)} prefixes the remote name itself, so they simply fail to resolve and come
+     * back as a 409 "does not exist on the remote", which is the more useful answer than a 400.</p>
      */
     public static void validateRef(String ref) {
         if (ref == null || ref.isBlank() || !SAFE_REF.matcher(ref).matches() || ref.startsWith("-")) {
             throw new IllegalArgumentException("invalid git ref [" + ref + "]");
         }
+        // The literal HEAD is a symbolic ref, never a branch: accepting it would make "switch to
+        // HEAD" mean "switch to whatever is already checked out", a silent no-op the caller reads
+        // as a successful switch.
+        if (Constants.HEAD.equals(ref)) {
+            throw new IllegalArgumentException("invalid git ref [" + ref + "]");
+        }
+        // ".." anywhere, not just as a whole path component: git's own check-ref-format forbids
+        // the sequence outright (it is range syntax), and a per-segment test would let "a..b"
+        // through while catching "a/../b".
+        if (ref.contains("..")) {
+            throw new IllegalArgumentException("invalid git ref [" + ref + "]");
+        }
         for (String segment : ref.split("/")) {
-            if ("..".equals(segment) || segment.isEmpty()) {
+            // No empty component, and no component ending in ".lock" -- that suffix names git's
+            // own ref lockfiles, so git refuses to create such a branch in the first place.
+            if (segment.isEmpty() || segment.endsWith(".lock")) {
                 throw new IllegalArgumentException("invalid git ref [" + ref + "]");
             }
         }
@@ -243,7 +273,7 @@ public class GitClassLoader extends AbstractClassLoader {
     public synchronized void checkout(String ref) throws ClassLoaderException {
         validateRef(ref);
         try (Git git = Git.open(localDir)) {
-            var fetch = git.fetch().setRemote(Constants.DEFAULT_REMOTE_NAME);
+            var fetch = git.fetch().setRemote(Constants.DEFAULT_REMOTE_NAME).setTimeout(GIT_NETWORK_TIMEOUT_SECONDS);
             var creds = credentials();
             if (creds != null) fetch.setCredentialsProvider(creds);
             fetch.call();
@@ -371,7 +401,7 @@ public class GitClassLoader extends AbstractClassLoader {
             return;
         }
         log.info("[{}] cloning [{}] into [{}]", getConfigurationName(), repoUrl, localDir);
-        var clone = Git.cloneRepository().setURI(repoUrl).setDirectory(localDir);
+        var clone = Git.cloneRepository().setURI(repoUrl).setDirectory(localDir).setTimeout(GIT_NETWORK_TIMEOUT_SECONDS);
         var creds = credentials();
         if (creds != null) clone.setCredentialsProvider(creds);
         try (Git git = clone.call()) {
@@ -389,13 +419,28 @@ public class GitClassLoader extends AbstractClassLoader {
 
     private boolean pull() throws Exception {
         try (Git git = Git.open(localDir)) {
-            ObjectId before = git.getRepository().resolve("HEAD");
-            var pull = git.pull();
+            ObjectId before = git.getRepository().resolve(Constants.HEAD);
+            var pull = git.pull().setTimeout(GIT_NETWORK_TIMEOUT_SECONDS)
+                    // FF_ONLY: this clone is a read-only mirror of the branch, so the only
+                    // legitimate pull is a fast-forward. A force-pushed (rewritten) branch would
+                    // otherwise be silently *merged* into the local one, leaving the instance
+                    // running a commit that exists nowhere upstream. Failing is the honest
+                    // outcome -- non-fatal at clone-refresh time (cloneOrVerify keeps serving the
+                    // on-disk version), an exception out of reload() otherwise. Recovery is a
+                    // checkout of the branch, which hard-resets to the remote tip.
+                    .setFastForward(MergeCommand.FastForwardMode.FF_ONLY);
             var creds = credentials();
             if (creds != null) pull.setCredentialsProvider(creds);
-            pull.call();
-            ObjectId after = git.getRepository().resolve("HEAD");
-            return !before.equals(after);
+            PullResult result = pull.call();
+            if (!result.isSuccessful()) {
+                // JGit reports a refused FF_ONLY merge in the result rather than throwing.
+                throw new ClassLoaderException("git pull was not a fast-forward for configuration ["
+                        + getConfigurationName() + "] (branch rewritten upstream?): " + result);
+            }
+            ObjectId after = git.getRepository().resolve(Constants.HEAD);
+            // before == null is an unborn HEAD (empty clone): anything the pull brought in is a
+            // change, and null.equals() would NPE.
+            return before == null || !before.equals(after);
         }
     }
 }
