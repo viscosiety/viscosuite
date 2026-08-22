@@ -10,10 +10,10 @@ import java.util.regex.Pattern;
 import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
 import org.eclipse.jgit.api.ResetCommand.ResetType;
-import org.eclipse.jgit.api.errors.GitAPIException;
 import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import org.frankframework.configuration.ClassLoaderException;
@@ -50,6 +50,13 @@ import org.frankframework.util.AppConstants;
  * has advanced, {@code super.reload()} clears AppConstants and signals F!F to
  * re-read the configuration. If the repository is already up-to-date the reload
  * is a no-op — no unnecessary configuration restart occurs.
+ *
+ * {@link #checkout(String)} only moves the clone's HEAD to a different branch and clears this
+ * classloader's cached {@code AppConstants}; the real configuration reload is
+ * {@code IbisContext.reload(configurationName)}, dispatched by the ref servlet
+ * ({@code org.frankframework.visco.security.ConfigRefServlet}) after {@code checkout} returns.
+ * The static {@link #lookup(String)} registry exists because that servlet needs to reach a
+ * running instance's classloader without depending on Spring bean visibility from its context.
  */
 public class GitClassLoader extends AbstractClassLoader {
 
@@ -147,8 +154,31 @@ public class GitClassLoader extends AbstractClassLoader {
 
         log.info("[{}] GitClassLoader ready — local clone at [{}], resources at [{}]", configurationName, localDir, resourceDir);
 
-        defaultRef = resolveGitVersion();
+        defaultRef = readDefaultRef();
+        if (defaultRef == null) {
+            // Pre-existing clone from before visco.defaultRef was introduced: best effort, only
+            // correct as long as this configure() call is not itself running on a draft branch.
+            defaultRef = resolveGitVersion();
+        }
         REGISTRY.put(configurationName, this);
+    }
+
+    /**
+     * Reads the default branch persisted in the clone's git config ({@code visco.defaultRef},
+     * written once in {@link #cloneOrVerify()} right after the initial clone). Unlike
+     * {@link #resolveGitVersion()} this is stable across classloader recreation: F!F's real
+     * reload path destroys this instance and builds a new one whose {@code configure()} runs
+     * against whatever branch the clone happens to be on at that moment (e.g. a draft branch
+     * left checked out by a prior {@link #checkout(String)}) -- resolving "default" from the
+     * currently checked-out branch at that point would silently redefine it as the draft.
+     */
+    private String readDefaultRef() {
+        try (Git git = Git.open(localDir)) {
+            return git.getRepository().getConfig().getString("visco", null, "defaultRef");
+        } catch (Exception e) {
+            log.warn("[{}] could not read visco.defaultRef from git config", getConfigurationName(), e);
+            return null;
+        }
     }
 
     /**
@@ -190,7 +220,7 @@ public class GitClassLoader extends AbstractClassLoader {
     }
 
     @Override
-    public void reload() throws ClassLoaderException {
+    public synchronized void reload() throws ClassLoaderException {
         try {
             boolean changed = pull();
             if (changed) {
@@ -210,7 +240,7 @@ public class GitClassLoader extends AbstractClassLoader {
      * when HEAD advanced during the pull, and right after a checkout the pull reports "already
      * up to date". Fetch/checkout failures leave the clone on its previous ref.
      */
-    public void checkout(String ref) throws ClassLoaderException {
+    public synchronized void checkout(String ref) throws ClassLoaderException {
         validateRef(ref);
         try (Git git = Git.open(localDir)) {
             var fetch = git.fetch().setRemote(Constants.DEFAULT_REMOTE_NAME);
@@ -222,7 +252,7 @@ public class GitClassLoader extends AbstractClassLoader {
                 throw new ClassLoaderException("branch [" + ref + "] does not exist on the remote");
             }
             boolean localExists = git.getRepository().resolve(Constants.R_HEADS + ref) != null;
-            boolean isCurrent = ref.equals(currentRef());
+            boolean isCurrent = ref.equals(git.getRepository().getBranch());
             if (localExists && !isCurrent) {
                 // Re-point an existing local branch at the remote tip rather than keeping a stale one.
                 git.branchCreate().setName(ref).setStartPoint(remoteRef).setForce(true)
@@ -244,11 +274,13 @@ public class GitClassLoader extends AbstractClassLoader {
         } catch (Exception e) {
             throw new ClassLoaderException("git checkout [" + ref + "] failed for configuration [" + getConfigurationName() + "]", e);
         }
+        // super.reload() evicts the cached AppConstants instance first; set configuration.version
+        // on the fresh instance created afterwards, not the one about to be thrown away.
+        super.reload();
         String gitVersion = resolveGitVersion();
         if (gitVersion != null) {
             AppConstants.getInstance(this).setProperty("configuration.version", gitVersion);
         }
-        super.reload();
     }
 
     /** The currently checked-out branch name (falls back to the described tag/commit when detached). */
@@ -308,7 +340,7 @@ public class GitClassLoader extends AbstractClassLoader {
         return new UsernamePasswordCredentialsProvider(repoUsername, repoToken);
     }
 
-    private void cloneOrVerify() throws GitAPIException {
+    private void cloneOrVerify() throws Exception {
         if (new File(localDir, ".git").exists()) {
             // Refresh an existing clone so freshly-created classloaders (full reload, or a new
             // instance over a persisted clone) pick up upstream commits. A pull failure here is
@@ -325,7 +357,17 @@ public class GitClassLoader extends AbstractClassLoader {
         var clone = Git.cloneRepository().setURI(repoUrl).setDirectory(localDir);
         var creds = credentials();
         if (creds != null) clone.setCredentialsProvider(creds);
-        clone.call().close();
+        try (Git git = clone.call()) {
+            // Record the branch this clone started on so a later classloader recreation (F!F's
+            // real reload path) can still tell "default" from "draft" even when it runs
+            // configure() while the clone happens to be checked out on a draft branch.
+            String ref = resolveGitVersion();
+            if (ref != null) {
+                StoredConfig config = git.getRepository().getConfig();
+                config.setString("visco", null, "defaultRef", ref);
+                config.save();
+            }
+        }
     }
 
     private boolean pull() throws Exception {

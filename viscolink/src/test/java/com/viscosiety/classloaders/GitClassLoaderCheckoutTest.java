@@ -1,3 +1,19 @@
+/*
+ * Copyright 2026 Viscosiety B.V.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package com.viscosiety.classloaders;
 
 import java.io.File;
@@ -83,8 +99,12 @@ class GitClassLoaderCheckoutTest {
         assertFalse(loader.isDefaultRef());
         String content = Files.readString(tmp.resolve("clone/ff-configurations/demo/Configuration.xml"));
         assertTrue(content.contains("version=\"2\""));
-        // super.reload() evicted the cached AppConstants instance -- the next lookup is a new one.
-        assertNotSame(before, AppConstants.getInstance(loader));
+        // super.reload() evicted the cached AppConstants instance -- the next lookup is a new one,
+        // and configuration.version must be set on THAT fresh instance (checkout sets it after
+        // super.reload(), not before -- setting it before would just be evicted along with it).
+        AppConstants after = AppConstants.getInstance(loader);
+        assertNotSame(before, after);
+        assertEquals("assistant/demo/draft-abc123", after.getProperty("configuration.version"));
     }
 
     @Test
@@ -98,7 +118,9 @@ class GitClassLoaderCheckoutTest {
         assertTrue(loader.isDefaultRef());
         String content = Files.readString(tmp.resolve("clone/ff-configurations/demo/Configuration.xml"));
         assertTrue(content.contains("version=\"1\""));
-        assertNotSame(beforeSecondCheckout, AppConstants.getInstance(loader));
+        AppConstants afterSecondCheckout = AppConstants.getInstance(loader);
+        assertNotSame(beforeSecondCheckout, afterSecondCheckout);
+        assertEquals("main", afterSecondCheckout.getProperty("configuration.version"));
     }
 
     @Test
@@ -152,5 +174,31 @@ class GitClassLoaderCheckoutTest {
         assertEquals("assistant/demo/draft-abc123", loader.currentRef());
         String content = Files.readString(tmp.resolve("clone/ff-configurations/demo/Configuration.xml"));
         assertTrue(content.contains("version=\"3\""));
+    }
+
+    /**
+     * F!F's real reload ({@code IbisContext.reload(name)}) destroys this classloader instance
+     * and builds a brand new one over the same on-disk clone. If a draft branch was checked out
+     * at the time, that new instance's {@code configure()} must still recognise "main" as the
+     * default ref -- not redefine "default" as whatever branch the clone happens to be sitting on.
+     */
+    @Test
+    void defaultRefSurvivesClassloaderRecreation() throws Exception {
+        loader.checkout("assistant/demo/draft-abc123");
+        loader.destroy();
+
+        GitClassLoader recreated = new GitClassLoader(getClass().getClassLoader());
+        recreated.setRepoUrl(remote.toURI().toString());
+        recreated.setRepoSubdir("ff-configurations/demo");
+        recreated.setLocalPath(tmp.resolve("clone").toString());
+        recreated.configure(mock(IbisContext.class), "demo");
+        loader = recreated; // let tearDown destroy this instance too
+
+        assertEquals("assistant/demo/draft-abc123", recreated.currentRef());
+        assertFalse(recreated.isDefaultRef());
+
+        recreated.checkout("main");
+
+        assertTrue(recreated.isDefaultRef());
     }
 }
