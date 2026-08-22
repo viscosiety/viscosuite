@@ -99,13 +99,18 @@ class ConfigRefServletTest {
 
 	@AfterEach
 	void tearDown() throws Exception {
-		// The reload gate and its executor are static, so a test that left a task running would get
-		// every later test answered 409 reload-in-progress. Every test that blocks the worker
-		// releases it itself; this is the backstop that stops one failure from cascading.
-		awaitReloadIdle();
-		loader.destroy();
-		SecurityContextHolder.clearContext();
-		AppConstants.getInstance().remove(ConfigRefServlet.SECURITY_ROLES_PROPERTY);
+		try {
+			loader.destroy();
+			SecurityContextHolder.clearContext();
+			AppConstants.getInstance().remove(ConfigRefServlet.SECURITY_ROLES_PROPERTY);
+		} finally {
+			// The reload gate and its executor are static, so a test that left a task running would
+			// get every later test answered 409 reload-in-progress. Every test that blocks the
+			// worker releases it itself; this is the backstop that stops one failure from
+			// cascading. Last, and in a finally: it ends in an assertion, and a tripped backstop
+			// must not be the reason this test's own state is left behind for the next one.
+			awaitReloadIdle();
+		}
 	}
 
 	/** A response mock whose body lands in {@code sink} -- one per call, so a test can drive two requests. */

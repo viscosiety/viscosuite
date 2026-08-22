@@ -413,13 +413,6 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 	}
 
 	/**
-	 * 409, not 404: 404 on this endpoint means "no such endpoint" (an instance whose image predates
-	 * it), and a client that cannot tell the two apart will report "unsupported instance" for what
-	 * is really a transient state. A configuration missing from the registry is exactly that --
-	 * either a reload is between destroy() and configure(), or its classloader failed to configure
-	 * -- so it is a conflict with the instance's current state, and retryable.
-	 */
-	/**
 	 * 409 for "the instance is busy with the last switch". Distinct {@code code} from
 	 * {@link #CODE_NOT_REGISTERED} because the two want different client behaviour: this one is a
 	 * plain retry-after-the-reload-settles, and {@code "ref"} tells the caller which branch it is
@@ -434,6 +427,13 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 		writeJson(resp, error);
 	}
 
+	/**
+	 * 409, not 404: 404 on this endpoint means "no such endpoint" (an instance whose image predates
+	 * it), and a client that cannot tell the two apart will report "unsupported instance" for what
+	 * is really a transient state. A configuration missing from the registry is exactly that --
+	 * either a reload is between destroy() and configure(), or its classloader failed to configure
+	 * -- so it is a conflict with the instance's current state, and retryable.
+	 */
 	private void sendNotRegistered(HttpServletResponse resp, String configuration) throws IOException {
 		Map<String, Object> error = new LinkedHashMap<>();
 		error.put("error", "no git-backed configuration named [" + configuration
