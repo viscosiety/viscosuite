@@ -3,9 +3,15 @@ package com.viscosiety.classloaders;
 import java.io.File;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
 
+import org.eclipse.jgit.api.CreateBranchCommand;
 import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.ResetCommand.ResetType;
 import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.lib.Constants;
 import org.eclipse.jgit.lib.ObjectId;
 import org.eclipse.jgit.lib.Repository;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
@@ -47,6 +53,17 @@ import org.frankframework.util.AppConstants;
  */
 public class GitClassLoader extends AbstractClassLoader {
 
+    /** Ref names accepted by {@link #checkout(String)}: plain git branch-name characters only. */
+    private static final Pattern SAFE_REF = Pattern.compile("^[A-Za-z0-9._/-]+$");
+
+    /**
+     * Configuration name -&gt; live classloader. The ref servlet (org.frankframework.visco.security.
+     * ConfigRefServlet) reaches the classloader through this registry rather than a Spring bean
+     * lookup: whether IbisManager is visible from the servlet's root WebApplicationContext depends
+     * on the console/app context topology, while a static map has no such dependency.
+     */
+    private static final Map<String, GitClassLoader> REGISTRY = new ConcurrentHashMap<>();
+
     private String repoUrl;
     private String repoUsername = "oauth2";
     private String repoToken = "";
@@ -56,8 +73,31 @@ public class GitClassLoader extends AbstractClassLoader {
     private File localDir;
     private File resourceDir;
 
+    /** Branch name the clone started on (origin's HEAD); what "return to main" means for this instance. */
+    private String defaultRef;
+
     public GitClassLoader(ClassLoader parent) {
         super(parent);
+    }
+
+    /** The registered classloader for a configuration, or null when none (non-git configuration or not yet configured). */
+    public static GitClassLoader lookup(String configurationName) {
+        return configurationName == null ? null : REGISTRY.get(configurationName);
+    }
+
+    /**
+     * Rejects anything that is not a plain branch name: git would refuse most of these too, but
+     * the servlet accepts the value from the network and must never pass it to a shell-like path.
+     */
+    public static void validateRef(String ref) {
+        if (ref == null || ref.isBlank() || !SAFE_REF.matcher(ref).matches() || ref.startsWith("-")) {
+            throw new IllegalArgumentException("invalid git ref [" + ref + "]");
+        }
+        for (String segment : ref.split("/")) {
+            if ("..".equals(segment) || segment.isEmpty()) {
+                throw new IllegalArgumentException("invalid git ref [" + ref + "]");
+            }
+        }
     }
 
     @Override
@@ -106,6 +146,9 @@ public class GitClassLoader extends AbstractClassLoader {
         }
 
         log.info("[{}] GitClassLoader ready — local clone at [{}], resources at [{}]", configurationName, localDir, resourceDir);
+
+        defaultRef = resolveGitVersion();
+        REGISTRY.put(configurationName, this);
     }
 
     /**
@@ -159,6 +202,72 @@ public class GitClassLoader extends AbstractClassLoader {
         } catch (Exception e) {
             throw new ClassLoaderException("git pull failed for configuration [" + getConfigurationName() + "]", e);
         }
+    }
+
+    /**
+     * Switches the clone to {@code ref} (a remote branch) and reloads the configuration
+     * unconditionally. The pull-based {@link #reload()} cannot be reused here: it only reloads
+     * when HEAD advanced during the pull, and right after a checkout the pull reports "already
+     * up to date". Fetch/checkout failures leave the clone on its previous ref.
+     */
+    public void checkout(String ref) throws ClassLoaderException {
+        validateRef(ref);
+        try (Git git = Git.open(localDir)) {
+            var fetch = git.fetch().setRemote(Constants.DEFAULT_REMOTE_NAME);
+            var creds = credentials();
+            if (creds != null) fetch.setCredentialsProvider(creds);
+            fetch.call();
+            String remoteRef = Constants.DEFAULT_REMOTE_NAME + "/" + ref;
+            if (git.getRepository().resolve(Constants.R_REMOTES + remoteRef) == null) {
+                throw new ClassLoaderException("branch [" + ref + "] does not exist on the remote");
+            }
+            boolean localExists = git.getRepository().resolve(Constants.R_HEADS + ref) != null;
+            boolean isCurrent = ref.equals(currentRef());
+            if (localExists && !isCurrent) {
+                // Re-point an existing local branch at the remote tip rather than keeping a stale one.
+                git.branchCreate().setName(ref).setStartPoint(remoteRef).setForce(true)
+                        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.SET_UPSTREAM).call();
+            }
+            if (!localExists) {
+                git.checkout().setName(ref).setCreateBranch(true).setStartPoint(remoteRef)
+                        .setUpstreamMode(CreateBranchCommand.SetupUpstreamMode.SET_UPSTREAM).call();
+            } else if (isCurrent) {
+                // JGit refuses to force-move the branch that is currently checked out via
+                // branchCreate(); reset the checked-out branch itself to the remote tip instead.
+                git.reset().setMode(ResetType.HARD).setRef(remoteRef).call();
+            } else {
+                git.checkout().setName(ref).call();
+            }
+            log.info("[{}] checked out ref [{}] -- reloading configuration", getConfigurationName(), ref);
+        } catch (ClassLoaderException e) {
+            throw e;
+        } catch (Exception e) {
+            throw new ClassLoaderException("git checkout [" + ref + "] failed for configuration [" + getConfigurationName() + "]", e);
+        }
+        String gitVersion = resolveGitVersion();
+        if (gitVersion != null) {
+            AppConstants.getInstance(this).setProperty("configuration.version", gitVersion);
+        }
+        super.reload();
+    }
+
+    /** The currently checked-out branch name (falls back to the described tag/commit when detached). */
+    public String currentRef() {
+        return resolveGitVersion();
+    }
+
+    /** True when the clone is on the branch it was originally cloned from. */
+    public boolean isDefaultRef() {
+        String current = currentRef();
+        return current != null && current.equals(defaultRef);
+    }
+
+    @Override
+    public void destroy() {
+        if (getConfigurationName() != null) {
+            REGISTRY.remove(getConfigurationName(), this);
+        }
+        super.destroy();
     }
 
     // --- property setters (auto-wired by ClassLoaderManager.applyConfigurationProperties) ---
