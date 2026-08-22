@@ -166,11 +166,34 @@ class ConfigRefServletTest {
 
 	@Test
 	void putWithoutConsoleContextIs503AfterCheckout() throws Exception {
-		// No WebApplicationContext registered: checkout still happened (HEAD moved) but the
-		// reload could not be dispatched -- the caller must learn that (503), not get a 200.
+		// A real ServletContext (HttpServletRequest.getServletContext() is never null in a
+		// container) but no root WebApplicationContext registered on it yet -- getAttribute(...)
+		// defaults to null on the mock, exercising AbstractBearerServiceServlet.lookupConsoleBean's
+		// existing null-context branch. Checkout still happened (HEAD moved) but the reload could
+		// not be dispatched -- the caller must learn that (503), not get a 200.
+		when(request.getServletContext()).thenReturn(servletContext);
 		givenBody("{\"configuration\":\"tenant\",\"ref\":\"assistant/demo/draft-abc123\"}");
 		servlet.doPut(request, response);
-		verify(response).sendError(eq(HttpServletResponse.SC_SERVICE_UNAVAILABLE), anyString());
+		ArgumentCaptor<String> reason = ArgumentCaptor.forClass(String.class);
+		verify(response).sendError(eq(HttpServletResponse.SC_SERVICE_UNAVAILABLE), reason.capture());
+		assertTrue(reason.getValue().contains("retry"));
+	}
+
+	@Test
+	void putBusDispatchFailureIs502AndReportsNewRef() throws Exception {
+		// HEAD already moved by the time the bus call fails -- an uncaught RuntimeException from
+		// callAsyncGateway must not surface as a raw container 500; the caller must be told the
+		// checkout succeeded and see the ref it now sits on.
+		givenConsoleContextWithFrankApiService();
+		givenBody("{\"configuration\":\"tenant\",\"ref\":\"assistant/demo/draft-abc123\"}");
+		doThrow(new RuntimeException("bus offline")).when(frankApiService).callAsyncGateway(any());
+
+		servlet.doPut(request, response);
+
+		ArgumentCaptor<String> reason = ArgumentCaptor.forClass(String.class);
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_GATEWAY), reason.capture());
+		assertTrue(reason.getValue().contains("assistant/demo/draft-abc123"));
+		assertEquals("assistant/demo/draft-abc123", loader.currentRef());
 	}
 
 	@Test
@@ -193,8 +216,10 @@ class ConfigRefServletTest {
 		JsonNode body = json();
 		assertTrue(body.get("error").asText().contains(branch));
 		assertTrue(body.get("error").asText().contains("ff-configurations/demo"));
-		// Checkout succeeded before the subdir check failed -- the revert must put HEAD back.
+		// Checkout succeeded before the subdir check failed -- the revert must put HEAD back, and
+		// the body's own "ref" must say so (visible even if a revert ever failed).
 		assertEquals("main", loader.currentRef());
+		assertEquals("main", body.get("ref").asText());
 		verifyNoInteractions(frankApiService);
 	}
 

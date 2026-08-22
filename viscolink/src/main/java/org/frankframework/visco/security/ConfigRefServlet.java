@@ -144,7 +144,9 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			// The clone stays on its previous ref (checkout fails before moving HEAD); tell the
 			// caller why in one sanitised line -- never a stack trace into a chat transcript.
 			logBusFailure("configRef checkout", e);
-			sendConflict(resp, sanitizedReason(e));
+			Map<String, Object> error = new LinkedHashMap<>();
+			error.put("error", sanitizedReason(e));
+			sendConflict(resp, error);
 			return;
 		}
 
@@ -158,7 +160,12 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			} catch (Exception revertFailure) {
 				logBusFailure("configRef revert after missing " + loader.getRepoSubdir() + " directory", revertFailure);
 			}
-			sendConflict(resp, "branch [" + ref + "] has no " + loader.getRepoSubdir() + " directory");
+			// "ref" reports where the instance actually ended up -- if the revert itself failed
+			// (logged above, not surfaced) this is NOT previousRef, and the caller must see that.
+			Map<String, Object> error = new LinkedHashMap<>();
+			error.put("error", "branch [" + ref + "] has no " + loader.getRepoSubdir() + " directory");
+			error.put("ref", loader.currentRef());
+			sendConflict(resp, error);
 			return;
 		}
 
@@ -169,23 +176,32 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 		// name reaches IbisContext.reload(name) (only the *ALL* sentinel is the silent no-op).
 		FrankApiService frankApiService = lookupConsoleBean(req, FrankApiService.class);
 		if (frankApiService == null) {
-			resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "console services not initialised");
+			resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "ref switched to [" + loader.currentRef()
+					+ "] but the configuration reload could not be dispatched (console not initialised) -- retry");
 			return;
 		}
-		callElevated(req, resp, () -> {
-			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
-			builder.addHeader("action", Action.RELOAD.name());
-			builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
-			frankApiService.callAsyncGateway(builder);
-			return null;
-		});
+		try {
+			callElevated(req, resp, () -> {
+				RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
+				builder.addHeader("action", Action.RELOAD.name());
+				builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
+				frankApiService.callAsyncGateway(builder);
+				return null;
+			});
+		} catch (RuntimeException e) {
+			// HEAD already moved by this point -- an uncaught BusException/ApiException here would
+			// otherwise surface as a raw container 500 with no indication the checkout itself
+			// succeeded. Same pattern as TestPipelineServlet/AdapterControlServlet.
+			logBusFailure("configRef reload", e);
+			resp.sendError(HttpServletResponse.SC_BAD_GATEWAY, "configuration reload could not be dispatched (ref is now ["
+					+ loader.currentRef() + "]): " + sanitizedReason(e));
+			return;
+		}
 		writeJson(resp, state(configuration, loader));
 	}
 
-	private void sendConflict(HttpServletResponse resp, String reason) throws IOException {
+	private void sendConflict(HttpServletResponse resp, Map<String, Object> error) throws IOException {
 		resp.setStatus(HttpServletResponse.SC_CONFLICT);
-		Map<String, Object> error = new LinkedHashMap<>();
-		error.put("error", reason);
 		writeJson(resp, error);
 	}
 
