@@ -24,6 +24,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.locks.ReentrantLock;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -82,10 +84,27 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * with no such binding, and is what {@link AdapterControlServlet} already dispatches IBISACTION
  * through.</p>
  *
- * <p>Checkout and reload are serialised on the classloader's own monitor: HEAD must not move again
- * while a reload is reading the working tree, and the reload's own {@code git pull} must not race
- * a concurrent checkout. The single-thread executor orders the dispatches; {@code synchronized
- * (loader)} on both sides orders them against the checkouts.</p>
+ * <p><b>Lock order: never hold a {@link GitClassLoader} monitor while calling into the bus or
+ * {@code IbisContext}.</b> F!F takes those two locks in exactly that order -- {@code
+ * IbisContext.reload(String)} is synchronized and calls the synchronized {@code
+ * GitClassLoader.reload()} from inside it -- so a thread holding the classloader monitor while
+ * waiting on an inline bus reload inverts the order, and any concurrent per-configuration reload
+ * (the console's own reload button, {@code CheckReloadJob}, {@code ReloadSender}) deadlocks both
+ * threads permanently. The reload worker therefore takes no loader monitor at all; the pull inside
+ * the reload is already serialised by {@code GitClassLoader.reload()} being synchronized.</p>
+ *
+ * <p>What this servlet serialises instead is its own work, with locks it fully owns and never
+ * holds across a call into F!F:</p>
+ * <ul>
+ * <li>{@link #SWITCH_LOCK} makes one checkout sequence (checkout, subdir check, revert, dispatch)
+ * atomic against another. It is taken with {@code tryLock()}, never blockingly: a request thread
+ * that cannot have it immediately answers 409 rather than parking.</li>
+ * <li>{@link #inFlightReload} rejects a ref switch while a reload dispatched here is still queued
+ * or running -- checking out mid-reload would have F!F digest a tree that changed underneath it,
+ * and blocking the second PUT until the reload finished would hit the same 60s proxy timeout the
+ * async dispatch exists to avoid. GET reports the same flag as {@code "reloading"} so a poller can
+ * tell "still reloading" from "settled".</li>
+ * </ul>
  */
 @IbisInitializer
 public class ConfigRefServlet extends AbstractBearerServiceServlet {
@@ -100,6 +119,9 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 
 	/** JSON {@code code} on the "this configuration is not in the registry" 409 -- see {@link #sendNotRegistered}. */
 	static final String CODE_NOT_REGISTERED = "configuration-not-registered";
+
+	/** JSON {@code code} on the "a reload or another switch is already running" 409 -- see {@link #sendReloadInProgress}. */
+	static final String CODE_RELOAD_IN_PROGRESS = "reload-in-progress";
 
 	/**
 	 * Satisfies {@code HandleIbisManagerAction}'s {@code @RolesAllowed} for RELOAD. A field rather
@@ -121,6 +143,21 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 		thread.setDaemon(true);
 		return thread;
 	});
+
+	/**
+	 * Guards one ref-switch sequence against another (see class javadoc). Static because it guards
+	 * this servlet's own single-flight behaviour, not any one classloader -- and deliberately NOT a
+	 * classloader monitor, which must never be held across the dispatch.
+	 */
+	private static final ReentrantLock SWITCH_LOCK = new ReentrantLock();
+
+	/**
+	 * The reload dispatched by the most recent successful PUT, or null once no reload has been
+	 * dispatched since the last one finished. Written under {@link #SWITCH_LOCK} by the request
+	 * thread and cleared by the worker itself; {@code volatile} so a poller on any thread sees the
+	 * change. Read through {@link #reloadInProgress()}, never directly.
+	 */
+	private static volatile Future<?> inFlightReload;
 
 	@Override
 	public String getName() {
@@ -148,12 +185,23 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 		String configuration = req.getParameter("configuration");
-		GitClassLoader loader = configuration == null ? null : GitClassLoader.lookup(configuration);
+		if (configuration == null || configuration.isBlank()) {
+			// A malformed request, not a statement about any configuration -- answering it with the
+			// 409 below would report "no git-backed configuration named [null] registered", which
+			// reads like a real (and retryable) instance state rather than a caller bug.
+			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "configuration is required");
+			return;
+		}
+		GitClassLoader loader = GitClassLoader.lookup(configuration);
 		if (loader == null) {
 			sendNotRegistered(resp, configuration);
 			return;
 		}
-		writeJson(resp, state(configuration, loader));
+		Map<String, Object> out = state(configuration, loader);
+		// The ref is already switched while the reload that follows it is still running, so "ref"
+		// alone cannot tell a poller whether the instance has actually settled on it yet.
+		out.put("reloading", reloadInProgress());
+		writeJson(resp, out);
 	}
 
 	@Override
@@ -197,13 +245,32 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 		// runs on a worker with its own (empty) SecurityContext and cannot ask who called.
 		String callerName = SecurityContextHolder.getContext().getAuthentication().getName();
 
+		// A reload we dispatched is still queued or running: moving HEAD now would have F!F digest
+		// a working tree that changes underneath it. Answered before touching the lock, and
+		// crucially without touching HEAD -- the caller retries once the instance has settled.
+		if (reloadInProgress()) {
+			sendReloadInProgress(resp, loader);
+			return;
+		}
+
 		// Everything that moves HEAD, inspects the result, or hands the result to the reloader is
-		// one atomic step against this classloader -- the same monitor GitClassLoader#checkout and
-		// #reload lock (so it is re-entrant here), and the one the reload task re-takes. Without
-		// it, a second PUT could move HEAD between this checkout and its subdir check, or between
-		// the check and the dispatch, and the reload would load a branch nobody asked for. Revert
-		// paths are inside for the same reason: reverting must not undo someone else's checkout.
-		synchronized (loader) {
+		// one atomic step: without it, a second PUT could move HEAD between this checkout and its
+		// subdir check, or between the check and the dispatch, and the reload would load a branch
+		// nobody asked for. Revert paths are inside for the same reason -- reverting must not undo
+		// someone else's checkout. tryLock, not lock: a request thread must never park here (the
+		// whole point of the async dispatch is that this endpoint answers promptly), and it must
+		// never be a loader monitor (see the class javadoc on lock order).
+		if (!SWITCH_LOCK.tryLock()) {
+			sendReloadInProgress(resp, loader);
+			return;
+		}
+		try {
+			// Re-check under the lock: between the check above and acquiring it, the thread that
+			// held the lock may have dispatched a reload of its own.
+			if (reloadInProgress()) {
+				sendReloadInProgress(resp, loader);
+				return;
+			}
 			String previousRef = loader.currentRef();
 			try {
 				loader.checkout(ref);
@@ -247,7 +314,7 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 				return;
 			}
 			try {
-				RELOAD_EXECUTOR.submit(() -> dispatchReload(gateway, loader, configuration, callerName));
+				inFlightReload = RELOAD_EXECUTOR.submit(() -> dispatchReload(gateway, configuration, callerName));
 			} catch (RuntimeException e) {
 				// RejectedExecutionException (executor shut down / queue refused). Same reasoning
 				// as the 503 above: no reload is coming, so do not leave HEAD moved.
@@ -265,7 +332,15 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			accepted.put("reloading", true);
 			resp.setStatus(HttpServletResponse.SC_ACCEPTED);
 			writeJson(resp, accepted);
+		} finally {
+			SWITCH_LOCK.unlock();
 		}
+	}
+
+	/** True while a reload this servlet dispatched is still queued or running. */
+	static boolean reloadInProgress() {
+		Future<?> inFlight = inFlightReload;
+		return inFlight != null && !inFlight.isDone();
 	}
 
 	/**
@@ -274,11 +349,16 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 	 * binding, which would be a lie out here (the request is long over) and is only needed by the
 	 * session-scoped beans this deliberately does not touch.
 	 *
+	 * <p>Takes no {@link GitClassLoader} monitor: {@code sendAsyncMessage} runs the reload inline,
+	 * and F!F locks {@code IbisContext} before the classloader, so holding one here would invert
+	 * the order against every other reload path in the process. See the class javadoc.</p>
+	 *
 	 * <p>The HTTP response went out before this ran, so a failure has no one left to tell: log it
-	 * and stop. {@link Throwable}, not {@link Exception} -- an Error escaping a task on this
-	 * single-thread executor would kill the worker silently and every later reload with it.</p>
+	 * and stop. {@link Throwable}, not {@link Exception} -- {@code submit} captures whatever
+	 * escapes into the {@link Future} nobody here inspects, so an uncaught Error would otherwise
+	 * vanish without a trace in the log.</p>
 	 */
-	private static void dispatchReload(OutboundGateway gateway, GitClassLoader loader, String configuration, String callerName) {
+	private static void dispatchReload(OutboundGateway gateway, String configuration, String callerName) {
 		try {
 			SecurityContext elevated = SecurityContextHolder.createEmptyContext();
 			List<SimpleGrantedAuthority> authorities = Arrays.stream(ELEVATED_ROLES)
@@ -290,17 +370,18 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			RequestMessageBuilder builder = RequestMessageBuilder.create(BusTopic.IBISACTION);
 			builder.addHeader("action", Action.RELOAD.name());
 			builder.addHeader(BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY, configuration);
-			// Inside the monitor: sendAsyncMessage runs the reload inline (see class javadoc), and
-			// the reload re-reads the working tree and pulls -- neither may race a new checkout.
-			synchronized (loader) {
-				gateway.sendAsyncMessage(builder.build(null));
-			}
+			// Runs the reload inline (see class javadoc) -- and holds no loader monitor while it
+			// does, which is what keeps it out of the deadlock with F!F's own reload paths.
+			gateway.sendAsyncMessage(builder.build(null));
 		} catch (Throwable t) {
 			log.warn("configRef reload dispatch for configuration [{}] failed", configuration, t);
 		} finally {
-			// Worker threads are pooled: a leftover elevated context would be inherited by the
-			// next reload task, which sets its own anyway, but not by accident.
+			// The one worker thread is reused: a leftover elevated context would be inherited by
+			// the next reload task, which sets its own anyway, but not by accident.
 			SecurityContextHolder.clearContext();
+			// Reopens the endpoint to the next ref switch. Deliberately last, and in a finally:
+			// a task that died still has to clear the gate, or every later PUT answers 409.
+			inFlightReload = null;
 		}
 	}
 
@@ -338,6 +419,21 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 	 * either a reload is between destroy() and configure(), or its classloader failed to configure
 	 * -- so it is a conflict with the instance's current state, and retryable.
 	 */
+	/**
+	 * 409 for "the instance is busy with the last switch". Distinct {@code code} from
+	 * {@link #CODE_NOT_REGISTERED} because the two want different client behaviour: this one is a
+	 * plain retry-after-the-reload-settles, and {@code "ref"} tells the caller which branch it is
+	 * settling on -- which may already be the one they just asked for.
+	 */
+	private void sendReloadInProgress(HttpServletResponse resp, GitClassLoader loader) throws IOException {
+		Map<String, Object> error = new LinkedHashMap<>();
+		error.put("error", "configuration reload in progress -- retry");
+		error.put("code", CODE_RELOAD_IN_PROGRESS);
+		error.put("ref", loader.currentRef());
+		resp.setStatus(HttpServletResponse.SC_CONFLICT);
+		writeJson(resp, error);
+	}
+
 	private void sendNotRegistered(HttpServletResponse resp, String configuration) throws IOException {
 		Map<String, Object> error = new LinkedHashMap<>();
 		error.put("error", "no git-backed configuration named [" + configuration

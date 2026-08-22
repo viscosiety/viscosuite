@@ -26,6 +26,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.ServletContext;
@@ -55,6 +56,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.Message;
 import org.springframework.security.authentication.TestingAuthenticationToken;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.context.WebApplicationContext;
@@ -79,30 +81,53 @@ class ConfigRefServletTest {
 	private HttpServletResponse response;
 	private ByteArrayOutputStream responseBody;
 
+	/** Messages the reload worker actually sent, and the SecurityContext it held while sending. */
+	private final BlockingQueue<Message<?>> dispatched = new LinkedBlockingQueue<>();
+	private final AtomicReference<Authentication> dispatchAuth = new AtomicReference<>();
+
 	@BeforeEach
 	void setUp() throws Exception {
 		servlet = new ConfigRefServlet();
 		AppConstants.getInstance().setProperty(ConfigRefServlet.SECURITY_ROLES_PROPERTY, REQUIRED_ROLE);
 		loader = TempGitRepo.configuredLoader(tmp, mock(IbisContext.class), "tenant");
 		request = mock(HttpServletRequest.class);
-		response = mock(HttpServletResponse.class);
 		responseBody = new ByteArrayOutputStream();
-		// Only the happy-path / 409 tests actually write a JSON body; sendError-only tests never
-		// touch getOutputStream() at all, so this stub must be lenient under strict-stub checking.
-		lenient().when(response.getOutputStream()).thenReturn(new ServletOutputStream() {
-			@Override public boolean isReady() { return true; }
-			@Override public void setWriteListener(WriteListener l) {}
-			@Override public void write(int b) { responseBody.write(b); }
-		});
+		response = newResponse(responseBody);
 		SecurityContextHolder.getContext().setAuthentication(new TestingAuthenticationToken(
 				"svc", "n/a", List.of(new SimpleGrantedAuthority("ROLE_" + REQUIRED_ROLE))));
 	}
 
 	@AfterEach
-	void tearDown() {
+	void tearDown() throws Exception {
+		// The reload gate and its executor are static, so a test that left a task running would get
+		// every later test answered 409 reload-in-progress. Every test that blocks the worker
+		// releases it itself; this is the backstop that stops one failure from cascading.
+		awaitReloadIdle();
 		loader.destroy();
 		SecurityContextHolder.clearContext();
 		AppConstants.getInstance().remove(ConfigRefServlet.SECURITY_ROLES_PROPERTY);
+	}
+
+	/** A response mock whose body lands in {@code sink} -- one per call, so a test can drive two requests. */
+	private HttpServletResponse newResponse(ByteArrayOutputStream sink) throws IOException {
+		HttpServletResponse resp = mock(HttpServletResponse.class);
+		// Only the happy-path / 409 tests actually write a JSON body; sendError-only tests never
+		// touch getOutputStream() at all, so this stub must be lenient under strict-stub checking.
+		lenient().when(resp.getOutputStream()).thenReturn(new ServletOutputStream() {
+			@Override public boolean isReady() { return true; }
+			@Override public void setWriteListener(WriteListener l) {}
+			@Override public void write(int b) { sink.write(b); }
+		});
+		return resp;
+	}
+
+	/** Blocks until no reload dispatched by the servlet is queued or running. */
+	private static void awaitReloadIdle() throws InterruptedException {
+		long deadline = System.currentTimeMillis() + 5_000;
+		while (ConfigRefServlet.reloadInProgress() && System.currentTimeMillis() < deadline) {
+			Thread.sleep(10);
+		}
+		assertFalse(ConfigRefServlet.reloadInProgress(), "a reload task was still in flight after 5s");
 	}
 
 	private void givenBody(String json) throws IOException {
@@ -132,15 +157,19 @@ class ConfigRefServletTest {
 	}
 
 	/**
-	 * Records every message the servlet's reload worker sends. The dispatch is asynchronous
-	 * (see {@link ConfigRefServlet}'s javadoc: an inline bus reload would blow past the 60s nginx
-	 * timeout), so tests take the message off this queue with a timeout rather than asserting
-	 * straight after {@code doPut}.
+	 * Records every message the servlet's reload worker sends, plus the {@link Authentication} the
+	 * worker held while sending it. The dispatch is asynchronous (see {@link ConfigRefServlet}'s
+	 * javadoc: an inline bus reload would blow past the 60s nginx timeout), so tests take the
+	 * message off {@link #dispatched} with a timeout rather than asserting straight after
+	 * {@code doPut}. Both are recorded rather than asserted on the worker thread: an assertion
+	 * failure there would be swallowed by the servlet's catch-and-log and resurface only as a
+	 * missing message.
 	 */
-	private BlockingQueue<Message<?>> recordDispatches() {
-		BlockingQueue<Message<?>> sent = new LinkedBlockingQueue<>();
-		doAnswer(invocation -> sent.add(invocation.getArgument(0))).when(gateway).sendAsyncMessage(any());
-		return sent;
+	private void recordDispatches() {
+		doAnswer(invocation -> {
+			dispatchAuth.set(SecurityContextHolder.getContext().getAuthentication());
+			return dispatched.add(invocation.getArgument(0));
+		}).when(gateway).sendAsyncMessage(any());
 	}
 
 	@Test
@@ -151,6 +180,18 @@ class ConfigRefServletTest {
 		assertEquals("tenant", body.get("configuration").asText());
 		assertEquals("main", body.get("ref").asText());
 		assertTrue(body.get("isDefault").asBoolean());
+		assertFalse(body.get("reloading").asBoolean());
+	}
+
+	/**
+	 * 400, not the 409 below: a request with no configuration at all is a caller bug, and
+	 * answering it with "no git-backed configuration named [null] registered" would read like a
+	 * real -- and retryable -- instance state.
+	 */
+	@Test
+	void getWithoutConfigurationParameterIs400() throws Exception {
+		servlet.doGet(request, response);
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
 	}
 
 	/**
@@ -179,7 +220,7 @@ class ConfigRefServletTest {
 	@Test
 	void putChecksOutBranchAndDispatchesNamedReloadAsynchronously() throws Exception {
 		givenConsoleContextWithGateway();
-		BlockingQueue<Message<?>> sent = recordDispatches();
+		recordDispatches();
 		givenBody("{\"configuration\":\"tenant\",\"ref\":\"assistant/demo/draft-abc123\"}");
 
 		servlet.doPut(request, response);
@@ -196,10 +237,92 @@ class ConfigRefServletTest {
 		// Moving HEAD alone reloads nothing: the servlet must dispatch a NAMED RELOAD so
 		// IbisContext.reload("tenant") runs (unload + load). *ALL* would be the silent no-op.
 		// It arrives on the reload worker, hence the wait rather than a bare verify().
-		Message<?> message = sent.poll(5, TimeUnit.SECONDS);
+		Message<?> message = dispatched.poll(5, TimeUnit.SECONDS);
 		assertNotNull(message, "reload was not dispatched within 5s");
 		assertEquals(Action.RELOAD.name(), message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + "action"));
 		assertEquals("tenant", message.getHeaders().get(BusMessageUtils.HEADER_PREFIX + BusMessageUtils.HEADER_CONFIGURATION_NAME_KEY));
+
+		// The elevation has to reach the bus, not just be built: HandleIbisManagerAction's
+		// @RolesAllowed rejects the tenant's own role, and the bus's "on request of [...]" audit
+		// logging has to still name the real caller rather than the elevated principal.
+		Authentication workerAuth = dispatchAuth.get();
+		assertNotNull(workerAuth, "reload worker sent with no SecurityContext at all");
+		assertEquals("svc", workerAuth.getName());
+		assertTrue(workerAuth.getAuthorities().stream().anyMatch(a -> "ROLE_IbisAdmin".equals(a.getAuthority())),
+				"reload worker did not carry ROLE_IbisAdmin, got " + workerAuth.getAuthorities());
+	}
+
+	/**
+	 * A second switch while the first one's reload is still running would have F!F digest a
+	 * working tree changing underneath it -- and blocking the request until the reload finished
+	 * would hit the very proxy timeout the async dispatch exists to avoid. So: 409, promptly, with
+	 * HEAD untouched.
+	 */
+	@Test
+	void putDuringAnInFlightReloadIs409AndLeavesHeadAlone() throws Exception {
+		givenConsoleContextWithGateway();
+		CountDownLatch dispatchStarted = new CountDownLatch(1);
+		CountDownLatch releaseWorker = new CountDownLatch(1);
+		doAnswer(invocation -> {
+			dispatchStarted.countDown();
+			assertTrue(releaseWorker.await(5, TimeUnit.SECONDS), "worker was never released");
+			return null;
+		}).when(gateway).sendAsyncMessage(any());
+
+		givenBody("{\"configuration\":\"tenant\",\"ref\":\"assistant/demo/draft-abc123\"}");
+		servlet.doPut(request, response);
+		verify(response).setStatus(HttpServletResponse.SC_ACCEPTED);
+		assertTrue(dispatchStarted.await(5, TimeUnit.SECONDS), "reload was not dispatched within 5s");
+
+		try {
+			ByteArrayOutputStream secondBody = new ByteArrayOutputStream();
+			HttpServletResponse second = newResponse(secondBody);
+			givenBody("{\"configuration\":\"tenant\",\"ref\":\"main\"}");
+
+			servlet.doPut(request, second);
+
+			verify(second).setStatus(HttpServletResponse.SC_CONFLICT);
+			JsonNode body = new ObjectMapper().readTree(secondBody.toByteArray());
+			assertEquals("reload-in-progress", body.get("code").asText());
+			// Still on the branch the first PUT switched to -- the rejected switch touched nothing.
+			assertEquals("assistant/demo/draft-abc123", body.get("ref").asText());
+			assertEquals("assistant/demo/draft-abc123", loader.currentRef());
+		} finally {
+			releaseWorker.countDown();
+		}
+	}
+
+	@Test
+	void getReportsReloadingWhileTheReloadIsInFlight() throws Exception {
+		givenConsoleContextWithGateway();
+		CountDownLatch dispatchStarted = new CountDownLatch(1);
+		CountDownLatch releaseWorker = new CountDownLatch(1);
+		doAnswer(invocation -> {
+			dispatchStarted.countDown();
+			assertTrue(releaseWorker.await(5, TimeUnit.SECONDS), "worker was never released");
+			return null;
+		}).when(gateway).sendAsyncMessage(any());
+
+		givenBody("{\"configuration\":\"tenant\",\"ref\":\"assistant/demo/draft-abc123\"}");
+		servlet.doPut(request, response);
+		assertTrue(dispatchStarted.await(5, TimeUnit.SECONDS), "reload was not dispatched within 5s");
+		when(request.getParameter("configuration")).thenReturn("tenant");
+
+		try {
+			ByteArrayOutputStream duringBody = new ByteArrayOutputStream();
+			servlet.doGet(request, newResponse(duringBody));
+			JsonNode during = new ObjectMapper().readTree(duringBody.toByteArray());
+			// The ref has already switched; only "reloading" distinguishes "settling" from "settled".
+			assertEquals("assistant/demo/draft-abc123", during.get("ref").asText());
+			assertTrue(during.get("reloading").asBoolean());
+		} finally {
+			releaseWorker.countDown();
+		}
+		awaitReloadIdle();
+
+		ByteArrayOutputStream afterBody = new ByteArrayOutputStream();
+		servlet.doGet(request, newResponse(afterBody));
+		assertFalse(new ObjectMapper().readTree(afterBody.toByteArray()).get("reloading").asBoolean());
 	}
 
 	@Test
