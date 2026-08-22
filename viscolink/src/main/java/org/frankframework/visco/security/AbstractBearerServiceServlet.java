@@ -151,6 +151,10 @@ abstract class AbstractBearerServiceServlet extends HttpServlet implements Dynam
 	 * callers can 503 cleanly while the console is still booting.
 	 */
 	protected final <T> T lookupConsoleBean(HttpServletRequest req, Class<T> type) {
+		if (req.getServletContext() == null) {
+			log.error("no ServletContext available on the request -- console not initialised yet");
+			return null;
+		}
 		WebApplicationContext ctx = WebApplicationContextUtils.getWebApplicationContext(req.getServletContext());
 		if (ctx == null) {
 			log.error("no root WebApplicationContext available -- console not initialised yet");

@@ -294,6 +294,23 @@ public class GitClassLoader extends AbstractClassLoader {
         return current != null && current.equals(defaultRef);
     }
 
+    /**
+     * True when the currently checked-out ref actually contains this configuration's resource
+     * root. A branch created for an unrelated purpose (or one that predates the configuration
+     * being added to the repository) can be checked out successfully -- {@link #checkout(String)}
+     * only moves HEAD -- while leaving {@code resourceDir} missing; the ref servlet
+     * ({@code org.frankframework.visco.security.ConfigRefServlet}) checks this after checkout and
+     * reverts rather than dispatching a reload against a configuration with no resources.
+     */
+    public boolean resourceDirExists() {
+        return resourceDir != null && resourceDir.isDirectory();
+    }
+
+    /** The configured {@code repoSubdir}, or null when unset (see class javadoc for the fallback chain). */
+    public String getRepoSubdir() {
+        return repoSubdir;
+    }
+
     @Override
     public void destroy() {
         if (getConfigurationName() != null) {

@@ -53,28 +53,10 @@ class GitClassLoaderCheckoutTest {
     @BeforeEach
     void setUp() throws Exception {
         // Bare "origin" with main (Configuration.xml v1) and a draft branch (v2).
-        work = tmp.resolve("work").toFile();
-        remote = tmp.resolve("origin.git").toFile();
-        try (Git git = Git.init().setDirectory(work).setInitialBranch("main").call()) {
-            File cfg = new File(work, "ff-configurations/demo/Configuration.xml");
-            cfg.getParentFile().mkdirs();
-            Files.writeString(cfg.toPath(), "<Configuration version=\"1\"/>");
-            git.add().addFilepattern(".").call();
-            git.commit().setMessage("v1").call();
-            git.checkout().setCreateBranch(true).setName("assistant/demo/draft-abc123").call();
-            Files.writeString(cfg.toPath(), "<Configuration version=\"2\"/>");
-            git.add().addFilepattern(".").call();
-            git.commit().setMessage("v2").call();
-            git.checkout().setName("main").call();
-        }
-        Git.cloneRepository().setURI(work.toURI().toString()).setDirectory(remote).setBare(true).call().close();
-
+        work = tmp.resolve(TempGitRepo.WORK_DIR).toFile();
+        remote = tmp.resolve(TempGitRepo.REMOTE_DIR).toFile();
         ibisContext = mock(IbisContext.class);
-        loader = new GitClassLoader(getClass().getClassLoader());
-        loader.setRepoUrl(remote.toURI().toString());
-        loader.setRepoSubdir("ff-configurations/demo");
-        loader.setLocalPath(tmp.resolve("clone").toString());
-        loader.configure(ibisContext, "demo");
+        loader = TempGitRepo.configuredLoader(tmp, ibisContext, "demo");
     }
 
     @AfterEach
