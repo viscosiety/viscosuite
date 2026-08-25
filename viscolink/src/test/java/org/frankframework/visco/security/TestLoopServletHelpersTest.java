@@ -52,6 +52,16 @@ class TestLoopServletHelpersTest {
 	}
 
 	@Test
+	void mimeTypeOfReadsMessageContextAndToleratesAbsence() {
+		org.wearefrank.ladybug.Checkpoint checkpoint = new org.wearefrank.ladybug.Checkpoint();
+		assertNull(LadybugServlet.mimeTypeOf(checkpoint));
+		checkpoint.setMessageContext(java.util.Map.of("Metadata.MimeType", "application/json"));
+		assertEquals("application/json", LadybugServlet.mimeTypeOf(checkpoint));
+		checkpoint.setMessageContext(java.util.Map.of("unrelated", "x"));
+		assertNull(LadybugServlet.mimeTypeOf(checkpoint));
+	}
+
+	@Test
 	void parseReportIdAcceptsOnlyNumericReportPaths() {
 		assertEquals(7, LadybugServlet.parseReportId("/report/7"));
 		assertNull(LadybugServlet.parseReportId("/report/seven"));
