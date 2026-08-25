@@ -205,10 +205,25 @@ public class LadybugServlet extends AbstractBearerServiceServlet {
 			entry.put("name", checkpoint.getName());
 			entry.put("level", checkpoint.getLevel());
 			entry.put("message", truncate(checkpoint.getMessage(), MAX_CHECKPOINT_MESSAGE_CHARS));
+			entry.put("mimeType", mimeTypeOf(checkpoint));
 			checkpoints.add(entry);
 		}
 		out.put("checkpoints", checkpoints);
 		return out;
+	}
+
+	/**
+	 * The checkpoint message's real mime type, when the F!F Message carried one:
+	 * MessageContext stores it under "Metadata.MimeType" (MessageContext.METADATA_MIMETYPE)
+	 * and ladybug snapshots that map onto the checkpoint. Null when absent -- the
+	 * portal's Output panel falls back to content sniffing then. Pure and
+	 * null-safe (unit-tested without a live storage).
+	 */
+	static String mimeTypeOf(Checkpoint checkpoint) {
+		Map<String, Object> context = checkpoint.getMessageContext();
+		if (context == null) return null;
+		Object mimeType = context.get("Metadata.MimeType");
+		return mimeType == null ? null : mimeType.toString();
 	}
 
 	static int clampLimit(String raw) {
