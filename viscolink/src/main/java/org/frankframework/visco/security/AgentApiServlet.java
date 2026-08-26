@@ -22,6 +22,7 @@ import java.io.Serial;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.frankframework.lifecycle.IbisInitializer;
@@ -91,6 +92,27 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 			resp.sendError(HttpServletResponse.SC_NOT_FOUND, "no dispatcher for " + target);
 			return;
 		}
-		dispatcher.forward(req, resp);
+		dispatcher.forward(new AuthRoleGrantingRequest(req), resp);
+	}
+
+	/**
+	 * ApiListenerServlet's per-listener AUTHROLE check runs inside the forward target (not in the
+	 * Spring filter chain the forward bypasses) and matches {@code isUserInRole} against
+	 * tenant-defined API-user names the service-account principal never carries -- without this
+	 * grant every {@code authenticationMethod="AUTHROLE"} listener answers the agent 401. Granting
+	 * every role keeps the trust boundary from the class javadoc unchanged: past the tenant-role
+	 * gate above, the caller may reach every endpoint the tenant's own configuration serves on its
+	 * own instance -- AUTHROLE narrows *which API user* may call an endpoint, and the agent is not
+	 * an API user.
+	 */
+	private static final class AuthRoleGrantingRequest extends HttpServletRequestWrapper {
+		private AuthRoleGrantingRequest(HttpServletRequest request) {
+			super(request);
+		}
+
+		@Override
+		public boolean isUserInRole(String role) {
+			return true;
+		}
 	}
 }
