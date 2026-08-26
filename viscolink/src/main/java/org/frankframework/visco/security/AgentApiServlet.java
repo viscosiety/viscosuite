@@ -18,6 +18,9 @@ package org.frankframework.visco.security;
 
 import java.io.IOException;
 import java.io.Serial;
+import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
 
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletException;
@@ -25,7 +28,14 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
+import org.springframework.security.core.context.SecurityContext;
+import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.web.authentication.preauth.PreAuthenticatedAuthenticationToken;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+
 import org.frankframework.lifecycle.IbisInitializer;
+import org.frankframework.util.AppConstants;
 
 /**
  * Bearer-JWT gateway to the instance's OWN ApiListener endpoints (and their
@@ -37,15 +47,26 @@ import org.frankframework.lifecycle.IbisInitializer;
  * <p>Why a forward works where a direct Bearer call does not: the console's OAuth2
  * security chain guards {@code /api/*} and (in this F!F version) accepts only the
  * browser authorization-code flow -- a Bearer call 302s to the Keycloak login
- * (live-verified 2026-08-20). Spring Security registers its filter chain for the
- * REQUEST/ERROR/ASYNC dispatch types only, so a {@link RequestDispatcher#forward}
- * from this (bearer-authenticated) servlet reaches
- * {@code org.frankframework.http.rest.ApiListenerServlet} without re-entering that
- * chain. Method, headers, body, and query string all travel with the forward.</p>
+ * (live-verified 2026-08-20). A {@link RequestDispatcher#forward} from this
+ * (bearer-authenticated) servlet reaches
+ * {@code org.frankframework.http.rest.ApiListenerServlet} as an already-authenticated
+ * request instead. NOTE (corrected 2026-08-26): the Spring Security filter chain DOES
+ * run again on the FORWARD dispatch on this Spring Security version (its initializer
+ * registers REQUEST/ERROR/ASYNC/FORWARD/INCLUDE) -- the forward passes because the
+ * outer chain's saved SecurityContext rides along, not because the chain is skipped.
+ * Method, headers, body, and query string all travel with the forward.</p>
+ *
+ * <p>That re-entered chain is also why AUTHROLE listeners need the SecurityContext
+ * elevation below and not just a request wrapper: the inner chain re-wraps the request
+ * with Spring's SecurityContextHolderAwareRequestWrapper, whose {@code isUserInRole}
+ * answers from the SecurityContextHolder Authentication's authorities and never
+ * consults the wrapper chain underneath (live-debugged 2026-08-26 -- the wrapper-only
+ * fix shipped that morning was a no-op against a real Tomcat+Spring stack).</p>
  *
  * <p>Trust boundary: unchanged. The tenant's service-account token (checked against
  * {@code servlet.agentApi.securityRoles}, fail-closed) reaches exactly the endpoints
- * the tenant's own configuration serves on its own instance.</p>
+ * the tenant's own configuration serves on its own instance -- AUTHROLE narrows which
+ * API user may call an endpoint, and the agent is not an API user.</p>
  */
 @IbisInitializer
 public class AgentApiServlet extends AbstractBearerServiceServlet {
@@ -54,6 +75,13 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 	private static final long serialVersionUID = 1L;
 
 	static final String SECURITY_ROLES_PROPERTY = "servlet.agentApi.securityRoles";
+
+	/**
+	 * The platform-rendered list of API-user names (= the only role names AUTHROLE listeners
+	 * may reference). Granted to the forward's elevated SecurityContext so per-listener
+	 * AUTHROLE checks pass for the agent.
+	 */
+	static final String API_LISTENER_ROLES_PROPERTY = "servlet.ApiListenerServlet.securityRoles";
 
 	@Override
 	public String getName() {
@@ -92,7 +120,40 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 			resp.sendError(HttpServletResponse.SC_NOT_FOUND, "no dispatcher for " + target);
 			return;
 		}
-		dispatcher.forward(new AuthRoleGrantingRequest(req), resp);
+
+		// See class javadoc: the FORWARD-dispatched security chain re-wraps the request and
+		// answers isUserInRole from the SecurityContextHolder authorities, so the AUTHROLE
+		// grant must live in the SecurityContext -- both in the holder (in case no filter
+		// re-reads it) and in the request-attribute repository slot the inner chain's
+		// SecurityContextHolderFilter actually loads from. Restored in the finally: this
+		// thread returns to the container pool.
+		SecurityContext callerContext = SecurityContextHolder.getContext();
+		Object callerRepoAttribute = req.getAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME);
+		SecurityContext elevated = SecurityContextHolder.createEmptyContext();
+		elevated.setAuthentication(new PreAuthenticatedAuthenticationToken(
+				callerContext.getAuthentication().getName(), "n/a", authRoleAuthorities()));
+		try {
+			SecurityContextHolder.setContext(elevated);
+			req.setAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME, elevated);
+			dispatcher.forward(new AuthRoleGrantingRequest(req), resp);
+		} finally {
+			SecurityContextHolder.setContext(callerContext);
+			req.setAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME, callerRepoAttribute);
+		}
+	}
+
+	/**
+	 * The caller's own tenant role plus every platform-defined API-user name -- the complete
+	 * set of role names a tenant AUTHROLE listener can legitimately reference.
+	 */
+	private List<SimpleGrantedAuthority> authRoleAuthorities() {
+		Stream<String> apiUserRoles = Arrays.stream(
+						AppConstants.getInstance().getProperty(API_LISTENER_ROLES_PROPERTY, "").split(","))
+				.map(String::trim)
+				.filter(role -> !role.isEmpty());
+		return Stream.concat(Stream.of(requiredRole()), apiUserRoles)
+				.map(role -> new SimpleGrantedAuthority(ROLE_PREFIX + role))
+				.toList();
 	}
 
 	/**
