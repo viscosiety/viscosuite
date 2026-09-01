@@ -1,0 +1,92 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        Demo traffic generator — builds one HL7v2 message per invocation and posts it
+        to the demo intake pipelines over HTTP, exactly as an external sender would.
+
+        Input (from the scheduler jobs in Configuration.xml): <variant>name</variant>
+          adt-cardio            valid CARDIO A01/A02/A03 (rotates), accepted end-to-end
+          hl7-to-xml            valid A01 sent to the hl7v2-to-xml transform intake
+          adt-other-department  valid A01 for ONCO — refused by the department filter (AR)
+          unsupported-event     ORU^R01 — refused by the event-type check (AE)
+          malformed             structurally broken ER7 — fails parsing (intake ERROR)
+
+        Patient identity and the event rotation derive from the clock (minute of the
+        hour), so a small stable roster of demo patients recurs without any state.
+
+        AppConstants.properties in this configuration sets http.headers.messageid
+        and http.headers.correlationid to false, so the senders do not propagate
+        Message-Id/Correlation-Id headers and each intake run records its own
+        independent journey — exactly as a message from a real external sender
+        would (the properties are scoped to this configuration only).
+
+        The seeded-failure variants EXPECT a NACK or an HTTP 500 from the intake —
+        that is the intake's journey/error-store telling the story. The generator
+        itself always ends in SUCCESS so it never pollutes the error views it feeds.
+
+        Override the intake base URL with -Ddemo.traffic.baseUrl=... when the
+        instance does not listen on localhost:8080.
+    -->
+    <Adapter name="GenerateDemoTraffic"
+             description="Scheduled demo heartbeat: posts a rotating mix of valid and deliberately failing HL7v2 messages to the demo intakes">
+        <Receiver name="DemoTrafficReceiver">
+            <JavaListener name="DemoTrafficListener"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"  state="SUCCESS"/>
+                <Exit name="Error" state="ERROR"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="Demo traffic generator"/>
+
+            <!-- Remember which variant this tick is; the input is <variant>...</variant> -->
+            <PutInSessionPipe name="saveVariant" sessionKey="variantXml" preserveInput="true">
+                <Param name="variant" xpathExpression="/variant"/>
+            </PutInSessionPipe>
+
+            <!-- Build the ER7 message for this variant; the clock drives patient/event rotation -->
+            <XsltPipe name="buildMessage" styleSheetName="xslt/build-demo-hl7v2.xslt">
+                <Forward name="success" path="routeByVariant"/>
+                <Forward name="exception" path="Error"/>
+            </XsltPipe>
+
+            <SwitchPipe name="routeByVariant" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
+                <Forward name="hl7-to-xml" path="sendToXmlIntake"/>
+            </SwitchPipe>
+
+            <!-- Post to the ADT intake. AE/AR NACKs come back as HTTP 200 with a NACK
+                 payload (still success here — the intake recorded the story); a seeded
+                 parse failure surfaces as HTTP 500, which is the expected outcome of
+                 the malformed variant, not a generator error. -->
+            <SenderPipe name="sendToAdtIntake">
+                <HttpSender name="AdtIntakeSender"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/hl7v2"
+                            methodType="POST"
+                            contentType="text/plain"/>
+                <Forward name="success"   path="reportDelivered"/>
+                <Forward name="exception" path="reportSeededFailure"/>
+            </SenderPipe>
+
+            <SenderPipe name="sendToXmlIntake">
+                <HttpSender name="XmlIntakeSender"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/hl7v2-to-xml"
+                            methodType="POST"
+                            contentType="text/plain"/>
+                <Forward name="success"   path="reportDelivered"/>
+                <Forward name="exception" path="reportSeededFailure"/>
+            </SenderPipe>
+
+            <FixedResultPipe name="reportDelivered" returnString="&lt;result&gt;delivered&lt;/result&gt;">
+                <Forward name="success" path="Exit"/>
+            </FixedResultPipe>
+
+            <FixedResultPipe name="reportSeededFailure" returnString="&lt;result&gt;seeded failure delivered — see the intake pipeline's journey and error store&lt;/result&gt;">
+                <Forward name="success" path="Exit"/>
+            </FixedResultPipe>
+
+        </Pipeline>
+    </Adapter>
+
+</Module>

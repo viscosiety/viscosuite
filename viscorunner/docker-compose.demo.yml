@@ -45,6 +45,10 @@ services:
 
       amqp.events.active: "true"
 
+      # Keep the demo traffic generator's own runs out of Ladybug/journeys —
+      # only the medical pipelines it feeds should appear as journeys.
+      ibistesttool.regexFilter: "^(?!Pipeline demo-traffic/).*"
+
       viscolink.views.names: viscoflow,lab-code-mapper,pipeline-console
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/demo-tools/loinc-mapping-ui.html
