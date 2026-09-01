@@ -9,7 +9,6 @@ services:
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscorunner:latest
     ports:
       - "8180:8080"
-      - "5005:5005"
       - "2575:2575"
     environment:
       # Frank!Framework — override dtap.stage so it doesn't default to LOC
@@ -55,7 +54,7 @@ services:
       # are vendored: springTestToolCommon.xml in frankframework-ladybug-common, View.class in
       # ladybug-common) -- allow-circular-references is Spring's own suggested fallback for
       # setter/field-injection cycles like this one.
-      JAVA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005 -Dspring.profiles.active=ladybug-database -Dspring.main.allow-circular-references=true -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
+      JAVA_OPTS: "-Dspring.profiles.active=ladybug-database -Dspring.main.allow-circular-references=true -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
     depends_on:
       postgres:
         condition: service_healthy

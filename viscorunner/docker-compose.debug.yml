@@ -1,0 +1,13 @@
+# JPDA remote-debug overlay for the full-suite stack. Layer it after the base:
+#
+#   docker compose -f docker-compose.yml -f docker-compose.debug.yml up
+#
+# Opens the JDWP agent on port 5005 (attach your IDE to localhost:5005) via
+# CATALINA_OPTS, which catalina.sh applies alongside JAVA_OPTS — the base
+# file's JAVA_OPTS stays untouched. Local debugging only, never production.
+services:
+  viscorunner:
+    ports:
+      - "5005:5005"
+    environment:
+      CATALINA_OPTS: "-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005"
