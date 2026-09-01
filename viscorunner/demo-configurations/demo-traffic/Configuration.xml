@@ -46,5 +46,17 @@
                         javaListener="DemoTrafficListener"
                         message="&lt;variant&gt;malformed&lt;/variant&gt;"
                         cronExpression="50 11/30 * ? * *"/>
+
+        <SendMessageJob name="DemoTraffic-FhirDelivery" active="${demo.traffic.active:-true}"
+                        description="Valid FHIR bundle into the async delivery queue, every 10 minutes (parks in the error store when ViscoStore is unreachable)"
+                        javaListener="DemoTrafficListener"
+                        message="&lt;variant&gt;fhir-bundle&lt;/variant&gt;"
+                        cronExpression="20 4/10 * ? * *"/>
+
+        <SendMessageJob name="DemoTraffic-FhirDeliveryInvalid" active="${demo.traffic.active:-true}"
+                        description="Seeded failure: bundle with an unknown resource type — rejected by ViscoStore, parks in the delivery error store, every 30 minutes"
+                        javaListener="DemoTrafficListener"
+                        message="&lt;variant&gt;fhir-bundle-invalid&lt;/variant&gt;"
+                        cronExpression="35 21/30 * ? * *"/>
     </Scheduler>
 </Configuration>

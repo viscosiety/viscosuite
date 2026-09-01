@@ -67,6 +67,24 @@
                     'OBX|1|NM|2093-3^Cholesterol^LN||', 150 + ($minute * 2), '|mg/dL|&lt;200|N|||F')"/>
             </xsl:when>
 
+            <!-- FHIR transaction bundle for the async delivery queue. The invalid
+                 variant carries an unknown resource type, which ViscoStore rejects
+                 with 400 — so it parks in the error store even when the store is
+                 healthy. -->
+            <xsl:when test=". = ('fhir-bundle', 'fhir-bundle-invalid')">
+                <xsl:variable name="resourceType" select="if (. = 'fhir-bundle') then 'Patient' else 'PatientRecord'"/>
+                <xsl:variable name="gender" select="if ($pat/@sex = 'F') then 'female' else 'male'"/>
+                <xsl:variable name="dob" select="concat(substring($pat/@dob,1,4),'-',substring($pat/@dob,5,2),'-',substring($pat/@dob,7,2))"/>
+                <xsl:value-of select="concat(
+                    '{&quot;resourceType&quot;:&quot;Bundle&quot;,&quot;type&quot;:&quot;transaction&quot;,&quot;entry&quot;:[',
+                    '{&quot;fullUrl&quot;:&quot;urn:uuid:demo-', $ts, '-', $pat/@id, '&quot;,',
+                    '&quot;resource&quot;:{&quot;resourceType&quot;:&quot;', $resourceType, '&quot;,',
+                    '&quot;identifier&quot;:[{&quot;system&quot;:&quot;urn:visco:mrn&quot;,&quot;value&quot;:&quot;', $pat/@id, '&quot;}],',
+                    '&quot;name&quot;:[{&quot;family&quot;:&quot;', substring-after($pat/@name, '^'), '&quot;,&quot;given&quot;:[&quot;', substring-before($pat/@name, '^'), '&quot;]}],',
+                    '&quot;gender&quot;:&quot;', $gender, '&quot;,&quot;birthDate&quot;:&quot;', $dob, '&quot;},',
+                    '&quot;request&quot;:{&quot;method&quot;:&quot;PUT&quot;,&quot;url&quot;:&quot;Patient?identifier=urn:visco:mrn%7C', $pat/@id, '&quot;}}]}')"/>
+            </xsl:when>
+
             <!-- Structurally broken ER7 — fails HL7v2 parsing, lands on the intake's ERROR exit -->
             <xsl:when test=". = 'malformed'">
                 <xsl:value-of select="concat(

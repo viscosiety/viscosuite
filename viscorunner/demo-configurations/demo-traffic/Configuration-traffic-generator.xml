@@ -11,6 +11,9 @@
           adt-other-department  valid A01 for ONCO — refused by the department filter (AR)
           unsupported-event     ORU^R01 — refused by the event-type check (AE)
           malformed             structurally broken ER7 — fails parsing (intake ERROR)
+          fhir-bundle           valid FHIR transaction bundle to the async delivery queue
+          fhir-bundle-invalid   bundle with an unknown resource type — ViscoStore
+                                rejects it, so it parks in the delivery error store
 
         Patient identity and the event rotation derive from the clock (minute of the
         hour), so a small stable roster of demo patients recurs without any state.
@@ -54,6 +57,8 @@
 
             <SwitchPipe name="routeByVariant" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
                 <Forward name="hl7-to-xml" path="sendToXmlIntake"/>
+                <Forward name="fhir-bundle" path="sendToFhirIntake"/>
+                <Forward name="fhir-bundle-invalid" path="sendToFhirIntake"/>
             </SwitchPipe>
 
             <!-- Post to the ADT intake. AE/AR NACKs come back as HTTP 200 with a NACK
@@ -74,6 +79,15 @@
                             url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/hl7v2-to-xml"
                             methodType="POST"
                             contentType="text/plain"/>
+                <Forward name="success"   path="reportDelivered"/>
+                <Forward name="exception" path="reportSeededFailure"/>
+            </SenderPipe>
+
+            <SenderPipe name="sendToFhirIntake">
+                <HttpSender name="FhirIntakeSender"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/fhir-delivery"
+                            methodType="POST"
+                            contentType="application/fhir+json"/>
                 <Forward name="success"   path="reportDelivered"/>
                 <Forward name="exception" path="reportSeededFailure"/>
             </SenderPipe>

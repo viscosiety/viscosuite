@@ -1,0 +1,7 @@
+<!DOCTYPE Configuration [
+        <!ENTITY fhir-delivery SYSTEM "Configuration-fhir-delivery.xml">
+        ]>
+
+<Configuration name="fhir-delivery">
+    &fhir-delivery;
+</Configuration>
