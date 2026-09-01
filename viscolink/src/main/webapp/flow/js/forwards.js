@@ -5,7 +5,10 @@ export function parseAdapterFlow(mermaid) {
 
   const nodes = {};
   lines.forEach(l => {
-    const m = l.match(/\s+(d\d+e\d+)\(.*?data-html-node="b">([^<]+)<\/text>(?:<text>([^<]*)<\/text>)?/);
+    // F!F 10.3's flow generator emits node lines without leading indentation; older
+    // versions indented them. Accept both (the original \s+ parsed 10.3 output as empty,
+    // so taken/skipped forward routes never rendered).
+    const m = l.match(/(?:^|\s)(d\d+e\d+)\(.*?data-html-node="b">([^<]+)<\/text>(?:<text>([^<]*)<\/text>)?/);
     if (m) nodes[m[1]] = { name: m[2], hasClass: !!m[3] };
   });
 
