@@ -37,7 +37,7 @@ Before running `docker compose up`, create `viscorunner/secrets/credentials.prop
 This is a Maven multi-module project for a healthcare integration platform that bridges HL7v2 and FHIR. The three modules are built in reactor order: `viscolink` → `viscostore` → `viscorunner`.
 
 ### viscolink (Frank!Framework WAR)
-An integration middleware layer based on Frank!Framework 9.4.1, deployed at `/viscolink`.
+An integration middleware layer based on Frank!Framework (version pinned by `frankframework.version` in `viscolink/pom.xml`), deployed at `/viscolink`.
 
 - **Frank!Console / Ladybug debugger**: `/viscolink/iaf/` (auth disabled in LOC stage)
 - **FHIR endpoint**: `SimpleFhirServer` in `com.viscosiety.fhir` provides a basic FHIR R4 plain server (currently a demo Patient provider only)

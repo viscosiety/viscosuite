@@ -102,7 +102,10 @@
         No separate storage, no RoutingLogStorage. (parent + autowire="byName" mirrors the upstream
         "DifferentViewsDifferentColumns" pattern: inherit whiteBoxView, give it its own columns + filter.)
     -->
-    <bean name="shareableView" parent="whiteBoxView" autowire="byName">
+    <!-- No autowire="byName": since ladybug-backend 4.1 the View hierarchy exposes a testTool
+         property, and byName autowiring then closes the cycle testTool -> views -> shareableView
+         -> testTool, failing context refresh. Upstream views wire explicitly; so do we. -->
+    <bean name="shareableView" parent="whiteBoxView">
         <property name="name" value="Shareable (de-identified)"/>
         <property name="metadataNames" ref="shareableViewMetadataNames"/>
         <property name="metadataFilter">
