@@ -58,5 +58,23 @@
                         javaListener="DemoTrafficListener"
                         message="fhir-bundle-invalid"
                         cronExpression="35 21/30 * ? * *"/>
+
+        <SendMessageJob name="DemoTraffic-NlCorePatient" active="${demo.traffic.active:-true}"
+                        description="Valid FHIR R4 nl-core Patient into the inbound zone via the nl-core intake, every 10 minutes"
+                        javaListener="DemoTrafficListener"
+                        message="nl-core-patient"
+                        cronExpression="25 6/10 * ? * *"/>
+
+        <SendMessageJob name="DemoTraffic-NlCorePatientInvalid" active="${demo.traffic.active:-true}"
+                        description="Seeded reject: R4 patient with gender='onbekend' — refused by validation with an OperationOutcome (HTTP 422), every 30 minutes"
+                        javaListener="DemoTrafficListener"
+                        message="nl-core-patient-invalid"
+                        cronExpression="40 26/30 * ? * *"/>
+
+        <SendMessageJob name="DemoTraffic-NlCorePatientNonconformant" active="${demo.traffic.active:-true}"
+                        description="Seeded reject: valid base R4 but missing the nl-core name-qualifier extension — refused by profile validation when the Nictiz packages are loaded, every 30 minutes"
+                        javaListener="DemoTrafficListener"
+                        message="nl-core-patient-nonconformant"
+                        cronExpression="55 16/30 * ? * *"/>
     </Scheduler>
 </Configuration>

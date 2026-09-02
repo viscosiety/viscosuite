@@ -31,16 +31,30 @@ import org.frankframework.pipes.FixedForwardPipe;
 import org.frankframework.stream.Message;
 import org.hl7.fhir.common.hapi.validation.support.CommonCodeSystemsTerminologyService;
 import org.hl7.fhir.common.hapi.validation.support.InMemoryTerminologyServerValidationSupport;
+import org.hl7.fhir.common.hapi.validation.support.PrePopulatedValidationSupport;
+import org.hl7.fhir.common.hapi.validation.support.SnapshotGeneratingValidationSupport;
 import org.hl7.fhir.common.hapi.validation.support.ValidationSupportChain;
 import org.hl7.fhir.common.hapi.validation.validator.FhirInstanceValidator;
 import org.hl7.fhir.instance.model.api.IBaseResource;
+import org.hl7.fhir.utilities.npm.NpmPackage;
 import org.jspecify.annotations.NonNull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import ca.uhn.fhir.context.support.IValidationSupport;
+
 import javax.xml.parsers.DocumentBuilderFactory;
 import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * Validates a FHIR resource (XML or JSON) against a configurable FHIR version using
@@ -84,6 +98,10 @@ public class FhirValidatorPipe extends FixedForwardPipe {
     private static final String FAILURE_FORWARD = "failure";
 
     private String fhirVersion = "R4";
+    private boolean failOnUnknownProfiles = false;
+    private String validationPackages;
+
+    private static final Set<String> CONFORMANCE_TYPES = Set.of("StructureDefinition", "ValueSet", "CodeSystem");
 
     private FhirContext fhirContext;
     private FhirValidator validator;
@@ -100,13 +118,22 @@ public class FhirValidatorPipe extends FixedForwardPipe {
                     "Unsupported fhirVersion '" + fhirVersion + "'; supported values: R4, R5, DSTU3");
         };
 
-        ValidationSupportChain supportChain = new ValidationSupportChain(
-                new DefaultProfileValidationSupport(fhirContext),
-                new InMemoryTerminologyServerValidationSupport(fhirContext),
-                new CommonCodeSystemsTerminologyService(fhirContext));
+        List<IValidationSupport> supports = new ArrayList<>();
+        supports.add(new DefaultProfileValidationSupport(fhirContext));
+        if (validationPackages != null && !validationPackages.isBlank()) {
+            supports.add(loadValidationPackages());
+        }
+        supports.add(new InMemoryTerminologyServerValidationSupport(fhirContext));
+        supports.add(new CommonCodeSystemsTerminologyService(fhirContext));
+        // packages may ship differential-only StructureDefinitions
+        supports.add(new SnapshotGeneratingValidationSupport(fhirContext));
+        ValidationSupportChain supportChain = new ValidationSupportChain(supports.toArray(new IValidationSupport[0]));
 
         FhirInstanceValidator instanceValidator = new FhirInstanceValidator(supportChain);
         instanceValidator.setAnyExtensionsAllowed(true);
+        // resources may CLAIM profiles this validator has no package for (e.g. nl-core);
+        // by default that is not a refusal — see setFailOnUnknownProfiles
+        instanceValidator.setErrorForUnknownProfiles(failOnUnknownProfiles);
 
         validator = fhirContext.newValidator();
         validator.registerValidatorModule(instanceValidator);
@@ -129,6 +156,16 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         try {
             IBaseResource resource = parseResource(input);
             result = validator.validateWithResult(resource);
+        } catch (DataFormatException e) {
+            // Unparseable or structurally invalid FHIR is a SENDER error, same as a
+            // validation failure: when a failure forward is configured, refuse it there
+            // with an OperationOutcome instead of failing the pipeline.
+            PipeForward parseFailureForward = findForward(FAILURE_FORWARD);
+            if (parseFailureForward == null) {
+                throw new PipeRunException(this, "FHIR parse failed (" + fhirVersion + "): " + e.getMessage(), e);
+            }
+            return new PipeRunResult(parseFailureForward,
+                    new Message(parseOutcome(inputIsXml, e.getMessage())));
         } catch (NullPointerException e) {
             // HAPI stitchBundleCrossReferences throws NPE when a Bundle entry's <resource/>
             // element is empty — typically caused by an XSLT that produced no output for
@@ -159,6 +196,86 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         return new PipeRunResult(failureForward, new Message(operationOutcome));
     }
 
+    /** Loads the configured FHIR NPM packages (.tgz) into one validation support:
+     * StructureDefinitions, ValueSets and CodeSystems become resolvable, so profile
+     * claims (e.g. nl-core canonicals) can actually be validated against. */
+    private PrePopulatedValidationSupport loadValidationPackages() throws ConfigurationException {
+        PrePopulatedValidationSupport support = new PrePopulatedValidationSupport(fhirContext);
+        for (String entry : validationPackages.split(",")) {
+            Path path = Path.of(entry.strip());
+            List<Path> files;
+            if (Files.isDirectory(path)) {
+                try (Stream<Path> stream = Files.list(path)) {
+                    files = stream.filter(p -> p.getFileName().toString().toLowerCase(Locale.ROOT).endsWith(".tgz"))
+                            .sorted()
+                            .toList();
+                } catch (IOException e) {
+                    throw new ConfigurationException("cannot list validationPackages directory [" + path + "]", e);
+                }
+                if (files.isEmpty()) {
+                    throw new ConfigurationException("validationPackages directory [" + path + "] contains no .tgz packages");
+                }
+            } else if (Files.isRegularFile(path)) {
+                files = List.of(path);
+            } else {
+                throw new ConfigurationException("validationPackages entry [" + entry.strip() + "] does not exist");
+            }
+            for (Path file : files) {
+                loadPackage(support, file);
+            }
+        }
+        return support;
+    }
+
+    private void loadPackage(PrePopulatedValidationSupport support, Path file) throws ConfigurationException {
+        int loaded = 0;
+        try (InputStream is = Files.newInputStream(file)) {
+            NpmPackage pkg = NpmPackage.fromPackage(is);
+            NpmPackage.NpmPackageFolder folder = pkg.getFolders().get("package");
+            if (folder != null) {
+                var parser = fhirContext.newJsonParser();
+                for (String name : folder.listFiles()) {
+                    if (name.startsWith(".") || !name.toLowerCase(Locale.ROOT).endsWith(".json")) {
+                        continue;
+                    }
+                    try {
+                        IBaseResource resource = parser.parseResource(
+                                new String(folder.fetchFile(name), StandardCharsets.UTF_8));
+                        if (CONFORMANCE_TYPES.contains(fhirContext.getResourceType(resource))) {
+                            support.addResource(resource);
+                            loaded++;
+                        }
+                    } catch (Exception e) {
+                        // manifests, examples and non-FHIR files are expected package content
+                        LOG.debug("skipping non-conformance package file [{}]: {}", name, e.getMessage());
+                    }
+                }
+            }
+        } catch (IOException e) {
+            throw new ConfigurationException("cannot load FHIR package [" + file + "]", e);
+        }
+        if (loaded == 0) {
+            throw new ConfigurationException("FHIR package [" + file + "] contained no conformance resources");
+        }
+        LOG.info("loaded {} conformance resources from FHIR package [{}]", loaded, file.getFileName());
+    }
+
+    /** OperationOutcome for a parse-level refusal, in the input's encoding. The shape is
+     * identical across FHIR versions, so it is built directly rather than via a
+     * version-specific model class. */
+    private static String parseOutcome(boolean asXml, String diagnostics) {
+        String detail = diagnostics == null ? "unparseable FHIR content" : diagnostics;
+        if (asXml) {
+            return "<OperationOutcome xmlns=\"http://hl7.org/fhir\"><issue><severity value=\"error\"/>"
+                    + "<code value=\"structure\"/><diagnostics value=\""
+                    + detail.replace("&", "&amp;").replace("<", "&lt;").replace("\"", "&quot;")
+                    + "\"/></issue></OperationOutcome>";
+        }
+        return "{\"resourceType\":\"OperationOutcome\",\"issue\":[{\"severity\":\"error\",\"code\":\"structure\",\"diagnostics\":\""
+                + detail.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+                + "\"}]}";
+    }
+
     /**
      * Parse the inbound FHIR payload explicitly before validation.
      *
@@ -186,6 +303,31 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         }
 
         throw new DataFormatException("FHIR input is neither XML nor JSON");
+    }
+
+    /**
+     * Comma-separated FHIR NPM packages to validate against: each entry is a
+     * {@code .tgz} package file or a directory of them (e.g. the Nictiz nl-core
+     * package and its zib2020 dependency). With packages loaded, profile claims
+     * resolve and {@code failOnUnknownProfiles="true"} becomes meaningful.
+     * Missing paths and empty directories fail configuration — silently validating
+     * less than configured is worse than failing loudly.
+     */
+    public void setValidationPackages(String validationPackages) {
+        this.validationPackages = validationPackages;
+    }
+
+    /**
+     * When true, a resource claiming a profile this validator cannot resolve (no
+     * package loaded for it, e.g. a Nictiz nl-core canonical) fails validation; when
+     * false (default) the claim is reported as a warning and validation continues
+     * against the base specification. Enable only when the referenced profile
+     * packages are actually available to the validator.
+     *
+     * @ff.default false
+     */
+    public void setFailOnUnknownProfiles(boolean failOnUnknownProfiles) {
+        this.failOnUnknownProfiles = failOnUnknownProfiles;
     }
 
     /**
