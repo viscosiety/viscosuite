@@ -1,0 +1,4 @@
+{
+  "status": "accepted",
+  "detail": "Patient accepted into the inbound zone and queued for delivery. Track it under Messages/Journeys by its correlation id."
+}

@@ -84,6 +84,7 @@ public class FhirValidatorPipe extends FixedForwardPipe {
     private static final String FAILURE_FORWARD = "failure";
 
     private String fhirVersion = "R4";
+    private boolean failOnUnknownProfiles = false;
 
     private FhirContext fhirContext;
     private FhirValidator validator;
@@ -107,6 +108,9 @@ public class FhirValidatorPipe extends FixedForwardPipe {
 
         FhirInstanceValidator instanceValidator = new FhirInstanceValidator(supportChain);
         instanceValidator.setAnyExtensionsAllowed(true);
+        // resources may CLAIM profiles this validator has no package for (e.g. nl-core);
+        // by default that is not a refusal — see setFailOnUnknownProfiles
+        instanceValidator.setErrorForUnknownProfiles(failOnUnknownProfiles);
 
         validator = fhirContext.newValidator();
         validator.registerValidatorModule(instanceValidator);
@@ -129,6 +133,16 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         try {
             IBaseResource resource = parseResource(input);
             result = validator.validateWithResult(resource);
+        } catch (DataFormatException e) {
+            // Unparseable or structurally invalid FHIR is a SENDER error, same as a
+            // validation failure: when a failure forward is configured, refuse it there
+            // with an OperationOutcome instead of failing the pipeline.
+            PipeForward parseFailureForward = findForward(FAILURE_FORWARD);
+            if (parseFailureForward == null) {
+                throw new PipeRunException(this, "FHIR parse failed (" + fhirVersion + "): " + e.getMessage(), e);
+            }
+            return new PipeRunResult(parseFailureForward,
+                    new Message(parseOutcome(inputIsXml, e.getMessage())));
         } catch (NullPointerException e) {
             // HAPI stitchBundleCrossReferences throws NPE when a Bundle entry's <resource/>
             // element is empty — typically caused by an XSLT that produced no output for
@@ -159,6 +173,22 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         return new PipeRunResult(failureForward, new Message(operationOutcome));
     }
 
+    /** OperationOutcome for a parse-level refusal, in the input's encoding. The shape is
+     * identical across FHIR versions, so it is built directly rather than via a
+     * version-specific model class. */
+    private static String parseOutcome(boolean asXml, String diagnostics) {
+        String detail = diagnostics == null ? "unparseable FHIR content" : diagnostics;
+        if (asXml) {
+            return "<OperationOutcome xmlns=\"http://hl7.org/fhir\"><issue><severity value=\"error\"/>"
+                    + "<code value=\"structure\"/><diagnostics value=\""
+                    + detail.replace("&", "&amp;").replace("<", "&lt;").replace("\"", "&quot;")
+                    + "\"/></issue></OperationOutcome>";
+        }
+        return "{\"resourceType\":\"OperationOutcome\",\"issue\":[{\"severity\":\"error\",\"code\":\"structure\",\"diagnostics\":\""
+                + detail.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "\\r").replace("\t", "\\t")
+                + "\"}]}";
+    }
+
     /**
      * Parse the inbound FHIR payload explicitly before validation.
      *
@@ -186,6 +216,19 @@ public class FhirValidatorPipe extends FixedForwardPipe {
         }
 
         throw new DataFormatException("FHIR input is neither XML nor JSON");
+    }
+
+    /**
+     * When true, a resource claiming a profile this validator cannot resolve (no
+     * package loaded for it, e.g. a Nictiz nl-core canonical) fails validation; when
+     * false (default) the claim is reported as a warning and validation continues
+     * against the base specification. Enable only when the referenced profile
+     * packages are actually available to the validator.
+     *
+     * @ff.default false
+     */
+    public void setFailOnUnknownProfiles(boolean failOnUnknownProfiles) {
+        this.failOnUnknownProfiles = failOnUnknownProfiles;
     }
 
     /**

@@ -15,6 +15,10 @@
           fhir-bundle-invalid   bundle with an unknown resource type — the delivery
                                 flow's FHIR conversion rejects it, so it parks in
                                 the delivery error store
+          nl-core-patient       valid FHIR R4 nl-core Patient to the nl-core intake
+          nl-core-patient-invalid  R4 patient with gender="onbekend" (Dutch label,
+                                not a FHIR code) — R4 validation refuses it with
+                                an OperationOutcome and HTTP 422
 
         Patient identity and the event rotation derive from the clock (minute of the
         hour), so a small stable roster of demo patients recurs without any state.
@@ -57,6 +61,8 @@
             <SwitchPipe name="routeBuild" forwardNameSessionKey="variant" notFoundForwardName="buildHl7Message">
                 <Forward name="fhir-bundle" path="buildFhirBundle"/>
                 <Forward name="fhir-bundle-invalid" path="buildFhirBundle"/>
+                <Forward name="nl-core-patient" path="buildNlCorePatient"/>
+                <Forward name="nl-core-patient-invalid" path="buildNlCorePatient"/>
             </SwitchPipe>
 
             <!-- Build the ER7 message for this variant; the clock drives patient/event rotation -->
@@ -73,6 +79,12 @@
                  destination's configured mimetype (FhirFormatPipe) -->
             <XsltPipe name="buildFhirBundle" styleSheetName="xslt/build-demo-fhir.xslt">
                 <Forward name="success" path="sendToFhirIntake"/>
+                <Forward name="exception" path="Error"/>
+            </XsltPipe>
+
+            <!-- R4 nl-core Patient for the Dutch-hospital scenario -->
+            <XsltPipe name="buildNlCorePatient" styleSheetName="xslt/build-demo-nlcore.xslt">
+                <Forward name="success" path="sendToNlCoreIntake"/>
                 <Forward name="exception" path="Error"/>
             </XsltPipe>
 
@@ -101,6 +113,15 @@
             <SenderPipe name="sendToFhirIntake">
                 <HttpSender name="FhirIntakeSender"
                             url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/fhir-delivery"
+                            methodType="POST"
+                            contentType="application/fhir+xml"/>
+                <Forward name="success"   path="reportDelivered"/>
+                <Forward name="exception" path="reportSeededFailure"/>
+            </SenderPipe>
+
+            <SenderPipe name="sendToNlCoreIntake">
+                <HttpSender name="NlCoreIntakeSender"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/nl-core/patient"
                             methodType="POST"
                             contentType="application/fhir+xml"/>
                 <Forward name="success"   path="reportDelivered"/>

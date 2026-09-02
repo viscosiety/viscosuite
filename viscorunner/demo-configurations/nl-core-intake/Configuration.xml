@@ -1,0 +1,7 @@
+<!DOCTYPE Configuration [
+        <!ENTITY nl-core-intake SYSTEM "Configuration-nl-core-intake.xml">
+        ]>
+
+<Configuration name="nl-core-intake">
+    &nl-core-intake;
+</Configuration>

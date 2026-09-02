@@ -1,0 +1,127 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        R4 nl-core intake — the "Dutch hospital sends FHIR R4" reference flow.
+
+        NlCorePatientIntake accepts an nl-core Patient (FHIR R4, XML or JSON) over
+        HTTP, validates it as R4, tags it into the ViscoSuite INBOUND ZONE (data-zone
+        tag + meta.source, clinical content untouched — the zone stores source data
+        1-to-1 traceable), queues it, and answers 202 with a receipt. Invalid R4 is
+        refused synchronously with the validator's OperationOutcome and HTTP 422 —
+        the sender hears immediately, nothing enters the zone.
+
+        DeliverNlCoreToStore forwards queued patients to the configured R4 store in
+        the store's preferred mimetype (FhirFormatPipe); failed deliveries retry and
+        then PARK IN THE ERROR STORE for operator triage, exactly like the R5
+        fhir-delivery flow.
+
+        Override the target with -Dnlcore.fhir.url=... (default posts to a local
+        FHIR endpoint that is absent on a viscolink-only instance, so deliveries
+        park — which is the demo's error-store story, not a defect) and the wire
+        format with -Dnlcore.fhir.mimetype=application/fhir+xml.
+    -->
+
+    <Adapter name="NlCorePatientIntake"
+             description="Accepts nl-core (FHIR R4) Patient resources, validates them, tags them into the inbound zone and queues them for delivery">
+        <Receiver name="NlCorePatientIntakeReceiver" maxBackoffDelay="0">
+            <ApiListener name="NlCorePatientIntakeListener"
+                         uriPattern="nl-core/patient"
+                         method="POST"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"    state="SUCCESS" code="202"/>
+                <Exit name="Invalid" state="ERROR"   code="422"/>
+                <Exit name="Error"   state="ERROR"   code="500"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="nl-core intake"/>
+
+            <!-- R4 validation gate: failure answers 422 with the OperationOutcome -->
+            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="validateR4" fhirVersion="R4">
+                <Forward name="success" path="toXmlForTagging"/>
+                <Forward name="failure" path="Invalid"/>
+            </Pipe>
+
+            <!-- normalize to XML so the zone-tagging stylesheet has one input shape -->
+            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toXmlForTagging"
+                  fhirVersion="R4" outputFormat="application/fhir+xml">
+                <Forward name="success" path="tagInboundZone"/>
+            </Pipe>
+
+            <XsltPipe name="tagInboundZone" styleSheetName="xslt/tag-inbound-zone.xslt">
+                <Param name="source" value="${nlcore.intake.source:-urn:viscosuite:nl-core-intake}"/>
+                <Forward name="success" path="queueForDelivery"/>
+                <Forward name="exception" path="Error"/>
+            </XsltPipe>
+
+            <SenderPipe name="queueForDelivery">
+                <MessageStoreSender name="NlCoreDeliveryQueue" slotId="nl-core-delivery"/>
+                <Forward name="success"   path="buildReceipt"/>
+                <Forward name="exception" path="Error"/>
+            </SenderPipe>
+
+            <FixedResultPipe name="buildReceipt" filename="responses/intake-receipt.json">
+                <Forward name="success" path="Exit"/>
+            </FixedResultPipe>
+
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="DeliverNlCoreToStore"
+             description="Delivers queued inbound-zone nl-core patients to the configured R4 store; failed deliveries park in the error store for operator triage">
+        <Receiver name="DeliverNlCoreToStoreReceiver"
+                  maxRetries="2"
+                  transactionAttribute="Required"
+                  pollInterval="10">
+            <MessageStoreListener name="NlCoreDeliveryQueueListener" slotId="nl-core-delivery"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="nl-core intake"/>
+
+            <!-- Re-serialize to the destination's FHIR mimetype; parsing re-validates,
+                 so a corrupt queue entry parks here instead of reaching the store. -->
+            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toTargetFormat"
+                  outputFormat="${nlcore.fhir.mimetype:-application/fhir+json}"
+                  fhirVersion="R4">
+                <Forward name="success" path="postToStore"/>
+            </Pipe>
+
+            <!-- HttpSender returns 4xx/5xx bodies as success, so the status is captured
+                 in a session key and checked; any failure propagates as an exception so
+                 the transacted receiver retries and then parks the message. -->
+            <SenderPipe name="postToStore">
+                <HttpSender name="NlCoreStoreSender"
+                            url="${nlcore.fhir.url:-http://localhost:8080/viscostore/fhir/Patient}"
+                            methodType="POST"
+                            contentType="${nlcore.fhir.mimetype:-application/fhir+json}; charset=UTF-8"
+                            username="${viscostore.username:-demo}"
+                            password="${viscostore.password:-demo}"
+                            resultStatusCodeSessionKey="deliveryStatus"
+                            timeout="10000"/>
+                <Forward name="success" path="checkDeliveryStatus"/>
+            </SenderPipe>
+
+            <SwitchPipe name="checkDeliveryStatus" forwardNameSessionKey="deliveryStatus" notFoundForwardName="describeFailure">
+                <Forward name="200" path="Exit"/>
+                <Forward name="201" path="Exit"/>
+                <Forward name="202" path="Exit"/>
+                <Forward name="204" path="Exit"/>
+            </SwitchPipe>
+
+            <FixedResultPipe name="describeFailure"
+                             returnString="The R4 store refused the patient — the deliveryStatus session key holds the HTTP status and the sender response is in the journey">
+                <Forward name="success" path="failDelivery"/>
+            </FixedResultPipe>
+
+            <ExceptionPipe name="failDelivery"/>
+
+        </Pipeline>
+    </Adapter>
+
+</Module>
