@@ -1,0 +1,103 @@
+<Module xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
+
+    <!--
+        Asynchronous, guaranteed FHIR delivery — the store-and-forward counterpart to
+        the synchronous demo pipelines.
+
+        FhirAsyncIntake accepts a FHIR transaction bundle over HTTP, queues it in the
+        message store (IBISSTORE, slot fhir-delivery) and immediately answers 202 with
+        a receipt. DeliverFhirToViscoStore picks queued bundles up and POSTs them to
+        ViscoStore; a failed delivery is retried and then PARKED IN THE ERROR STORE,
+        where an operator can inspect, resend or resolve it (in the Frank!console, or
+        in an operator console layered on this instance).
+
+        Failure modes this demonstrates:
+          - ViscoStore down/unreachable (always the case in the viscolink-only stack):
+            every delivery parks after its retries
+          - an invalid bundle (unknown resource type): ViscoStore rejects it with 400,
+            so it parks even when the store is perfectly healthy
+
+        Override the delivery target with -Dviscostore.fhir.url=... ; credentials
+        default to the demo account.
+    -->
+
+    <Adapter name="FhirAsyncIntake"
+             description="Accepts FHIR transaction bundles over HTTP and queues them for guaranteed delivery to ViscoStore">
+        <Receiver name="FhirAsyncIntakeReceiver" maxBackoffDelay="0">
+            <ApiListener name="FhirAsyncIntakeListener"
+                         uriPattern="fhir-delivery"
+                         method="POST"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit"  state="SUCCESS" code="202"/>
+                <Exit name="Error" state="ERROR"   code="500"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR async delivery"/>
+
+            <SenderPipe name="queueForDelivery">
+                <MessageStoreSender name="DeliveryQueue" slotId="fhir-delivery"/>
+                <Forward name="success"   path="buildReceipt"/>
+                <Forward name="exception" path="Error"/>
+            </SenderPipe>
+
+            <FixedResultPipe name="buildReceipt"
+                             returnString="{&quot;status&quot;:&quot;queued&quot;,&quot;target&quot;:&quot;ViscoStore&quot;,&quot;slot&quot;:&quot;fhir-delivery&quot;}">
+                <Forward name="success" path="Exit"/>
+            </FixedResultPipe>
+
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="DeliverFhirToViscoStore"
+             description="Delivers queued FHIR bundles to ViscoStore; failed deliveries park in the error store for operator triage">
+        <Receiver name="DeliverFhirToViscoStoreReceiver"
+                  maxRetries="2"
+                  transactionAttribute="Required"
+                  pollInterval="10">
+            <MessageStoreListener name="DeliveryQueueListener" slotId="fhir-delivery"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS"/>
+            </Exits>
+
+            <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR async delivery"/>
+
+            <!-- HttpSender returns the response body even for 4xx/5xx, so the HTTP
+                 status is captured in a session key and checked explicitly. Any
+                 failure — connection refused OR a non-2xx answer — must propagate as
+                 an exception, so the transacted receiver retries and then parks the
+                 bundle in the error store: that is the whole point of this flow. -->
+            <SenderPipe name="postToViscoStore">
+                <HttpSender name="ViscoStoreSender"
+                            url="${viscostore.fhir.url:-http://localhost:8080/viscostore/fhir}"
+                            methodType="POST"
+                            contentType="application/fhir+json; charset=UTF-8"
+                            username="${viscostore.username:-demo}"
+                            password="${viscostore.password:-demo}"
+                            resultStatusCodeSessionKey="deliveryStatus"
+                            timeout="10000"/>
+                <Forward name="success" path="checkDeliveryStatus"/>
+            </SenderPipe>
+
+            <SwitchPipe name="checkDeliveryStatus" forwardNameSessionKey="deliveryStatus" notFoundForwardName="describeFailure">
+                <Forward name="200" path="Exit"/>
+                <Forward name="201" path="Exit"/>
+                <Forward name="202" path="Exit"/>
+                <Forward name="204" path="Exit"/>
+            </SwitchPipe>
+
+            <FixedResultPipe name="describeFailure"
+                             returnString="ViscoStore refused the bundle — the deliveryStatus session key holds the HTTP status and the sender response is in the journey">
+                <Forward name="success" path="failDelivery"/>
+            </FixedResultPipe>
+
+            <ExceptionPipe name="failDelivery"/>
+
+        </Pipeline>
+    </Adapter>
+
+</Module>
