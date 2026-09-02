@@ -5,21 +5,26 @@
         Asynchronous, guaranteed FHIR delivery — the store-and-forward counterpart to
         the synchronous demo pipelines.
 
-        FhirAsyncIntake accepts a FHIR transaction bundle over HTTP, queues it in the
-        message store (IBISSTORE, slot fhir-delivery) and immediately answers 202 with
-        a receipt. DeliverFhirToViscoStore picks queued bundles up and POSTs them to
-        ViscoStore; a failed delivery is retried and then PARKED IN THE ERROR STORE,
-        where an operator can inspect, resend or resolve it (in the Frank!console, or
-        in an operator console layered on this instance).
+        FhirAsyncIntake accepts a FHIR transaction bundle over HTTP — XML or JSON,
+        the sender's choice — queues it in the message store (IBISSTORE, slot
+        fhir-delivery) and immediately answers 202 with a receipt.
+        DeliverFhirToViscoStore picks queued bundles up, converts them to the
+        destination's configured FHIR mimetype (FhirFormatPipe; any supported
+        format in, ${viscostore.fhir.mimetype} out) and POSTs them to ViscoStore;
+        a failed delivery is retried and then PARKED IN THE ERROR STORE, where an
+        operator can inspect, resend or resolve it (in the Frank!console, or in
+        an operator console layered on this instance).
 
         Failure modes this demonstrates:
           - ViscoStore down/unreachable (always the case in the viscolink-only stack):
             every delivery parks after its retries
-          - an invalid bundle (unknown resource type): ViscoStore rejects it with 400,
-            so it parks even when the store is perfectly healthy
+          - an invalid bundle (unknown resource type): the FHIR conversion cannot
+            parse it ("FHIR parse failed"), so it parks even when the store is
+            perfectly healthy
 
-        Override the delivery target with -Dviscostore.fhir.url=... ; credentials
-        default to the demo account.
+        Override the delivery target with -Dviscostore.fhir.url=... and the wire
+        format with -Dviscostore.fhir.mimetype=application/fhir+xml (default
+        application/fhir+json); credentials default to the demo account.
     -->
 
     <Adapter name="FhirAsyncIntake"
@@ -65,6 +70,16 @@
 
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR async delivery"/>
 
+            <!-- Re-serialize to the destination's FHIR mimetype (FHIR-aware, so JSON
+                 arrays stay correct where a generic XML->JSON conversion would not).
+                 Parsing also validates: an unknown resource type throws here, and the
+                 transacted receiver retries and parks the bundle in the error store. -->
+            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toTargetFormat"
+                  outputFormat="${viscostore.fhir.mimetype:-application/fhir+json}"
+                  fhirVersion="R4">
+                <Forward name="success" path="postToViscoStore"/>
+            </Pipe>
+
             <!-- HttpSender returns the response body even for 4xx/5xx, so the HTTP
                  status is captured in a session key and checked explicitly. Any
                  failure — connection refused OR a non-2xx answer — must propagate as
@@ -74,7 +89,7 @@
                 <HttpSender name="ViscoStoreSender"
                             url="${viscostore.fhir.url:-http://localhost:8080/viscostore/fhir}"
                             methodType="POST"
-                            contentType="application/fhir+json; charset=UTF-8"
+                            contentType="${viscostore.fhir.mimetype:-application/fhir+json}; charset=UTF-8"
                             username="${viscostore.username:-demo}"
                             password="${viscostore.password:-demo}"
                             resultStatusCodeSessionKey="deliveryStatus"

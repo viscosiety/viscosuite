@@ -19,6 +19,12 @@ These configurations are the examples people copy — keep them exemplary:
     into a sessionKey;
   - inside XSLT, build text payloads in element content (`<xsl:text>`), where
     quotes are literal, not in `select` attribute expressions.
+- **FHIR format conversion is FHIR-aware.** Flows build and pass FHIR as XML;
+  the delivering adapter converts to the destination's configured mimetype with
+  `com.viscosiety.pipes.FhirFormatPipe` (see `fhir-delivery/`). Never use the
+  generic `JsonPipe` on FHIR: it cannot know that FHIR JSON requires arrays
+  (`entry`, `identifier`, …) even for single elements. `JsonPipe` remains fine
+  for non-FHIR JSON.
 - Entity-composed configurations (`<!ENTITY x SYSTEM "Configuration-x.xml">`)
   keep each adapter in its own file.
 - Demo traffic and seeded failures are driven by `demo-traffic/`

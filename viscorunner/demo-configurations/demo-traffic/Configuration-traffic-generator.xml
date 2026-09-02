@@ -11,9 +11,10 @@
           adt-other-department  valid A01 for ONCO — refused by the department filter (AR)
           unsupported-event     ORU^R01 — refused by the event-type check (AE)
           malformed             structurally broken ER7 — fails parsing (intake ERROR)
-          fhir-bundle           valid FHIR transaction bundle to the async delivery queue
-          fhir-bundle-invalid   bundle with an unknown resource type — ViscoStore
-                                rejects it, so it parks in the delivery error store
+          fhir-bundle           valid FHIR transaction bundle (XML) to the async delivery queue
+          fhir-bundle-invalid   bundle with an unknown resource type — the delivery
+                                flow's FHIR conversion rejects it, so it parks in
+                                the delivery error store
 
         Patient identity and the event rotation derive from the clock (minute of the
         hour), so a small stable roster of demo patients recurs without any state.
@@ -52,17 +53,28 @@
                 <Param name="variant" xpathExpression="/variant"/>
             </PutInSessionPipe>
 
+            <!-- FHIR variants build a FHIR XML bundle, everything else ER7 HL7v2 -->
+            <SwitchPipe name="routeBuild" forwardNameSessionKey="variant" notFoundForwardName="buildHl7Message">
+                <Forward name="fhir-bundle" path="buildFhirBundle"/>
+                <Forward name="fhir-bundle-invalid" path="buildFhirBundle"/>
+            </SwitchPipe>
+
             <!-- Build the ER7 message for this variant; the clock drives patient/event rotation -->
-            <XsltPipe name="buildMessage" styleSheetName="xslt/build-demo-hl7v2.xslt">
-                <Forward name="success" path="routeByVariant"/>
+            <XsltPipe name="buildHl7Message" styleSheetName="xslt/build-demo-hl7v2.xslt">
+                <Forward name="success" path="routeHl7Intake"/>
                 <Forward name="exception" path="Error"/>
             </XsltPipe>
 
-            <SwitchPipe name="routeByVariant" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
+            <SwitchPipe name="routeHl7Intake" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
                 <Forward name="hl7-to-xml" path="sendToXmlIntake"/>
-                <Forward name="fhir-bundle" path="sendToFhirIntake"/>
-                <Forward name="fhir-bundle-invalid" path="sendToFhirIntake"/>
             </SwitchPipe>
+
+            <!-- The generator emits canonical FHIR XML; the delivery flow converts to the
+                 destination's configured mimetype (FhirFormatPipe) -->
+            <XsltPipe name="buildFhirBundle" styleSheetName="xslt/build-demo-fhir.xslt">
+                <Forward name="success" path="sendToFhirIntake"/>
+                <Forward name="exception" path="Error"/>
+            </XsltPipe>
 
             <!-- Post to the ADT intake. AE/AR NACKs come back as HTTP 200 with a NACK
                  payload (still success here — the intake recorded the story); a seeded
@@ -90,7 +102,7 @@
                 <HttpSender name="FhirIntakeSender"
                             url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/fhir-delivery"
                             methodType="POST"
-                            contentType="application/fhir+json"/>
+                            contentType="application/fhir+xml"/>
                 <Forward name="success"   path="reportDelivered"/>
                 <Forward name="exception" path="reportSeededFailure"/>
             </SenderPipe>
