@@ -5,15 +5,16 @@
         Demo traffic generator — builds one HL7v2 message per invocation and posts it
         to the demo intake pipelines over HTTP, exactly as an external sender would.
 
-        Input (from the scheduler jobs in Configuration.xml): <variant>name</variant>
+        Input (from the scheduler jobs in Configuration.xml): the plain variant name
           adt-cardio            valid CARDIO A01/A02/A03 (rotates), accepted end-to-end
           hl7-to-xml            valid A01 sent to the hl7v2-to-xml transform intake
           adt-other-department  valid A01 for ONCO — refused by the department filter (AR)
           unsupported-event     ORU^R01 — refused by the event-type check (AE)
           malformed             structurally broken ER7 — fails parsing (intake ERROR)
-          fhir-bundle           valid FHIR transaction bundle to the async delivery queue
-          fhir-bundle-invalid   bundle with an unknown resource type — ViscoStore
-                                rejects it, so it parks in the delivery error store
+          fhir-bundle           valid FHIR transaction bundle (XML) to the async delivery queue
+          fhir-bundle-invalid   bundle with an unknown resource type — the delivery
+                                flow's FHIR conversion rejects it, so it parks in
+                                the delivery error store
 
         Patient identity and the event rotation derive from the clock (minute of the
         hour), so a small stable roster of demo patients recurs without any state.
@@ -44,22 +45,36 @@
 
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="Demo traffic generator"/>
 
-            <!-- Remember which variant this tick is; the input is <variant>...</variant> -->
+            <!-- The job message is the plain variant name; wrap it for the XSLT -->
+            <Text2XmlPipe name="wrapVariant" xmlTag="variant"/>
+
+            <!-- Remember which variant this tick is -->
             <PutInSessionPipe name="saveVariant" sessionKey="variantXml" preserveInput="true">
                 <Param name="variant" xpathExpression="/variant"/>
             </PutInSessionPipe>
 
+            <!-- FHIR variants build a FHIR XML bundle, everything else ER7 HL7v2 -->
+            <SwitchPipe name="routeBuild" forwardNameSessionKey="variant" notFoundForwardName="buildHl7Message">
+                <Forward name="fhir-bundle" path="buildFhirBundle"/>
+                <Forward name="fhir-bundle-invalid" path="buildFhirBundle"/>
+            </SwitchPipe>
+
             <!-- Build the ER7 message for this variant; the clock drives patient/event rotation -->
-            <XsltPipe name="buildMessage" styleSheetName="xslt/build-demo-hl7v2.xslt">
-                <Forward name="success" path="routeByVariant"/>
+            <XsltPipe name="buildHl7Message" styleSheetName="xslt/build-demo-hl7v2.xslt">
+                <Forward name="success" path="routeHl7Intake"/>
                 <Forward name="exception" path="Error"/>
             </XsltPipe>
 
-            <SwitchPipe name="routeByVariant" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
+            <SwitchPipe name="routeHl7Intake" forwardNameSessionKey="variant" notFoundForwardName="sendToAdtIntake">
                 <Forward name="hl7-to-xml" path="sendToXmlIntake"/>
-                <Forward name="fhir-bundle" path="sendToFhirIntake"/>
-                <Forward name="fhir-bundle-invalid" path="sendToFhirIntake"/>
             </SwitchPipe>
+
+            <!-- The generator emits canonical FHIR XML; the delivery flow converts to the
+                 destination's configured mimetype (FhirFormatPipe) -->
+            <XsltPipe name="buildFhirBundle" styleSheetName="xslt/build-demo-fhir.xslt">
+                <Forward name="success" path="sendToFhirIntake"/>
+                <Forward name="exception" path="Error"/>
+            </XsltPipe>
 
             <!-- Post to the ADT intake. AE/AR NACKs come back as HTTP 200 with a NACK
                  payload (still success here — the intake recorded the story); a seeded
@@ -87,16 +102,16 @@
                 <HttpSender name="FhirIntakeSender"
                             url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/fhir-delivery"
                             methodType="POST"
-                            contentType="application/fhir+json"/>
+                            contentType="application/fhir+xml"/>
                 <Forward name="success"   path="reportDelivered"/>
                 <Forward name="exception" path="reportSeededFailure"/>
             </SenderPipe>
 
-            <FixedResultPipe name="reportDelivered" returnString="&lt;result&gt;delivered&lt;/result&gt;">
+            <FixedResultPipe name="reportDelivered" filename="responses/delivered.xml">
                 <Forward name="success" path="Exit"/>
             </FixedResultPipe>
 
-            <FixedResultPipe name="reportSeededFailure" returnString="&lt;result&gt;seeded failure delivered — see the intake pipeline's journey and error store&lt;/result&gt;">
+            <FixedResultPipe name="reportSeededFailure" filename="responses/seeded-failure.xml">
                 <Forward name="success" path="Exit"/>
             </FixedResultPipe>
 

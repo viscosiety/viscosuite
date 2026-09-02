@@ -29,6 +29,7 @@ import org.apache.logging.log4j.Logger;
 import org.jspecify.annotations.NonNull;
 
 import org.frankframework.configuration.ConfigurationException;
+import org.frankframework.configuration.ConfigurationWarnings;
 import org.frankframework.core.ISenderWithParameters;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.core.SenderException;
@@ -74,6 +75,13 @@ public class MllpSender extends MllpFacade implements ISenderWithParameters {
     public void configure() throws ConfigurationException {
         super.configure();
         paramList.configure();
+        if (!paramList.isEmpty()) {
+            // ISenderWithParameters is implemented for framework wiring; no parameter is
+            // interpreted (yet) — warn instead of silently ignoring the config author.
+            ConfigurationWarnings.add(this, log,
+                    "MllpSender does not use parameters; the declared parameters are ignored. "
+                            + "The destination comes from the pooled connection resource [" + getResourceName() + "]");
+        }
     }
 
     @Override
