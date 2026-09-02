@@ -22,6 +22,13 @@
         <xsl:variable name="gender" select="if ($pat/@sex = 'F') then 'female' else 'male'"/>
         <xsl:variable name="dob" select="concat(substring($pat/@dob,1,4),'-',substring($pat/@dob,5,2),'-',substring($pat/@dob,7,2))"/>
         <Bundle>
+            <meta>
+                <!-- the study tag is what downstream facet extraction keys on -->
+                <tag>
+                    <system value="urn:visco:study"/>
+                    <code value="{$study}"/>
+                </tag>
+            </meta>
             <type value="transaction"/>
             <entry>
                 <fullUrl value="urn:uuid:demo-{$ts}-{$pat/@id}"/>

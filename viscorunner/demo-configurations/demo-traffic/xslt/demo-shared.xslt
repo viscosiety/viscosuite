@@ -27,5 +27,7 @@
     </xsl:variable>
     <xsl:variable name="pat" select="$roster/p[($minute mod 5) + 1]"/>
     <xsl:variable name="adtEvent" select="('A01','A02','A03')[($minute mod 3) + 1]"/>
+    <!-- Demo studies: patients are enrolled by roster id, so each study recurs stably -->
+    <xsl:variable name="study" select="if (number($pat/@id) mod 2 = 1) then 'VISTA-2' else 'MERIDIAN-1'"/>
 
 </xsl:stylesheet>
