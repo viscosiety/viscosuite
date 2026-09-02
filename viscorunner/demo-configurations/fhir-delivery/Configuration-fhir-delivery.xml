@@ -73,7 +73,10 @@
             <!-- Re-serialize to the destination's FHIR mimetype (FHIR-aware, so JSON
                  arrays stay correct where a generic XML->JSON conversion would not).
                  Parsing also validates: an unknown resource type throws here, and the
-                 transacted receiver retries and parks the bundle in the error store. -->
+                 transacted receiver retries and parks the bundle in the error store.
+                 For a per-message format, set outputFormatSessionKey to a session key
+                 holding the mimetype; it overrides outputFormat when present (make the
+                 sender's contentType follow the same decision). -->
             <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toTargetFormat"
                   outputFormat="${viscostore.fhir.mimetype:-application/fhir+json}"
                   fhirVersion="R4">

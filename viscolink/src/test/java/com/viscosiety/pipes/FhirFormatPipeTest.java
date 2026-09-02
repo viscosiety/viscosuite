@@ -123,6 +123,56 @@ class FhirFormatPipeTest {
 	}
 
 	@Test
+	void sessionKeyOverridesConfiguredOutputFormat() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		pipe.setOutputFormat("application/fhir+json");
+		pipe.setOutputFormatSessionKey("deliveryFormat");
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("deliveryFormat", "application/fhir+xml");
+			String out = pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString();
+			assertTrue(out.startsWith("<"), out);
+		}
+	}
+
+	@Test
+	void absentOrEmptySessionKeyFallsBackToConfiguredFormat() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		pipe.setOutputFormat("application/fhir+xml");
+		pipe.setOutputFormatSessionKey("deliveryFormat");
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			assertTrue(pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString().startsWith("<"));
+		}
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("deliveryFormat", "  ");
+			assertTrue(pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString().startsWith("<"));
+		}
+	}
+
+	@Test
+	void unsupportedSessionKeyValueFailsTheMessage() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		pipe.setOutputFormatSessionKey("deliveryFormat");
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("deliveryFormat", "text/csv");
+			PipeRunException e = assertThrows(PipeRunException.class,
+					() -> pipe.doPipe(new Message(PATIENT_JSON), session));
+			assertTrue(e.getMessage().contains("deliveryFormat"), e.getMessage());
+		}
+	}
+
+	@Test
 	void unsupportedOutputFormatFailsConfiguration() {
 		FhirFormatPipe pipe = new FhirFormatPipe();
 		pipe.setName("toTargetFormat");

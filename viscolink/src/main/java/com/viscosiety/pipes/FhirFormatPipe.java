@@ -46,22 +46,29 @@ import org.springframework.http.MediaType;
  *       outputFormat="${destination.fhir.mimetype:-application/fhir+json}" fhirVersion="R4"/>
  * }</pre>
  *
- * <p>Supported {@code outputFormat} values: {@code application/fhir+json},
- * {@code application/fhir+xml} (mimetype parameters such as {@code ; fhirVersion=4.0}
- * are tolerated), and the shorthands {@code json} / {@code xml}. Parsing the input also
- * verifies it is well-formed FHIR of the configured version: unparseable input (e.g. an
- * unknown resource type) raises a {@link PipeRunException}, so in a transacted receiver
- * the message retries and parks in the error store.</p>
+ * <p>Supported format values: {@code application/fhir+json}, {@code application/fhir+xml}
+ * (mimetype parameters such as {@code ; fhirVersion=4.0} are tolerated), and the
+ * shorthands {@code json} / {@code xml}. Parsing the input also verifies it is
+ * well-formed FHIR of the configured version: unparseable input (e.g. an unknown
+ * resource type) raises a {@link PipeRunException}, so in a transacted receiver the
+ * message retries and parks in the error store.</p>
+ *
+ * <p>The target format can also be decided per message: when {@code outputFormatSessionKey}
+ * is set and that session key holds a non-empty value, it overrides {@code outputFormat}
+ * for that message (an unsupported value raises a {@link PipeRunException}). The
+ * configured {@code outputFormat} remains the fallback when the key is absent or empty.</p>
  */
 public class FhirFormatPipe extends FixedForwardPipe {
 
     private String outputFormat = "application/fhir+json";
+    private String outputFormatSessionKey = null;
     private String fhirVersion = "R4";
     private boolean prettyPrint = false;
 
     private FhirContext fhirContext;
-    private boolean targetJson;
-    private String targetMimeType;
+    private TargetFormat defaultTarget;
+
+    private record TargetFormat(boolean json, String mimeType) {}
 
     @Override
     public void configure() throws ConfigurationException {
@@ -75,26 +82,41 @@ public class FhirFormatPipe extends FixedForwardPipe {
                     "Unsupported fhirVersion '" + fhirVersion + "'; supported values: R4, R5, DSTU3");
         };
 
-        // mimetype parameters (e.g. "; fhirVersion=4.0") are tolerated
-        String format = outputFormat.split(";", 2)[0].strip().toLowerCase(Locale.ROOT);
-        switch (format) {
-            case "application/fhir+json", "json" -> {
-                targetJson = true;
-                targetMimeType = "application/fhir+json";
-            }
-            case "application/fhir+xml", "xml" -> {
-                targetJson = false;
-                targetMimeType = "application/fhir+xml";
-            }
-            default -> throw new ConfigurationException(
+        defaultTarget = resolveFormat(outputFormat);
+        if (defaultTarget == null) {
+            throw new ConfigurationException(
                     "Unsupported outputFormat '" + outputFormat
                             + "'; supported: application/fhir+json, application/fhir+xml (or json/xml)");
         }
     }
 
+    /** Maps a FHIR mimetype or shorthand onto a target format; mimetype parameters
+     * (e.g. "; fhirVersion=4.0") are tolerated. Returns null when unsupported. */
+    private static TargetFormat resolveFormat(String value) {
+        String format = value.split(";", 2)[0].strip().toLowerCase(Locale.ROOT);
+        return switch (format) {
+            case "application/fhir+json", "json" -> new TargetFormat(true, "application/fhir+json");
+            case "application/fhir+xml", "xml" -> new TargetFormat(false, "application/fhir+xml");
+            default -> null;
+        };
+    }
+
     @Override
     public @NonNull PipeRunResult doPipe(@NonNull Message message, @NonNull PipeLineSession session)
             throws PipeRunException {
+
+        TargetFormat target = defaultTarget;
+        if (outputFormatSessionKey != null) {
+            String requested = session.getString(outputFormatSessionKey);
+            if (requested != null && !requested.isBlank()) {
+                target = resolveFormat(requested);
+                if (target == null) {
+                    throw new PipeRunException(this,
+                            "Unsupported output format '" + requested + "' in session key [" + outputFormatSessionKey
+                                    + "]; supported: application/fhir+json, application/fhir+xml (or json/xml)");
+                }
+            }
+        }
 
         String input;
         try {
@@ -116,18 +138,27 @@ public class FhirFormatPipe extends FixedForwardPipe {
                     "FHIR parse failed (" + (inputIsXml ? "XML" : "JSON") + ", " + fhirVersion + "): " + e.getMessage(), e);
         }
 
-        IParser outputParser = targetJson ? fhirContext.newJsonParser() : fhirContext.newXmlParser();
+        IParser outputParser = target.json() ? fhirContext.newJsonParser() : fhirContext.newXmlParser();
         String output = outputParser.setPrettyPrint(prettyPrint).encodeResourceToString(resource);
 
         Message result = new Message(output);
-        result.getContext().withMimeType(MediaType.parseMediaType(targetMimeType));
+        result.getContext().withMimeType(MediaType.parseMediaType(target.mimeType()));
         return new PipeRunResult(getSuccessForward(), result);
     }
 
     /** Target FHIR format: a FHIR mimetype ({@code application/fhir+json} / {@code application/fhir+xml},
-     * parameters tolerated) or the shorthand {@code json} / {@code xml}. Default {@code application/fhir+json}. */
+     * parameters tolerated) or the shorthand {@code json} / {@code xml}. Default {@code application/fhir+json}.
+     * When {@code outputFormatSessionKey} is set and holds a value, that value wins for the message. */
     public void setOutputFormat(String outputFormat) {
         this.outputFormat = outputFormat;
+    }
+
+    /** Session key holding the target format for the current message (same values as
+     * {@code outputFormat}). When unset, or when the key is absent or empty at runtime,
+     * the configured {@code outputFormat} applies. An unsupported value in the session
+     * key fails the message, it does not silently fall back. */
+    public void setOutputFormatSessionKey(String outputFormatSessionKey) {
+        this.outputFormatSessionKey = outputFormatSessionKey;
     }
 
     /** FHIR version of the payload: R4 (default), R5, or DSTU3. */
