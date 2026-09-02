@@ -49,6 +49,12 @@ services:
       # only the medical pipelines it feeds should appear as journeys.
       ibistesttool.regexFilter: "^(?!Pipeline demo-traffic/).*"
 
+      # nl-core PROFILE validation: the mounted Nictiz packages (CC0) make the
+      # intake validate against the nl-core profiles resources claim, not just
+      # base R4. Run fhir-packages/download-packages.sh once after cloning.
+      nlcore.validation.packages: /opt/frank/fhir-packages
+      nlcore.validation.strict: "true"
+
       viscolink.views.names: viscoflow,lab-code-mapper,pipeline-console
       viscolink.views.lab-code-mapper.name: Lab Code Mapper
       viscolink.views.lab-code-mapper.url: /viscolink/demo-tools/loinc-mapping-ui.html
@@ -72,6 +78,7 @@ services:
       VISCOSTORE_PASSWORD: demo
 
     volumes:
+      - ./fhir-packages:/opt/frank/fhir-packages:ro
       # Demo Credentials
       - ./demo-secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
       # Shadow the base configurations mount with the demo reference implementation.

@@ -5,13 +5,17 @@
     validates it as R4, tags it into the inbound zone, and queues it for
     delivery.
 
-    Input:  <variant>nl-core-patient | nl-core-patient-invalid</variant>
+    Input:  <variant>nl-core-patient | nl-core-patient-invalid | nl-core-patient-nonconformant</variant>
     Output: FHIR R4 Patient XML claiming the nl-core-Patient profile.
 
-    The invalid variant carries gender="onbekend" — a Dutch label where FHIR
-    requires a code from the administrative-gender ValueSet — so R4 validation
-    refuses it at the intake with an OperationOutcome (HTTP 422). A classic
-    real-world mapping mistake, on purpose.
+    Two seeded failure flavours, both classic real-world mistakes:
+    - nl-core-patient-invalid carries gender="onbekend" — a Dutch label where
+      FHIR requires a code — refused at PARSE level (422).
+    - nl-core-patient-nonconformant is valid base R4 but omits the ISO 21090
+      name-qualifier extension nl-core requires on every given name — refused
+      by PROFILE validation (422) when the intake runs with the Nictiz
+      packages loaded (nlcore.validation.*), and accepted otherwise. The
+      difference demonstrates exactly what package-backed validation adds.
 
     BSNs are fictitious (999-range test numbers), derived from the roster id.
     Roster and clock rotation come from demo-shared.xslt.
@@ -36,8 +40,17 @@
             </identifier>
             <name>
                 <use value="official"/>
+                <text value="{concat(substring-after($pat/@name, '^'), ' ', substring-before($pat/@name, '^'))}"/>
                 <family value="{substring-before($pat/@name, '^')}"/>
-                <given value="{substring-after($pat/@name, '^')}"/>
+                <given value="{substring-after($pat/@name, '^')}">
+                    <!-- nl-core requires the name-qualifier on every given (BR = full
+                         given name); the nonconformant variant omits it on purpose -->
+                    <xsl:if test=". != 'nl-core-patient-nonconformant'">
+                        <extension url="http://hl7.org/fhir/StructureDefinition/iso21090-EN-qualifier">
+                            <valueCode value="BR"/>
+                        </extension>
+                    </xsl:if>
+                </given>
             </name>
             <gender value="{$gender}"/>
             <birthDate value="{$dob}"/>

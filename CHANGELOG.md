@@ -21,6 +21,13 @@ All notable changes to ViscoSuite are documented here. The format follows
 - `FhirValidatorPipe`: parse-level failures now refuse on the `failure` forward
   with an OperationOutcome; new `failOnUnknownProfiles` attribute (default
   false — resources may claim profiles no package is loaded for).
+- `FhirValidatorPipe` package-backed profile validation: `validationPackages`
+  loads FHIR NPM packages (.tgz), so profile claims resolve and resources are
+  validated against them. The demo runs the nl-core intake with the Nictiz
+  nl-core + zib2020 packages (CC0, fetched by
+  `viscorunner/fhir-packages/download-packages.sh`); a new
+  `nl-core-patient-nonconformant` traffic variant — valid base R4, missing the
+  nl-core name-qualifier extension — demonstrates exactly what it adds.
 
 ### Changed
 - Demo configurations follow explicit conventions (no markup in XML attributes,

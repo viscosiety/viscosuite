@@ -17,8 +17,11 @@
                                 the delivery error store
           nl-core-patient       valid FHIR R4 nl-core Patient to the nl-core intake
           nl-core-patient-invalid  R4 patient with gender="onbekend" (Dutch label,
-                                not a FHIR code) — R4 validation refuses it with
-                                an OperationOutcome and HTTP 422
+                                not a FHIR code) — refused at parse level (422)
+          nl-core-patient-nonconformant  valid base R4 but missing the nl-core
+                                name-qualifier extension — refused by PROFILE
+                                validation (422) when the Nictiz packages are
+                                loaded, accepted otherwise
 
         Patient identity and the event rotation derive from the clock (minute of the
         hour), so a small stable roster of demo patients recurs without any state.
@@ -63,6 +66,7 @@
                 <Forward name="fhir-bundle-invalid" path="buildFhirBundle"/>
                 <Forward name="nl-core-patient" path="buildNlCorePatient"/>
                 <Forward name="nl-core-patient-invalid" path="buildNlCorePatient"/>
+                <Forward name="nl-core-patient-nonconformant" path="buildNlCorePatient"/>
             </SwitchPipe>
 
             <!-- Build the ER7 message for this variant; the clock drives patient/event rotation -->

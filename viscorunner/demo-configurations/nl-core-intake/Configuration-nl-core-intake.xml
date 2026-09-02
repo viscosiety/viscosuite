@@ -38,8 +38,13 @@
 
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="nl-core intake"/>
 
-            <!-- R4 validation gate: failure answers 422 with the OperationOutcome -->
-            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="validateR4" fhirVersion="R4">
+            <!-- R4 validation gate: failure answers 422 with the OperationOutcome.
+                 With the Nictiz packages mounted (nlcore.validation.packages) and
+                 strict mode on, resources are validated against the nl-core PROFILES
+                 they claim, not just base R4 — see fhir-packages/README.md. -->
+            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="validateR4" fhirVersion="R4"
+                  validationPackages="${nlcore.validation.packages:-}"
+                  failOnUnknownProfiles="${nlcore.validation.strict:-false}">
                 <Forward name="success" path="toXmlForTagging"/>
                 <Forward name="failure" path="Invalid"/>
             </Pipe>

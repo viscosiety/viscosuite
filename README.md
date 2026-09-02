@@ -111,7 +111,7 @@ with healthcare-specific components.
 |---|---|
 | `Hl7v2ToXmlPipe` | Converts pipe-delimited HL7v2 to HL7v2 XML Encoding Syntax using HAPI HL7v2; supports version enforcement and message validation (per-message override via a `validateMessage` parameter) |
 | `XmlToHl7v2Pipe` | Inverse: converts HL7v2 XML back to pipe-delimited format for MLLP transmission or ACK generation |
-| `FhirValidatorPipe` | Validates FHIR resources (XML or JSON) against R4, R5, or DSTU3 using the HAPI FHIR instance validator; refuses invalid input on a `failure` forward with an `OperationOutcome` |
+| `FhirValidatorPipe` | Validates FHIR resources (XML or JSON) against R4, R5, or DSTU3 using the HAPI FHIR instance validator; refuses invalid input on a `failure` forward with an `OperationOutcome`. Loads FHIR NPM packages (`validationPackages`) for profile-level validation — e.g. against Nictiz nl-core |
 | `FhirFormatPipe` | FHIR-aware format conversion between `application/fhir+xml` and `application/fhir+json` — structurally correct (single-element arrays stay arrays), with the target mimetype configurable per deployment, per session key, or per message via `<Param>` |
 
 **Custom listener and sender**
@@ -151,8 +151,10 @@ as patterns, or run them as-is. They follow explicit
 
 **A note on FHIR versions:** ViscoStore runs FHIR R5 and the ViscoLink IG derives from the
 HL7 Europe core profiles (the EHDS foundation). The pipes speak R4, R5 and DSTU3, and the
-`nl-core-intake` flow is the R4 reference for the Dutch nl-core install base. First-class
-nl-core package validation is on the roadmap.
+`nl-core-intake` flow is the R4 reference for the Dutch nl-core install base — including
+**package-backed profile validation**: point `FhirValidatorPipe` at the Nictiz nl-core
+packages (`viscorunner/fhir-packages/`, CC0) and resources are validated against the
+profiles they claim, not just base R4. The demo overlay runs with this enabled.
 
 ## Key endpoints
 
