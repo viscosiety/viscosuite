@@ -22,7 +22,13 @@
 
 		<!-- Ladybug reports on their OWN datasource: a report written on the business
 		     datasource joins the receiver's transaction, so the report of a FAILED
-		     transacted message is rolled back with it and the journey is lost. -->
+		     transacted message is rolled back with it and the journey is lost.
+		     Works with any database the drivers directory supports; for an
+		     H2-based deployment set:
+		       LADYBUG_JDBC_DRIVER=org.h2.Driver
+		       LADYBUG_JDBC_URL=jdbc:h2:file:/opt/frank/h2/ladybug
+		     (a SEPARATE file from the business database — sharing the file would
+		     reintroduce the rollback problem via the same database). -->
 		<Resource name="jdbc/ladybug"
 			auth="Container"
 			type="javax.sql.DataSource"
