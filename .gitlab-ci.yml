@@ -413,3 +413,28 @@ cleanup:arch-tags:
       done
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
+
+# ---------------------------------------------------------------------------
+# Open-source distribution
+#
+# GitHub is the community front door; this GitLab is the system of record.
+# Branches and tags reach GitHub via push mirroring (Settings → Repository →
+# Mirroring repositories: push, GitHub fine-grained PAT with contents:write,
+# "keep divergent refs" off). Releases do NOT mirror, so this job creates the
+# GitHub Release when a tag is pushed. Requires CI/CD variable GITHUB_TOKEN
+# (masked): a fine-grained PAT for viscosiety/viscosuite, contents:write.
+# ---------------------------------------------------------------------------
+
+github-release:
+  stage: downstream
+  image: alpine:3.20
+  rules:
+    - if: '$CI_COMMIT_TAG'
+  script:
+    - apk add --no-cache curl
+    - |
+      curl --silent --fail --show-error -X POST \
+        -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+        -H "Accept: application/vnd.github+json" \
+        https://api.github.com/repos/viscosiety/viscosuite/releases \
+        -d "{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"ViscoSuite ${CI_COMMIT_TAG}\",\"generate_release_notes\":true}"
