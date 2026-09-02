@@ -21,6 +21,14 @@ services:
       VISCOLINK_JDBC_USERNAME: visco
       VISCOLINK_JDBC_PASSWORD: visco
 
+      # Ladybug's own database — keeps debug reports out of the business transaction,
+      # so journeys of FAILED transacted messages survive the rollback.
+      ladybug.jdbc.datasource: jdbc/ladybug
+      LADYBUG_JDBC_DRIVER: org.postgresql.Driver
+      LADYBUG_JDBC_URL: jdbc:postgresql://postgres:5432/ladybug
+      LADYBUG_JDBC_USERNAME: visco
+      LADYBUG_JDBC_PASSWORD: visco
+
       # Activate Ladybug database storage (remove to use in-memory storage instead)
       JAVA_OPTS: "-Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
     depends_on:
