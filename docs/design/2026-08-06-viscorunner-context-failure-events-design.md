@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-06
 **Module:** viscorunner (the shared Tomcat under viscolink + viscostore)
-**Status:** Approved for planning
+**Status:** Implemented — see `ContextFailureEventPublisher` (viscorunner) and its tests.
 
 ## Problem
 

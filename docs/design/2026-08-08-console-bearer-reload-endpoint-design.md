@@ -1,7 +1,7 @@
 # Bearer-authenticated config-reload endpoint
 
 **Date:** 2026-08-08
-**Status:** Approved, ready for planning.
+**Status:** Implemented — see `ReloadConfigurationServlet` (viscolink) and its tests.
 
 ## Problem
 

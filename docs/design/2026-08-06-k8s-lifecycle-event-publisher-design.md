@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-06
 **Module:** viscolink (with a later, out-of-scope upstream Frank!Framework extraction)
-**Status:** Approved for planning
+**Status:** Implemented — see `LifecycleEventK8sPublisher` (viscolink) and its tests.
 
 ## Problem
 
