@@ -23,6 +23,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.frankframework.configuration.ConfigurationException;
 import org.frankframework.core.PipeForward;
+import org.frankframework.parameters.Parameter;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.core.PipeRunException;
 import org.frankframework.core.PipeRunResult;
@@ -120,6 +121,84 @@ class FhirFormatPipeTest {
 		pipe.configure();
 		assertTrue(run(pipe, BUNDLE_XML).contains("\n"));
 		assertFalse(run(configured("json"), BUNDLE_XML).contains("\n"));
+	}
+
+	@Test
+	void outputFormatParameterFromSessionKeyOverridesEverything() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		pipe.setOutputFormat("application/fhir+json");
+		pipe.setOutputFormatSessionKey("ignoredKey");
+		Parameter formatParam = new Parameter();
+		formatParam.setName("outputFormat");
+		formatParam.setSessionKey("routedFormat");
+		pipe.addParameter(formatParam);
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("ignoredKey", "application/fhir+json");
+			session.put("routedFormat", "application/fhir+xml");
+			String out = pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString();
+			assertTrue(out.startsWith("<"), out);
+		}
+	}
+
+	@Test
+	void emptyOutputFormatParameterFallsThroughToSessionKeyThenAttribute() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		pipe.setOutputFormat("application/fhir+json");
+		pipe.setOutputFormatSessionKey("deliveryFormat");
+		Parameter formatParam = new Parameter();
+		formatParam.setName("outputFormat");
+		formatParam.setSessionKey("routedFormat"); // never populated
+		pipe.addParameter(formatParam);
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("deliveryFormat", "xml");
+			assertTrue(pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString().startsWith("<"));
+		}
+		try (PipeLineSession session = new PipeLineSession()) {
+			assertTrue(pipe.doPipe(new Message(PATIENT_JSON), session).getResult().asString().startsWith("{"));
+		}
+	}
+
+	@Test
+	void unsupportedOutputFormatParameterFailsTheMessage() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		Parameter formatParam = new Parameter();
+		formatParam.setName("outputFormat");
+		formatParam.setValue("text/csv");
+		pipe.addParameter(formatParam);
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			PipeRunException e = assertThrows(PipeRunException.class,
+					() -> pipe.doPipe(new Message(PATIENT_JSON), session));
+			assertTrue(e.getMessage().contains("parameter [outputFormat]"), e.getMessage());
+		}
+	}
+
+	@Test
+	void prettyPrintParameterOverridesAttribute() throws Exception {
+		FhirFormatPipe pipe = new FhirFormatPipe();
+		pipe.setName("toTargetFormat");
+		pipe.addForward(new PipeForward("success", "READY"));
+		Parameter prettyParam = new Parameter();
+		prettyParam.setName("prettyPrint");
+		prettyParam.setSessionKey("wantPretty");
+		pipe.addParameter(prettyParam);
+		pipe.configure();
+
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("wantPretty", "true");
+			assertTrue(pipe.doPipe(new Message(BUNDLE_XML), session).getResult().asString().contains("\n"));
+		}
 	}
 
 	@Test

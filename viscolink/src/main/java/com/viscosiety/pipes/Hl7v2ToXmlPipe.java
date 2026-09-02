@@ -46,6 +46,9 @@ import org.frankframework.stream.Message;
  * }</pre>
  *
  * <p>The output XML is consumed by XSLTs in the {@code urn:hl7-org:v2xml} namespace.</p>
+ *
+ * @ff.parameter validateMessage overrides attribute <code>validateMessage</code> for the
+ *               current message (e.g. from a session key or an XPath over the message).
  */
 public class Hl7v2ToXmlPipe extends FixedForwardPipe {
 

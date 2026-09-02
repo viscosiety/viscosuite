@@ -22,9 +22,12 @@ import java.util.Locale;
 import ca.uhn.fhir.context.FhirContext;
 import ca.uhn.fhir.parser.IParser;
 import org.frankframework.configuration.ConfigurationException;
+import org.frankframework.core.ParameterException;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.core.PipeRunException;
 import org.frankframework.core.PipeRunResult;
+import org.frankframework.parameters.ParameterValue;
+import org.frankframework.parameters.ParameterValueList;
 import org.frankframework.pipes.FixedForwardPipe;
 import org.frankframework.stream.Message;
 import org.hl7.fhir.instance.model.api.IBaseResource;
@@ -53,12 +56,20 @@ import org.springframework.http.MediaType;
  * resource type) raises a {@link PipeRunException}, so in a transacted receiver the
  * message retries and parks in the error store.</p>
  *
- * <p>The target format can also be decided per message: when {@code outputFormatSessionKey}
- * is set and that session key holds a non-empty value, it overrides {@code outputFormat}
- * for that message (an unsupported value raises a {@link PipeRunException}). The
- * configured {@code outputFormat} remains the fallback when the key is absent or empty.</p>
+ * <p>The target format can also be decided per message, in order of precedence:
+ * a parameter named {@code outputFormat} (a {@code <Param>} can draw its value from a
+ * session key, an XPath/JsonPath over the message, a pattern, …), then the
+ * {@code outputFormatSessionKey} attribute, then the {@code outputFormat} attribute.
+ * An empty resolved value falls through to the next level; an unsupported non-empty
+ * value raises a {@link PipeRunException} — it never silently falls back.</p>
+ *
+ * @ff.parameter outputFormat overrides attributes <code>outputFormatSessionKey</code> and <code>outputFormat</code> for the current message.
+ * @ff.parameter prettyPrint overrides attribute <code>prettyPrint</code> for the current message.
  */
 public class FhirFormatPipe extends FixedForwardPipe {
+
+    public static final String OUTPUT_FORMAT_PARAMETER = "outputFormat";
+    public static final String PRETTY_PRINT_PARAMETER = "prettyPrint";
 
     private String outputFormat = "application/fhir+json";
     private String outputFormatSessionKey = null;
@@ -90,6 +101,35 @@ public class FhirFormatPipe extends FixedForwardPipe {
         }
     }
 
+    /** Per-message target: parameter outputFormat, then outputFormatSessionKey, then the
+     * attribute. An empty value at one level falls through to the next; an unsupported
+     * non-empty value fails the message. */
+    private TargetFormat resolveTarget(ParameterValueList pvl, PipeLineSession session) throws PipeRunException {
+        ParameterValue param = pvl.get(OUTPUT_FORMAT_PARAMETER);
+        if (param != null) {
+            String requested = param.asStringValue();
+            if (requested != null && !requested.isBlank()) {
+                return requireSupported(requested, "parameter [" + OUTPUT_FORMAT_PARAMETER + "]");
+            }
+        }
+        if (outputFormatSessionKey != null) {
+            String requested = session.getString(outputFormatSessionKey);
+            if (requested != null && !requested.isBlank()) {
+                return requireSupported(requested, "session key [" + outputFormatSessionKey + "]");
+            }
+        }
+        return defaultTarget;
+    }
+
+    private TargetFormat requireSupported(String requested, String source) throws PipeRunException {
+        TargetFormat target = resolveFormat(requested);
+        if (target == null) {
+            throw new PipeRunException(this, "Unsupported output format '" + requested + "' in " + source
+                    + "; supported: application/fhir+json, application/fhir+xml (or json/xml)");
+        }
+        return target;
+    }
+
     /** Maps a FHIR mimetype or shorthand onto a target format; mimetype parameters
      * (e.g. "; fhirVersion=4.0") are tolerated. Returns null when unsupported. */
     private static TargetFormat resolveFormat(String value) {
@@ -105,18 +145,16 @@ public class FhirFormatPipe extends FixedForwardPipe {
     public @NonNull PipeRunResult doPipe(@NonNull Message message, @NonNull PipeLineSession session)
             throws PipeRunException {
 
-        TargetFormat target = defaultTarget;
-        if (outputFormatSessionKey != null) {
-            String requested = session.getString(outputFormatSessionKey);
-            if (requested != null && !requested.isBlank()) {
-                target = resolveFormat(requested);
-                if (target == null) {
-                    throw new PipeRunException(this,
-                            "Unsupported output format '" + requested + "' in session key [" + outputFormatSessionKey
-                                    + "]; supported: application/fhir+json, application/fhir+xml (or json/xml)");
-                }
-            }
+        ParameterValueList pvl;
+        try {
+            pvl = getParameterList().getValues(message, session);
+        } catch (ParameterException e) {
+            throw new PipeRunException(this, "unable to resolve parameters", e);
         }
+
+        TargetFormat target = resolveTarget(pvl, session);
+        ParameterValue prettyParam = pvl.get(PRETTY_PRINT_PARAMETER);
+        boolean pretty = prettyParam != null ? prettyParam.asBooleanValue(prettyPrint) : prettyPrint;
 
         String input;
         try {
@@ -139,7 +177,7 @@ public class FhirFormatPipe extends FixedForwardPipe {
         }
 
         IParser outputParser = target.json() ? fhirContext.newJsonParser() : fhirContext.newXmlParser();
-        String output = outputParser.setPrettyPrint(prettyPrint).encodeResourceToString(resource);
+        String output = outputParser.setPrettyPrint(pretty).encodeResourceToString(resource);
 
         Message result = new Message(output);
         result.getContext().withMimeType(MediaType.parseMediaType(target.mimeType()));
