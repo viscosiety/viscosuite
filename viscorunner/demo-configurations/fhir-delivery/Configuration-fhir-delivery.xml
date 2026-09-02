@@ -42,6 +42,33 @@
 
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="FHIR async delivery"/>
 
+            <!-- Optional facet publication: extracts business keys (study tag, patient
+                 MRN) into a small JSON document and posts it to a facet index, so an
+                 operator console can filter messages by study. Dormant by default —
+                 enable with -Dfacets.publish.active=true (and point facets.publish.url
+                 at the index). Best-effort by design: a JSON submission or an absent
+                 index must never block the intake, so every failure path continues to
+                 the queue. -->
+            <XsltPipe name="buildFacetDoc" styleSheetName="xslt/build-facet-doc.xslt"
+                      storeResultInSessionKey="facetDoc" preserveInput="true"
+                      active="${facets.publish.active:-false}">
+                <Param name="mid" sessionKey="mid"/>
+                <Param name="cid" sessionKey="cid"/>
+                <Forward name="success" path="publishFacets"/>
+                <Forward name="exception" path="queueForDelivery"/>
+            </XsltPipe>
+
+            <SenderPipe name="publishFacets" getInputFromSessionKey="facetDoc" preserveInput="true"
+                        active="${facets.publish.active:-false}">
+                <HttpSender name="FacetPublisher"
+                            url="${facets.publish.url:-http://localhost:8080/viscoforge/api/facets}"
+                            methodType="POST"
+                            contentType="application/json"
+                            timeout="3000"/>
+                <Forward name="success"   path="queueForDelivery"/>
+                <Forward name="exception" path="queueForDelivery"/>
+            </SenderPipe>
+
             <SenderPipe name="queueForDelivery">
                 <MessageStoreSender name="DeliveryQueue" slotId="fhir-delivery"/>
                 <Forward name="success"   path="buildReceipt"/>
