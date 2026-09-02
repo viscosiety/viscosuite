@@ -20,43 +20,43 @@
         <SendMessageJob name="DemoTraffic-AdtCardio" active="${demo.traffic.active:-true}"
                         description="Valid cardiology ADT admission/transfer/discharge — the happy path, every 2 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;adt-cardio&lt;/variant&gt;"
+                        message="adt-cardio"
                         cronExpression="0 0/2 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-XmlTransform" active="${demo.traffic.active:-true}"
                         description="Valid ADT through the HL7v2-to-XML transform pipeline, every 5 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;hl7-to-xml&lt;/variant&gt;"
+                        message="hl7-to-xml"
                         cronExpression="15 1/5 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-OtherDepartment" active="${demo.traffic.active:-true}"
                         description="Seeded reject: oncology admission that the CARDIO-only department filter refuses (AR NACK), every 10 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;adt-other-department&lt;/variant&gt;"
+                        message="adt-other-department"
                         cronExpression="30 3/10 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-UnsupportedEvent" active="${demo.traffic.active:-true}"
                         description="Seeded reject: ORU^R01 lab result that the ADT intake does not support (AE NACK), every 15 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;unsupported-event&lt;/variant&gt;"
+                        message="unsupported-event"
                         cronExpression="45 7/15 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-Malformed" active="${demo.traffic.active:-true}"
                         description="Seeded failure: structurally broken HL7v2 that fails parsing (intake ERROR exit), every 30 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;malformed&lt;/variant&gt;"
+                        message="malformed"
                         cronExpression="50 11/30 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-FhirDelivery" active="${demo.traffic.active:-true}"
                         description="Valid FHIR bundle into the async delivery queue, every 10 minutes (parks in the error store when ViscoStore is unreachable)"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;fhir-bundle&lt;/variant&gt;"
+                        message="fhir-bundle"
                         cronExpression="20 4/10 * ? * *"/>
 
         <SendMessageJob name="DemoTraffic-FhirDeliveryInvalid" active="${demo.traffic.active:-true}"
                         description="Seeded failure: bundle with an unknown resource type — rejected by ViscoStore, parks in the delivery error store, every 30 minutes"
                         javaListener="DemoTrafficListener"
-                        message="&lt;variant&gt;fhir-bundle-invalid&lt;/variant&gt;"
+                        message="fhir-bundle-invalid"
                         cronExpression="35 21/30 * ? * *"/>
     </Scheduler>
 </Configuration>

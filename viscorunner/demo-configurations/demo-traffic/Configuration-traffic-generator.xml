@@ -5,7 +5,7 @@
         Demo traffic generator — builds one HL7v2 message per invocation and posts it
         to the demo intake pipelines over HTTP, exactly as an external sender would.
 
-        Input (from the scheduler jobs in Configuration.xml): <variant>name</variant>
+        Input (from the scheduler jobs in Configuration.xml): the plain variant name
           adt-cardio            valid CARDIO A01/A02/A03 (rotates), accepted end-to-end
           hl7-to-xml            valid A01 sent to the hl7v2-to-xml transform intake
           adt-other-department  valid A01 for ONCO — refused by the department filter (AR)
@@ -44,7 +44,10 @@
 
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="Demo traffic generator"/>
 
-            <!-- Remember which variant this tick is; the input is <variant>...</variant> -->
+            <!-- The job message is the plain variant name; wrap it for the XSLT -->
+            <Text2XmlPipe name="wrapVariant" xmlTag="variant"/>
+
+            <!-- Remember which variant this tick is -->
             <PutInSessionPipe name="saveVariant" sessionKey="variantXml" preserveInput="true">
                 <Param name="variant" xpathExpression="/variant"/>
             </PutInSessionPipe>
@@ -92,11 +95,11 @@
                 <Forward name="exception" path="reportSeededFailure"/>
             </SenderPipe>
 
-            <FixedResultPipe name="reportDelivered" returnString="&lt;result&gt;delivered&lt;/result&gt;">
+            <FixedResultPipe name="reportDelivered" filename="responses/delivered.xml">
                 <Forward name="success" path="Exit"/>
             </FixedResultPipe>
 
-            <FixedResultPipe name="reportSeededFailure" returnString="&lt;result&gt;seeded failure delivered — see the intake pipeline's journey and error store&lt;/result&gt;">
+            <FixedResultPipe name="reportSeededFailure" filename="responses/seeded-failure.xml">
                 <Forward name="success" path="Exit"/>
             </FixedResultPipe>
 

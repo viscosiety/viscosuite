@@ -43,8 +43,7 @@
                 <Forward name="exception" path="Error"/>
             </SenderPipe>
 
-            <FixedResultPipe name="buildReceipt"
-                             returnString="{&quot;status&quot;:&quot;queued&quot;,&quot;target&quot;:&quot;ViscoStore&quot;,&quot;slot&quot;:&quot;fhir-delivery&quot;}">
+            <FixedResultPipe name="buildReceipt" filename="responses/delivery-receipt.json">
                 <Forward name="success" path="Exit"/>
             </FixedResultPipe>
 
