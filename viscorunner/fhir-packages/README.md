@@ -5,7 +5,9 @@ points here — they make profile claims (like the Nictiz nl-core canonicals)
 actually resolvable, so `failOnUnknownProfiles="true"` validates resources
 against the profiles they claim instead of only base FHIR.
 
-The `.tgz` files are **not committed**; fetch them with:
+The `.tgz` files are **not committed**. The demo overlay fetches them
+automatically before the runner starts (the `fhir-packages` init service);
+for other setups, fetch them once with:
 
 ```bash
 ./download-packages.sh

@@ -15,6 +15,18 @@
 #     jdbc/fake-emr JNDI datasource.
 
 services:
+  # Fetches the Nictiz validation packages into ./fhir-packages before the runner
+  # starts, so the quickstart needs no manual step. Idempotent: existing .tgz
+  # files are kept. The demo already requires network (image pulls/builds), so a
+  # hard dependency is honest — and offline runs would fail earlier anyway.
+  fhir-packages:
+    image: curlimages/curl:8.10.1
+    # root: the image's default user (uid 100) cannot write a bind mount on native Linux
+    user: "0:0"
+    entrypoint: ["/bin/sh", "/fetch/download-packages.sh"]
+    volumes:
+      - ./fhir-packages:/fetch
+
   rabbitmq:
     image: rabbitmq:4-management-alpine
     container_name: rabbitmq
@@ -37,6 +49,8 @@ services:
     depends_on:
       rabbitmq:
         condition: service_healthy
+      fhir-packages:
+        condition: service_completed_successfully
     environment:
       # RabbitMQ — AMQP event bus for integration events
       RABBITMQ_HOST: rabbitmq
