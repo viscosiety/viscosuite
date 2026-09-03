@@ -304,15 +304,6 @@
 			<artifactId>spring-test</artifactId>
 			<scope>test</scope>
 		</dependency>
-		<!-- In-memory Kubernetes API server for testing LifecycleEventK8sPublisher.
-		     Version matches the fabric8 kubernetes-client (7.7.0) brought in transitively
-		     via frankframework-kubernetes. -->
-		<dependency>
-			<groupId>io.fabric8</groupId>
-			<artifactId>kubernetes-server-mock</artifactId>
-			<version>7.7.0</version>
-			<scope>test</scope>
-		</dependency>
 	</dependencies>
 
 	<build>

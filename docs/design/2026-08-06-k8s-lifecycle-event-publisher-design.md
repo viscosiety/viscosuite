@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-06
 **Module:** viscolink (with a later, out-of-scope upstream Frank!Framework extraction)
-**Status:** Implemented — see `LifecycleEventK8sPublisher` (viscolink) and its tests.
+**Status:** Upstreamed. This design was implemented in viscolink as `LifecycleEventK8sPublisher`, then adopted by the Frank!Framework itself as `org.frankframework.kubernetes.KubernetesEventPublisher` (frankframework-kubernetes module, 10.3 line). viscolink now consumes the upstream publisher and its own copy is removed — see `management.kubernetes.events.enabled` for the kill switch. The Tomcat-tier `ContextFailureEventPublisher` (viscorunner) remains ours: it reports WAR contexts that fail before any framework code runs, which an in-framework publisher structurally cannot.
 
 ## Problem
 

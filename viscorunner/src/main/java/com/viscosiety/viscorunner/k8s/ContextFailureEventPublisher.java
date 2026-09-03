@@ -49,7 +49,7 @@ import io.fabric8.kubernetes.client.KubernetesClientBuilder;
  * Kubernetes core/v1 <b>Warning</b> Event on the pod when a web application context fails to start —
  * e.g. a WAR whose Spring context refresh aborts. It runs on Tomcat's shared classloader, so it
  * survives a single WAR's failure and can see every context — the class of failure the in-WAR
- * {@code LifecycleEventK8sPublisher} (viscolink) structurally cannot report.
+ * the Frank!Framework's {@code KubernetesEventPublisher} (frankframework-kubernetes) structurally cannot report.
  *
  * <p>On {@code BEFORE_START} it auto-detects in-cluster API access (fabric8 client + probe) and, when
  * present, installs a bounded root {@code java.util.logging} handler that captures Tomcat's own
