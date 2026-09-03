@@ -15,6 +15,7 @@
  */
 package com.viscosiety.components;
 
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
@@ -22,8 +23,8 @@ import org.junit.jupiter.api.Test;
 class ViscoLinkModuleTest {
 
 	@Test
-	void registersK8sEventsSpringFile() {
-		assertTrue(new ViscoLinkModule().getSpringConfigurationFiles().contains("springK8sEvents.xml"),
-				"springK8sEvents.xml must be registered so the publisher lands in IbisApplicationContext");
+	void doesNotRegisterTheRemovedK8sEventsSpringFile() {
+		assertFalse(new ViscoLinkModule().getSpringConfigurationFiles().contains("springK8sEvents.xml"),
+				"lifecycle k8s events are published by the upstream frankframework-kubernetes module now");
 	}
 }

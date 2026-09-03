@@ -51,7 +51,10 @@ public class ViscoLinkModule implements Module {
 
     @Override
     public List<String> getSpringConfigurationFiles() {
-        return List.of("springMllp.xml", "springFhir.xml", "springStubbedRun.xml", "springK8sEvents.xml",
+        // Kubernetes lifecycle events come from the Frank!Framework's own
+        // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer) —
+        // the viscolink implementation was upstreamed and then removed here.
+        return List.of("springMllp.xml", "springFhir.xml", "springStubbedRun.xml",
                 "springConsoleSecurity.xml");
     }
 }

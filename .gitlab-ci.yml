@@ -24,22 +24,36 @@ stages:
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   # -B: batch mode (no ANSI colours, no interactive prompts)
-  # -U: force re-resolution of SNAPSHOT deps so the cached .m2 doesn't serve a stale
-  #     timestamp instead of the latest published one
-  # --no-transfer-progress: suppresses the per-chunk download progress lines
-  MAVEN_CLI_OPTS: "-B -U -s .mvn/settings.xml"
+  # No -U: the F!F dependency is pinned to a TIMESTAMPED snapshot version
+  # (frankframework.version in the root pom), which is immutable — the version
+  # string IS the timestamp, so there is no stale-metadata problem for -U to
+  # solve, and -U would force remote metadata checks against WAF's Nexus for
+  # every snapshot artifact in every job. Bumping to a newer nightly changes
+  # the version string, which forces the fresh download by itself.
+  MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
   IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # combined image
   IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # ViscoLink-only image
   IMAGE_VISCOSTORE: $CI_REGISTRY_IMAGE/viscostore   # ViscoStore-only image
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
 
-# Maven dependency cache — keyed per branch so branches don't invalidate each other.
-# Applied explicitly only to Maven jobs; docker/manifest/cleanup jobs opt out via cache: []
-# so they don't emit "no matching files" warnings when .m2/repository/ doesn't exist.
+# Maven dependency cache — ONE shared key across all branches: the local repo is
+# append-only in practice (versions are pinned, releases immutable), so a per-branch
+# key only forces every new branch to re-download the full F!F tree from WAF's Nexus.
+# Branch/MR jobs pull; only the main-only package job pushes, so concurrent MR
+# pipelines never race on the cache upload and jobs skip the multi-GB re-zip.
+# Applied explicitly only to Maven jobs; docker/manifest/cleanup jobs opt out via
+# cache: [] so they don't emit "no matching files" warnings.
 .maven-cache: &maven-cache
   cache:
-    key: "maven-$CI_COMMIT_REF_SLUG"
+    key: maven-repo
+    paths:
+      - .m2/repository/
+    policy: pull
+
+.maven-cache-push: &maven-cache-push
+  cache:
+    key: maven-repo
     paths:
       - .m2/repository/
     policy: pull-push
@@ -79,7 +93,7 @@ test:
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
-  <<: *maven-cache
+  <<: *maven-cache-push
   before_script:
     - apt-get update
     - apt-get install -y curl ca-certificates

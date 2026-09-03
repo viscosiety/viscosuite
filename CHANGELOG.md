@@ -30,6 +30,12 @@ All notable changes to ViscoSuite are documented here. The format follows
   nl-core name-qualifier extension — demonstrates exactly what it adds.
 
 ### Changed
+- Kubernetes lifecycle events now come from the Frank!Framework's own
+  `KubernetesEventPublisher` (frankframework-kubernetes) — the viscolink
+  implementation this design originated from is removed, which also stops
+  duplicate Warning events on clusters. Disable with
+  `management.kubernetes.events.enabled=false`. The Tomcat-tier
+  `ContextFailureEventPublisher` (viscorunner) is unaffected.
 - Demo configurations follow explicit conventions (no markup in XML attributes,
   payloads in files, XSLT text in element content).
 - Ladybug debug reports use a dedicated datasource so journeys of failed

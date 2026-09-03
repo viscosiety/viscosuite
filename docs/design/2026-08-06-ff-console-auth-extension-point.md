@@ -1,7 +1,7 @@
 # Upstream proposal: let external modules attach URL patterns to an existing F!F authenticator
 
 **Date:** 2026-08-06
-**Status:** Proposal (approach 2). The in-viscoLink runtime reuse (approach 1) is the current bridge; see `ConsoleSecurityRegistrar`.
+**Status:** Approach 1 (runtime reuse) is implemented as the bridge — see `ConsoleSecurityRegistrar`. Approach 2 remains an open proposal to contribute upstream to the Frank!Framework.
 
 ## Problem
 
