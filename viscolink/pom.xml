@@ -26,7 +26,7 @@
 		     wearefrank/ladybug#814 (offset pagination) merged 2026-08-13 and is included as of
 		     this build; postMessage bridge for ViscoFlow deep-link (ladybug-openReport/-ping)
 		     was already present upstream. Fork no longer needed, pending this holding up. -->
-		<ladybug.version>4.1-20260813.191427</ladybug.version>
+		<ladybug.version>4.1-20260903.105841</ladybug.version>
 		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
