@@ -433,22 +433,48 @@ cleanup:arch-tags:
 #
 # GitHub is the community front door; this GitLab is the system of record.
 # Branches and tags reach GitHub via push mirroring (Settings → Repository →
-# Mirroring repositories: push, GitHub fine-grained PAT with contents:write,
+# Mirroring repositories: push, GitHub classic PAT with the `repo` scope,
 # "keep divergent refs" off). Releases do NOT mirror, so this job creates the
 # GitHub Release when a tag is pushed. Requires CI/CD variable GITHUB_TOKEN
-# (masked): a fine-grained PAT for viscosiety/viscosuite, contents:write.
+# (masked, Protected): a PAT that can write viscosiety/viscosuite contents.
+# GITHUB_TOKEN being Protected means it is ONLY visible on protected refs —
+# tags must match a protected-tag pattern (v*) under Settings → Repository →
+# Protected tags, or the job runs with an empty token.
+#
+# target_commitish covers mirror lag: if the tag hasn't reached GitHub yet
+# when this runs, GitHub creates it on the right commit instead of on the
+# default branch's head. A 422 means the release already exists (job retry,
+# or a tag re-push) and is treated as success.
 # ---------------------------------------------------------------------------
 
 github-release:
   stage: downstream
   image: alpine:3.20
+  tags: [docker]
   rules:
     - if: '$CI_COMMIT_TAG'
   script:
     - apk add --no-cache curl
     - |
-      curl --silent --fail --show-error -X POST \
+      if [ -z "${GITHUB_TOKEN}" ]; then
+        echo "ERROR: GITHUB_TOKEN is empty in this job."
+        echo "It is defined as a Protected CI/CD variable, so it is only injected on protected refs."
+        echo "Fix: protect tags matching 'v*' under Settings -> Repository -> Protected tags,"
+        echo "or untick 'Protected' on the GITHUB_TOKEN variable."
+        exit 1
+      fi
+    - |
+      STATUS=$(curl --silent --show-error --output /tmp/gh-release.json --write-out "%{http_code}" -X POST \
         -H "Authorization: Bearer ${GITHUB_TOKEN}" \
         -H "Accept: application/vnd.github+json" \
         https://api.github.com/repos/viscosiety/viscosuite/releases \
-        -d "{\"tag_name\":\"${CI_COMMIT_TAG}\",\"name\":\"ViscoSuite ${CI_COMMIT_TAG}\",\"generate_release_notes\":true}"
+        -d "{\"tag_name\":\"${CI_COMMIT_TAG}\",\"target_commitish\":\"${CI_COMMIT_SHA}\",\"name\":\"ViscoSuite ${CI_COMMIT_TAG}\",\"generate_release_notes\":true}")
+      cat /tmp/gh-release.json
+      echo ""
+      case "$STATUS" in
+        201) echo "GitHub release created for ${CI_COMMIT_TAG}." ;;
+        422) echo "GitHub release for ${CI_COMMIT_TAG} already exists - nothing to do." ;;
+        401|403) echo "GitHub rejected the token (HTTP ${STATUS}) - check the PAT's scope/expiry."; exit 1 ;;
+        404) echo "HTTP 404 - the PAT cannot see viscosiety/viscosuite (needs the 'repo' scope on a classic PAT)."; exit 1 ;;
+        *) echo "GitHub API returned HTTP ${STATUS}."; exit 1 ;;
+      esac
