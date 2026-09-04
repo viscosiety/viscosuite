@@ -29,6 +29,18 @@ All notable changes to ViscoSuite are documented here. The format follows
   `nl-core-patient-nonconformant` traffic variant — valid base R4, missing the
   nl-core name-qualifier extension — demonstrates exactly what it adds.
 
+### Removed
+- The Bearer-only `/api-service/*` proxy servlets (reload, adapters, adapter
+  control, test-pipeline, warnings, ladybug reads, stubbed-run, agent API
+  gateway). The Frank!Framework's `OAuth2Authenticator` gained
+  `allowBearerAuthentication`
+  ([frankframework/frankframework#11542](https://github.com/frankframework/frankframework/pull/11542)),
+  so programmatic callers now present a bearer JWT to the console's own
+  `/iaf/api`, Ladybug and `/api/*` endpoints directly — the same chain the
+  browser login uses. `ConfigRefServlet` (git ref switching, no `/iaf/api`
+  equivalent) stays. Requires a Frank!Framework build containing #11542 and
+  `application.security.console.authentication.allowBearerAuthentication=true`.
+
 ### Changed
 - Kubernetes lifecycle events now come from the Frank!Framework's own
   `KubernetesEventPublisher` (frankframework-kubernetes) — the viscolink
