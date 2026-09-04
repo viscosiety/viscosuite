@@ -13,7 +13,7 @@
 
 	<properties>
 		<!-- Check https://central.sonatype.com/namespace/org.frankframework for the latest release -->
-		<frankframework.version>10.3.0-20260825.042332</frankframework.version>
+		<frankframework.version>10.3.0-20260902.042323</frankframework.version>
 		<!-- Check https://central.sonatype.com/namespace/ca.uhn.hapi.fhir for the latest release -->
 		<hapi.version>8.6.0</hapi.version>
 		<postgresql.version>42.7.4</postgresql.version>

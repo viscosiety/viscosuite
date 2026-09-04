@@ -1,7 +1,7 @@
 # Bearer-authenticated config-reload endpoint
 
 **Date:** 2026-08-08
-**Status:** Implemented — see `ReloadConfigurationServlet` (viscolink) and its tests.
+**Status:** Superseded — the Frank!Framework gained `allowBearerAuthentication` on `OAuth2Authenticator` ([frankframework/frankframework#11542](https://github.com/frankframework/frankframework/pull/11542)), so bearer callers now reach `PUT /iaf/api/configurations` (and the console API generally) directly; `ReloadConfigurationServlet` and the other proxy-shaped `/api-service/*` servlets were removed. `ConfigRefServlet` remains (no `/iaf/api` equivalent), and this document still records why the servlet family was needed pre-#11542.
 
 ## Problem
 

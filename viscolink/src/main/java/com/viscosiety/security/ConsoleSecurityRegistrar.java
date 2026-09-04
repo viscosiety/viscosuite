@@ -138,9 +138,9 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
 
     /**
      * Path (within the context) is owned by F!F, the FHIR facade, or another endpoint that secures
-     * itself independently — never touched by this filter. {@code /api-service/} is
-     * {@link org.frankframework.visco.security.ReloadConfigurationServlet}'s Bearer-only reload
-     * endpoint: it enforces its own JWT-based auth and must never also be gated by this class's
+     * itself independently — never touched by this filter. {@code /api-service/} is the
+     * Bearer-only servlet family ({@link org.frankframework.visco.security.ConfigRefServlet}):
+     * it enforces its own JWT-based auth and must never also be gated by this class's
      * session-based tool-page check.
      */
     static boolean isFrankOwnedPath(String path) {

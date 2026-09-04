@@ -45,13 +45,16 @@ import org.frankframework.lifecycle.DynamicRegistration;
 import org.frankframework.util.AppConstants;
 
 /**
- * Shared base for the BEARER_ONLY {@code /api-service/*} servlet family (the test-loop siblings
- * of {@link ReloadConfigurationServlet} -- see viscoFoundry's
- * docs/superpowers/specs/2026-08-11-assistant-test-loop-design.md for the cross-repo contract,
- * and this repo's 2026-08-08 console-bearer-reload design doc for why these cannot be plain
- * Bearer calls against the console's own {@code /iaf/api} chain).
+ * Shared base for the BEARER_ONLY {@code /api-service/*} servlet family. Historically nine
+ * servlets bridging programmatic bearer callers to console capabilities the browser-session-only
+ * {@code /iaf/api} chain could not serve (this repo's 2026-08-08 console-bearer-reload design
+ * doc). Since the Frank!Framework gained {@code allowBearerAuthentication} on
+ * {@code OAuth2Authenticator} (frankframework/frankframework#11542), bearer callers reach the
+ * console's own endpoints directly, so the proxy-shaped members were removed; only
+ * {@link ConfigRefServlet} remains -- it talks to {@code GitClassLoader} directly and has no
+ * {@code /iaf/api} equivalent.
  *
- * <p>Carries the three hard-won mechanics from the reload servlet verbatim:</p>
+ * <p>Carries the three hard-won mechanics from the (since-removed) reload servlet verbatim:</p>
  * <ul>
  * <li><b>Fail-closed role check</b> independent of {@code ServletManager} registration: a
  * missing/broken properties wire-up yields this class's own 401, never an open endpoint.</li>

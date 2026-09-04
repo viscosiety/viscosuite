@@ -63,9 +63,9 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  *
  * <p>Moving HEAD ({@code checkout}) is not itself a configuration reload -- {@code
  * AbstractClassLoader.reload()} only evicts this classloader's cached {@code AppConstants}. The
- * real reload is {@code IbisContext.reload(configurationName)}, reached like
- * {@link ReloadConfigurationServlet} reaches {@code IbisContext.reload()} for all configurations:
- * a management-bus RELOAD dispatch. The difference is the action's configuration-name header --
+ * real reload is {@code IbisContext.reload(configurationName)}, reached the same way the
+ * console's own reload action reaches it: a management-bus RELOAD dispatch.
+ * The difference is the action's configuration-name header --
  * RELOAD with a configuration name reaches {@code IbisContext.reload(name)}; only the
  * {@code *ALL*} sentinel (what {@code Action.FULLRELOAD} sends instead) is the silent no-op.</p>
  *
@@ -77,12 +77,11 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * caller would see a gateway timeout for a reload that is in fact proceeding fine. So the RELOAD
  * goes to {@link #RELOAD_EXECUTOR} and the response is a {@code 202 Accepted} carrying
  * {@code "reloading": true}; the portal confirms completion by polling GET, not by this response.
- * That also rules out {@code FrankApiService} as the dispatch route (what
- * {@link ReloadConfigurationServlet} uses): it transitively resolves the console's
+ * That also rules out {@code FrankApiService} as the dispatch route (what the since-removed
+ * reload servlet used): it transitively resolves the console's
  * <em>session-scoped</em> clientSession bean, which needs a request bound to the calling thread --
  * impossible on a background worker outliving the request. {@link OutboundGateway} is the same bus
- * with no such binding, and is what {@link AdapterControlServlet} already dispatches IBISACTION
- * through.</p>
+ * with no such binding.</p>
  *
  * <p><b>Lock order: never hold a {@link GitClassLoader} monitor while calling into the bus or
  * {@code IbisContext}.</b> F!F takes those two locks in exactly that order -- {@code
