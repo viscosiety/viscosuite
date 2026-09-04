@@ -37,8 +37,12 @@ All notable changes to ViscoSuite are documented here. The format follows
   ([frankframework/frankframework#11542](https://github.com/frankframework/frankframework/pull/11542)),
   so programmatic callers now present a bearer JWT to the console's own
   `/iaf/api`, Ladybug and `/api/*` endpoints directly — the same chain the
-  browser login uses. `ConfigRefServlet` (git ref switching, no `/iaf/api`
-  equivalent) stays. Requires a Frank!Framework build containing #11542 and
+  browser login uses. Two servlets stay, each without a native equivalent:
+  `ConfigRefServlet` (git ref switching) and `AgentApiServlet` (restored
+  after the initial removal: when a deployment hands `/api/*` to a
+  tenant-facing HTTP-Basic authenticator, the gateway's internal forward is
+  the only route that keeps platform bearer access working). Requires a
+  Frank!Framework build containing #11542 and
   `application.security.console.authentication.allowBearerAuthentication=true`.
 
 ### Changed
