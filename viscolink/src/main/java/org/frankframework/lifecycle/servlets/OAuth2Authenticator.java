@@ -16,23 +16,27 @@
 // ============================================================================
 // TEMPORARY CLASSPATH OVERRIDE -- NOT VISCOSIETY CODE
 //
-// This is org.frankframework.lifecycle.servlets.OAuth2Authenticator from
-// frankframework master (c35f1384) plus one fix: the interactive login chain
-// is made stateful (IF_REQUIRED + HttpSessionRequestCache +
+// This is org.frankframework.lifecycle.servlets.OAuth2Authenticator exactly as
+// built into the consumed Frank!Framework nightly 10.3.0-20260902.042323
+// (frankframework master e3803c17, 2026-09-01) plus ONE fix: the interactive
+// login chain is made stateful (IF_REQUIRED + HttpSessionRequestCache +
 // HttpSessionSecurityContextRepository -- see configure(HttpSecurity)).
-// Without it, the STATELESS policy the base class applies means the originally
-// requested URL is never saved (every Keycloak login lands on "/" instead of
-// the deep link -- observed live with /webcontent/<config>/... pages) and the
-// login never persists (every follow-up request re-runs the redirect dance).
+// Without it the STATELESS policy of the base class discards the originally
+// requested URL (every Keycloak login lands on "/" instead of the deep link,
+// observed live with /webcontent/<config>/... pages) and the login itself
+// (every follow-up request re-runs the redirect dance).
 //
 // It lives in the WAR because WEB-INF/classes takes precedence over
-// WEB-INF/lib by servlet spec, so this class shadows the one in
+// WEB-INF/lib by servlet spec (staged there by the stage-oauth2-override
+// execution in the pom), so this class shadows the one in
 // frankframework-security.jar. The same fix has been submitted upstream from
 // tommy2d/frankframework branch claude/upstream-repo-sync-tu8aso.
 //
-// DELETE THIS FILE as soon as ${frankframework.version} is bumped to a build
-// that contains the upstream fix. On every F!F version bump, re-diff this
-// file against the consumed version's source before keeping it.
+// MUST track the consumed nightly, never frankframework master: master has
+// since moved bearer support out of this class, and an override copied from
+// there silently dropped allowBearerAuthentication (2026-09-09). On every
+// F!F version bump, re-derive this file from that version's source and
+// re-apply the patch; DELETE it once the version carries the upstream fix.
 // ============================================================================
 package org.frankframework.lifecycle.servlets;
 
@@ -44,7 +48,6 @@ import org.jspecify.annotations.NonNull;
 import org.jspecify.annotations.Nullable;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.oauth2.client.OAuth2LoginConfigurer;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.config.oauth2.client.CommonOAuth2Provider;
 import org.springframework.security.oauth2.client.InMemoryOAuth2AuthorizedClientService;
 import org.springframework.security.oauth2.client.OAuth2AuthorizedClientService;
@@ -59,10 +62,13 @@ import org.springframework.security.oauth2.client.web.OAuth2AuthorizationRequest
 import org.springframework.security.oauth2.client.web.OAuth2LoginAuthenticationFilter;
 import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
+import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
+
 
 import org.frankframework.credentialprovider.CredentialFactory;
 import org.frankframework.credentialprovider.ICredentials;
@@ -142,6 +148,15 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 	private String baseUrl;
 
 	/**
+	 * When {@code true}, this authenticator additionally validates incoming bearer JWTs as an OAuth2
+	 * resource server (on top of the interactive browser login), so both a human in a browser (OIDC
+	 * login) and an external system presenting an {@code Authorization: Bearer <jwt>} token can access
+	 * the same endpoint. Requires {@code issuerUri} or {@code jwkSetUri} to be set. Defaults to
+	 * {@code false}, in which case behaviour is unchanged.
+	 */
+	private boolean allowBearerAuthentication = false;
+
+	/**
 	 * The client ID to use for the OAuth2 provider.
 	 */
 	private String clientId = null;
@@ -214,29 +229,20 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 	 * }</pre>
 	 */
 	private String roleMappingFile = "oauth-role-mapping.properties";
+
 	private URL roleMappingURL = null;
+
 	private OAuth2AuthorizedClientService clientService;
 
 	@Override
 	public SecurityFilterChain configure(HttpSecurity http) throws Exception {
 		configure();
 
-		// The interactive authorization-code flow is inherently stateful: the browser must
-		// come back to the URL it originally asked for, and every follow-up request (a
-		// page's scripts, stylesheets, XHR calls) must ride the established login instead
-		// of re-running the redirect dance. The STATELESS policy the base class applies
-		// breaks both for this authenticator: Spring Security derives a NullRequestCache
-		// from it, so the requested URL is never saved and every login lands on the
-		// default success URL "/" instead of the deep link (observed with
-		// WebContentServlet pages: any direct link ends up on the application root), and
-		// the SecurityContext is request-scoped, so nothing survives to the next request.
-		// Overriding to IF_REQUIRED affects only this chain; bearer/API traffic does not
-		// trigger session creation.
+		// ViscoLink patch (see banner): the authorization-code flow needs session state so a
+		// deep link survives the IdP redirect and the login outlives the request. Only this
+		// chain leaves STATELESS; bearer calls below create no session.
 		http.sessionManagement(management -> management.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED));
 		http.requestCache(cache -> cache.requestCache(new HttpSessionRequestCache()));
-		// Set both as configurer AND shared object: the oauth2Login filter picks its
-		// repository up from the shared objects, and without it the login result is
-		// never written to the session the SecurityContextHolderFilter reads from.
 		HttpSessionSecurityContextRepository securityContextRepository = new HttpSessionSecurityContextRepository();
 		http.setSharedObject(SecurityContextRepository.class, securityContextRepository);
 		http.securityContext(context -> context.securityContextRepository(securityContextRepository));
@@ -251,6 +257,17 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 				.authorizationEndpoint(this::getOauth2LoginConfigurer)
 				.userInfoEndpoint(endpoint -> endpoint.userAuthoritiesMapper(authorityMapper))
 				.loginProcessingUrl(servletPath + "/oauth2/code/*"));
+
+		if (allowBearerAuthentication) {
+			// Also accept a bearer JWT (external systems). Both mechanisms then live on one chain: a request with an `Authorization: Bearer` header is
+			// validated statelessly by the resource server, a browser request without a token falls through to the oauth2Login redirect.
+			configureBearerTokenResourceServer(http);
+
+			// With both configured, unauthenticated requests must resolve to the right challenge:
+			// API/bearer clients get a 401 (WWW-Authenticate: Bearer), browsers get the login redirect.
+			http.exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
+					new BearerTokenAuthenticationEntryPoint(), AuthenticatorUtils::isApiRequest));
+		}
 
 		return http.build();
 	}
@@ -328,8 +345,9 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 			default -> throw new IllegalStateException("unknown OAuth provider");
 		};
 
-		builder.clientId(credentials.getUsername()).clientSecret(credentials.getPassword());
-		builder.redirectUri(getRedirectUri());
+		builder.clientId(credentials.getUsername())
+				.clientSecret(credentials.getPassword())
+				.redirectUri(getRedirectUri());
 
 		return builder.build();
 	}
@@ -488,6 +506,10 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 
 	public void setBaseUrl(String baseUrl) {
 		this.baseUrl = baseUrl;
+	}
+
+	public void setAllowBearerAuthentication(boolean allowBearerAuthentication) {
+		this.allowBearerAuthentication = allowBearerAuthentication;
 	}
 
 	public void setClientId(String clientId) {
