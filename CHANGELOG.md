@@ -15,6 +15,17 @@ minor version).
   without credentials get a 401 naming every accepted scheme; browsers still
   get the login redirect. Basic callers are authenticated per request and
   never receive a session.
+- Hosted webcontent pages can call the tenant API with the user's console login:
+  same-origin `/api/*` requests from a browser that holds the console's OIDC
+  session are authenticated with that session instead of being answered with
+  the tenant API chain's `WWW-Authenticate: Basic` challenge (which made the
+  browser pop its native credentials dialog on every `fetch('/api/...')` from a
+  webcontent page). External API callers are unchanged -- any request carrying
+  an `Authorization` header, or without an OIDC session, goes through HTTP Basic
+  as before. Limited to same-origin requests (`Sec-Fetch-Site`, with an
+  `Origin`/`Referer` fallback) so the session cookie cannot be replayed cross-site;
+  only active when the console authenticates with OAUTH2; opt out with
+  `viscolink.api.sessionAuth=false`.
 
 ### Fixed
 - The `OAuth2Authenticator` override no longer drops bearer authentication.
