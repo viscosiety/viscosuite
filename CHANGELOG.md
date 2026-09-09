@@ -7,6 +7,15 @@ minor version).
 
 ## [Unreleased]
 
+### Added
+- Combined OIDC + Basic API access: the `OAuth2Authenticator` override gains
+  `allowBasicAuthentication` and `basicUsersFile` (a `YmlFileAuthenticator`
+  user list), so the users of that file are accepted with HTTP Basic on the
+  same chain that serves the Keycloak login and bearer tokens. API clients
+  without credentials get a 401 naming every accepted scheme; browsers still
+  get the login redirect. Basic callers are authenticated per request and
+  never receive a session.
+
 ### Fixed
 - The `OAuth2Authenticator` override no longer drops bearer authentication.
   It had been derived from Frank!Framework master, where bearer support has
