@@ -18,9 +18,14 @@
 //
 // This is org.frankframework.lifecycle.servlets.OAuth2Authenticator exactly as
 // built into the consumed Frank!Framework nightly 10.3.0-20260902.042323
-// (frankframework master e3803c17, 2026-09-01) plus ONE fix: the interactive
-// login chain is made stateful (IF_REQUIRED + HttpSessionRequestCache +
-// HttpSessionSecurityContextRepository -- see configure(HttpSecurity)).
+// (frankframework master e3803c17, 2026-09-01) plus two ViscoLink changes,
+// both in configure(HttpSecurity):
+//  1. the interactive login chain is made stateful (IF_REQUIRED +
+//     HttpSessionRequestCache + HttpSessionSecurityContextRepository);
+//  2. allowBasicAuthentication/basicUsersFile: HTTP Basic for the users of a
+//     YmlFileAuthenticator-format file on the SAME chain, so API users coexist
+//     with the Keycloak login and bearer tokens on one servlet (the combined
+//     "OIDC + Basic" API exposure mode).
 // Without it the STATELESS policy of the base class discards the originally
 // requested URL (every Keycloak login lands on "/" instead of the deep link,
 // observed live with /webcontent/<config>/... pages) and the login itself
@@ -64,7 +69,18 @@ import org.springframework.security.oauth2.core.AuthorizationGrantType;
 import org.springframework.security.oauth2.core.ClientAuthenticationMethod;
 import org.springframework.security.oauth2.server.resource.web.BearerTokenAuthenticationEntryPoint;
 import org.springframework.security.config.http.SessionCreationPolicy;
+import java.io.InputStream;
+import java.io.Reader;
+
+import jakarta.servlet.http.HttpServletResponse;
+
+import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.web.AuthenticationEntryPoint;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.context.RequestAttributeSecurityContextRepository;
+import org.yaml.snakeyaml.Yaml;
+
+import org.frankframework.util.StreamUtil;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
@@ -155,6 +171,16 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 	 * {@code false}, in which case behaviour is unchanged.
 	 */
 	private boolean allowBearerAuthentication = false;
+
+	/**
+	 * ViscoLink extension: also accept HTTP Basic credentials of the users listed in
+	 * {@link #setBasicUsersFile basicUsersFile} (the {@link YmlFileAuthenticator} file format)
+	 * on this chain. Basic callers are authenticated per request and get no session.
+	 */
+	private boolean allowBasicAuthentication = false;
+
+	/** Resource URL of the YML user list used when {@code allowBasicAuthentication} is set. */
+	private String basicUsersFile = "localUsers.yml";
 
 	/**
 	 * The client ID to use for the OAuth2 provider.
@@ -258,15 +284,28 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 				.userInfoEndpoint(endpoint -> endpoint.userAuthoritiesMapper(authorityMapper))
 				.loginProcessingUrl(servletPath + "/oauth2/code/*"));
 
+		if (allowBasicAuthentication) {
+			// ViscoLink extension (see banner): the YML user list as an HTTP Basic user store on
+			// this same chain. Spring's ProviderManager routes each Authentication to the provider
+			// that supports it, so the DAO provider added here, the oauth2Login provider above and
+			// the bearer resource server below coexist. Basic requests never touch the session.
+			http.userDetailsService(new InMemoryUserDetailsManager(loadBasicUsers().getUserDetails()));
+			http.httpBasic(basic -> basic
+					.realmName("Frank")
+					.securityContextRepository(new RequestAttributeSecurityContextRepository()));
+		}
+
 		if (allowBearerAuthentication) {
 			// Also accept a bearer JWT (external systems). Both mechanisms then live on one chain: a request with an `Authorization: Bearer` header is
 			// validated statelessly by the resource server, a browser request without a token falls through to the oauth2Login redirect.
 			configureBearerTokenResourceServer(http);
+		}
 
-			// With both configured, unauthenticated requests must resolve to the right challenge:
-			// API/bearer clients get a 401 (WWW-Authenticate: Bearer), browsers get the login redirect.
+		if (allowBearerAuthentication || allowBasicAuthentication) {
+			// With several mechanisms configured, unauthenticated requests must resolve to the right challenge:
+			// API clients get a 401 naming every accepted scheme (WWW-Authenticate: Bearer and/or Basic), browsers get the login redirect.
 			http.exceptionHandling(exceptions -> exceptions.defaultAuthenticationEntryPointFor(
-					new BearerTokenAuthenticationEntryPoint(), AuthenticatorUtils::isApiRequest));
+					apiEntryPoint(), AuthenticatorUtils::isApiRequest));
 		}
 
 		return http.build();
@@ -489,6 +528,48 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 		return servletPath;
 	}
 
+	/**
+	 * 401 for API clients. Bearer keeps Spring's own entry point (it reports invalid-token
+	 * details in the challenge); Basic is announced alongside it, or alone when only Basic is on.
+	 */
+	private AuthenticationEntryPoint apiEntryPoint() {
+		AuthenticationEntryPoint bearer = new BearerTokenAuthenticationEntryPoint();
+		return (request, response, exception) -> {
+			if (allowBearerAuthentication) {
+				bearer.commence(request, response, exception);
+			} else {
+				response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
+			}
+			if (allowBasicAuthentication) {
+				response.addHeader("WWW-Authenticate", "Basic realm=\"Frank\"");
+			}
+		};
+	}
+
+	private YmlFileAuthenticator.LocalUsers loadBasicUsers() {
+		URL url;
+		try {
+			url = ClassUtils.getResourceURL(basicUsersFile);
+		} catch (FileNotFoundException e) {
+			throw new IllegalStateException("unable to find basicUsersFile [" + basicUsersFile + "]", e);
+		}
+		if (url == null) {
+			throw new IllegalStateException("unable to find basicUsersFile [" + basicUsersFile + "]");
+		}
+		try (InputStream is = url.openStream(); Reader reader = StreamUtil.getCharsetDetectingInputStreamReader(is)) {
+			YmlFileAuthenticator.LocalUsers users = new Yaml().loadAs(reader, YmlFileAuthenticator.LocalUsers.class);
+			if (users == null || users.getUserDetails() == null) {
+				throw new IllegalStateException("basicUsersFile [" + url + "] contains no users");
+			}
+			log.info("accepting HTTP Basic for [{}] users from [{}]", users.getUserDetails().size(), url);
+			return users;
+		} catch (IllegalStateException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new IllegalStateException("unable to parse basicUsersFile [" + url + "]", e);
+		}
+	}
+
 	// Plain accessors replacing the upstream source's Lombok annotations
 	// (ViscoSuite does not run the Lombok annotation processor).
 
@@ -510,6 +591,14 @@ public class OAuth2Authenticator extends AbstractOAuth2Authenticator {
 
 	public void setAllowBearerAuthentication(boolean allowBearerAuthentication) {
 		this.allowBearerAuthentication = allowBearerAuthentication;
+	}
+
+	public void setAllowBasicAuthentication(boolean allowBasicAuthentication) {
+		this.allowBasicAuthentication = allowBasicAuthentication;
+	}
+
+	public void setBasicUsersFile(String basicUsersFile) {
+		this.basicUsersFile = basicUsersFile;
 	}
 
 	public void setClientId(String clientId) {

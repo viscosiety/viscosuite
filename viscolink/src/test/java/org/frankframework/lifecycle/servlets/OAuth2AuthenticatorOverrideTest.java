@@ -23,6 +23,8 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.Map;
 
 import org.junit.jupiter.api.AfterEach;
@@ -39,6 +41,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.authentication.www.BasicAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
@@ -159,5 +162,35 @@ class OAuth2AuthenticatorOverrideTest {
 		assertInstanceOf(DefaultSecurityFilterChain.class, chain);
 		assertTrue(((DefaultSecurityFilterChain) chain).getFilters().stream().anyMatch(BearerTokenAuthenticationFilter.class::isInstance),
 				"bearer resource-server filter missing from the OAUTH2 chain");
+	}
+
+	@Test
+	void basicUsersCoexistWithBearerOnTheOauth2Chain() throws Exception {
+		// ViscoLink extension: the combined "OIDC + Basic" API exposure -- API users from a
+		// YmlFileAuthenticator-format file are accepted on the same chain as the Keycloak
+		// login and bearer tokens.
+		Path users = Files.createTempFile("localUsers", ".yml");
+		Files.writeString(users, "users:\n  - username: \"weather\"\n    password: \"pw\"\n    roles: [\"weather\"]\n");
+		authenticator.setClientId("clientID");
+		authenticator.setClientSecret("clientSecret");
+		authenticator.setProvider("github");
+		authenticator.setAllowBearerAuthentication(true);
+		authenticator.setJwkSetUri("https://idp.example/realms/x/protocol/openid-connect/certs");
+		authenticator.setAllowBasicAuthentication(true);
+		authenticator.setBasicUsersFile(users.toUri().toString());
+
+		ServletConfiguration config = new ServletConfiguration();
+		Environment environment = mock(Environment.class);
+		when(environment.getProperty(anyString())).thenReturn("CONTAINER");
+		config.setEnvironment(environment);
+		config.afterPropertiesSet();
+		config.setUrlMapping("/api/*");
+		config.setSecurityRoles(new String[]{ "IbisAdmin" });
+		authenticator.registerServlet(config);
+
+		DefaultSecurityFilterChain chain = (DefaultSecurityFilterChain) authenticator.configureHttpSecurity(httpSecurity);
+
+		assertTrue(chain.getFilters().stream().anyMatch(BasicAuthenticationFilter.class::isInstance), "Basic filter missing");
+		assertTrue(chain.getFilters().stream().anyMatch(BearerTokenAuthenticationFilter.class::isInstance), "bearer filter missing");
 	}
 }
