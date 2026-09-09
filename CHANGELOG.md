@@ -8,6 +8,14 @@ minor version).
 ## [Unreleased]
 
 ### Fixed
+- The `OAuth2Authenticator` override no longer drops bearer authentication.
+  It had been derived from Frank!Framework master, where bearer support has
+  since moved out of that class, so `allowBearerAuthentication=true` was
+  silently ignored on the console chain and bearer callers of `/iaf/api`
+  (the portal, the agent's console tools) were refused. The override now
+  tracks the source of the consumed nightly (`10.3.0-20260902.042323`,
+  frankframework `e3803c17`) and is pinned by a test that the chain carries
+  the bearer filter.
 - Deep links into OAuth2-protected pages no longer land on the application
   root after the IdP login. The Frank!Framework applies a STATELESS session
   policy to every security chain, which discards both the originally

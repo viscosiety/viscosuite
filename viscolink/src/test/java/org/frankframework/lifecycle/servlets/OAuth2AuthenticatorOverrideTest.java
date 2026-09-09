@@ -17,6 +17,7 @@
 package org.frankframework.lifecycle.servlets;
 
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
@@ -36,6 +37,9 @@ import org.springframework.security.config.annotation.authentication.builders.Au
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
+import org.springframework.security.web.DefaultSecurityFilterChain;
+import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.context.SecurityContextRepository;
 import org.springframework.security.web.savedrequest.HttpSessionRequestCache;
@@ -127,5 +131,33 @@ class OAuth2AuthenticatorOverrideTest {
 		// persist the login in the session -- see the class comment.
 		assertInstanceOf(HttpSessionRequestCache.class, httpSecurity.getSharedObject(RequestCache.class));
 		assertInstanceOf(HttpSessionSecurityContextRepository.class, httpSecurity.getSharedObject(SecurityContextRepository.class));
+	}
+
+	@Test
+	void bearerAuthenticationSurvivesTheOverride() throws Exception {
+		// Regression (2026-09-09): an override derived from frankframework master -- where bearer
+		// support has since moved to BearerOnlyAuthenticator -- silently dropped
+		// allowBearerAuthentication, so the portal's and the agent's bearer calls to /iaf/api
+		// were refused. The override must keep tracking the CONSUMED nightly's source.
+		authenticator.setClientId("clientID");
+		authenticator.setClientSecret("clientSecret");
+		authenticator.setProvider("github");
+		authenticator.setAllowBearerAuthentication(true);
+		authenticator.setJwkSetUri("https://idp.example/realms/x/protocol/openid-connect/certs");
+
+		ServletConfiguration config = new ServletConfiguration();
+		Environment environment = mock(Environment.class);
+		when(environment.getProperty(anyString())).thenReturn("CONTAINER");
+		config.setEnvironment(environment);
+		config.afterPropertiesSet();
+		config.setUrlMapping("/iaf/api/*");
+		config.setSecurityRoles(new String[]{ "IbisTester" });
+		authenticator.registerServlet(config);
+
+		SecurityFilterChain chain = authenticator.configureHttpSecurity(httpSecurity);
+
+		assertInstanceOf(DefaultSecurityFilterChain.class, chain);
+		assertTrue(((DefaultSecurityFilterChain) chain).getFilters().stream().anyMatch(BearerTokenAuthenticationFilter.class::isInstance),
+				"bearer resource-server filter missing from the OAUTH2 chain");
 	}
 }
