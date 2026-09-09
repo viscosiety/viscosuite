@@ -362,6 +362,28 @@
 							</target>
 						</configuration>
 					</execution>
+					<!-- TEMPORARY: stage the OAuth2Authenticator override (see the class banner)
+					     into WEB-INF/classes. archiveClasses=true bundles target/classes into a
+					     JAR in WEB-INF/lib, where it would NOT reliably shadow frankframework-
+					     security.jar; only console-patched lands as an exploded WEB-INF/classes,
+					     which the WebappClassLoader loads ahead of any WEB-INF/lib JAR. The build
+					     fails if the compiled class is absent, so a package move can't silently
+					     ship the unpatched authenticator. Delete this execution with the override. -->
+					<execution>
+						<id>stage-oauth2-override</id>
+						<phase>prepare-package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<copy todir="${project.build.directory}/console-patched" overwrite="true">
+									<fileset dir="${project.build.directory}/classes" includes="org/frankframework/lifecycle/servlets/OAuth2Authenticator*.class"/>
+								</copy>
+								<fail message="OAuth2Authenticator override missing from WEB-INF/classes -- the workaround would not shadow the framework jar">
+									<condition><not><available file="${project.build.directory}/console-patched/org/frankframework/lifecycle/servlets/OAuth2Authenticator.class"/></not></condition>
+								</fail>
+							</target>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<!-- Redirect F!F's log directory to target/ during the build so the ff: lookup
