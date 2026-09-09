@@ -14,4 +14,8 @@
        ">
 
     <bean id="consoleSecurityRegistrar" class="com.viscosiety.security.ConsoleSecurityRegistrar"/>
+    <!-- Same-origin /api requests from a browser holding the console's OIDC login skip the
+         tenant API chain's Basic challenge (ApiSessionAuthListener); external API callers are
+         unaffected. -->
+    <bean id="apiSessionAuthRegistrar" class="com.viscosiety.security.ApiSessionAuthRegistrar"/>
 </beans>
