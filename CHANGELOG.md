@@ -7,7 +7,18 @@ minor version).
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+- Deep links into OAuth2-protected pages no longer land on the application
+  root after the IdP login. The Frank!Framework applies a STATELESS session
+  policy to every security chain, which discards both the originally
+  requested URL (Spring Security derives a `NullRequestCache` from it) and
+  the login itself — so any direct link, a `/webcontent/<configuration>/...`
+  page especially, redirected to `/` after Keycloak, and every follow-up
+  request re-ran the whole redirect dance. ViscoLink temporarily ships a
+  patched `OAuth2Authenticator` as a `WEB-INF/classes` override (servlet-spec
+  precedence over the framework jar) that makes only the interactive login
+  chain stateful; bearer/API callers are unaffected. Delete the override once
+  the consumed `frankframework.version` carries the upstream fix.
 
 ## [0.10.0] — 2026-09-04
 
