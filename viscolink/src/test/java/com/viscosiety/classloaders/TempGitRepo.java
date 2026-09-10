@@ -51,16 +51,19 @@ public final class TempGitRepo {
 	public static GitClassLoader configuredLoader(Path tmp, IbisContext ctx, String configurationName) throws Exception {
 		File work = tmp.resolve(WORK_DIR).toFile();
 		File remote = tmp.resolve(REMOTE_DIR).toFile();
+		// setSign(false) on every commit: JGit honours the developer's global git config, and a
+		// machine with commit.gpgsign=true + gpg.format=ssh has no JGit signer (test errors, not
+		// a product concern -- GitClassLoader never commits).
 		try (Git git = Git.init().setDirectory(work).setInitialBranch("main").call()) {
 			File cfg = new File(work, SUBDIR + "/Configuration.xml");
 			cfg.getParentFile().mkdirs();
 			Files.writeString(cfg.toPath(), "<Configuration version=\"1\"/>");
 			git.add().addFilepattern(".").call();
-			git.commit().setMessage("v1").call();
+			git.commit().setSign(false).setMessage("v1").call();
 			git.checkout().setCreateBranch(true).setName(DRAFT_BRANCH).call();
 			Files.writeString(cfg.toPath(), "<Configuration version=\"2\"/>");
 			git.add().addFilepattern(".").call();
-			git.commit().setMessage("v2").call();
+			git.commit().setSign(false).setMessage("v2").call();
 			git.checkout().setName("main").call();
 		}
 		Git.cloneRepository().setURI(work.toURI().toString()).setDirectory(remote).setBare(true).call().close();
@@ -87,7 +90,7 @@ public final class TempGitRepo {
 		try (Git git = Git.open(work)) {
 			git.checkout().setCreateBranch(true).setName(branch).call();
 			git.rm().addFilepattern(SUBDIR + "/Configuration.xml").call();
-			git.commit().setMessage("remove configuration subdir").call();
+			git.commit().setSign(false).setMessage("remove configuration subdir").call();
 			git.checkout().setName("main").call();
 			git.push().setRemote(remote.toURI().toString())
 					.setRefSpecs(new RefSpec("+" + branch + ":refs/heads/" + branch))

@@ -17,8 +17,9 @@
 // TEMPORARY CLASSPATH OVERRIDE -- NOT VISCOSIETY CODE
 //
 // This is org.frankframework.lifecycle.servlets.OAuth2Authenticator exactly as
-// built into the consumed Frank!Framework nightly 10.3.0-20260902.042323
-// (frankframework master e3803c17, 2026-09-01) plus two ViscoLink changes,
+// built into the consumed Frank!Framework nightly 10.3.0-20260910.042327
+// (frankframework master a00a4fa2, 2026-09-10; the upstream file is unchanged
+// since e3803c17, 2026-09-01) plus two ViscoLink changes,
 // both in configure(HttpSecurity):
 //  1. the interactive login chain is made stateful (IF_REQUIRED +
 //     HttpSessionRequestCache + HttpSessionSecurityContextRepository);
