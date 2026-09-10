@@ -170,7 +170,7 @@ class GitClassLoaderCheckoutTest {
             File cfg = new File(work, "ff-configurations/demo/Configuration.xml");
             Files.writeString(cfg.toPath(), "<Configuration version=\"3\"/>");
             git.add().addFilepattern(".").call();
-            git.commit().setMessage("v3").call();
+            git.commit().setSign(false).setMessage("v3").call();
             git.checkout().setName("main").call();
             git.push().setRemote(remote.toURI().toString())
                     .setRefSpecs(new RefSpec("+assistant/demo/draft-abc123:refs/heads/assistant/demo/draft-abc123"))

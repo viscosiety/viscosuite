@@ -27,14 +27,21 @@ minor version).
   only active when the console authenticates with OAUTH2; opt out with
   `viscolink.api.sessionAuth=false`.
 
+### Changed
+- Frank!Framework bumped to nightly `10.3.0-20260910.042327` (frankframework
+  master `a00a4fa2`). The `OAuth2Authenticator` override still matches the
+  upstream file (unchanged since `e3803c17`); only its tracking note moved.
+  No Java bump: the framework's artifacts are still compiled for JDK 21 —
+  JDK 25 is only needed to build the framework itself (Frank!Doc, Javadoc).
+
 ### Fixed
 - The `OAuth2Authenticator` override no longer drops bearer authentication.
   It had been derived from Frank!Framework master, where bearer support has
   since moved out of that class, so `allowBearerAuthentication=true` was
   silently ignored on the console chain and bearer callers of `/iaf/api`
   (the portal, the agent's console tools) were refused. The override now
-  tracks the source of the consumed nightly (`10.3.0-20260902.042323`,
-  frankframework `e3803c17`) and is pinned by a test that the chain carries
+  tracks the source of the consumed nightly (currently `10.3.0-20260910.042327`,
+  frankframework `a00a4fa2`) and is pinned by a test that the chain carries
   the bearer filter.
 - Deep links into OAuth2-protected pages no longer land on the application
   root after the IdP login. The Frank!Framework applies a STATELESS session
