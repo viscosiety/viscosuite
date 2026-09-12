@@ -51,7 +51,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ReloadConfigurationServletTest {
 
-    private static final String REQUIRED_ROLE = "viscoforge-tenant:bo-here-we-go-again";
+    private static final String REQUIRED_ROLE = "api-service:tester";
 
     @Mock ServletContext servletContext;
     @Mock WebApplicationContext webApplicationContext;
@@ -172,7 +172,7 @@ class ReloadConfigurationServletTest {
 
     @Test
     void authenticatedWithWrongRoleReturns401AndNeverCallsBus() throws Exception {
-        authenticateAs("viscoforge-tenant:irisschrijvers-pip");
+        authenticateAs("api-service:other");
 
         servlet.doPut(request, response);
 

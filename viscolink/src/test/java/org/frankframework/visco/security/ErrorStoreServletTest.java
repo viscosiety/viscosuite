@@ -57,7 +57,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class ErrorStoreServletTest {
 
-	private static final String REQUIRED_ROLE = "viscoforge-tenant:bo-demo";
+	private static final String REQUIRED_ROLE = "api-service:tester";
 
 	@Mock ServletContext servletContext;
 	@Mock WebApplicationContext webApplicationContext;
@@ -249,7 +249,7 @@ class ErrorStoreServletTest {
 
 	@Test
 	void wrongRoleIs401AndNeverCallsBus() throws Exception {
-		authenticateAs("viscoforge-tenant:someone-else");
+		authenticateAs("api-service:other");
 		lenient().when(request.getPathInfo()).thenReturn("/tenant/adapters/A/receivers/R/stores/Error");
 		servlet.doPut(request, response);
 		verify(response).sendError(eq(HttpServletResponse.SC_UNAUTHORIZED), anyString());

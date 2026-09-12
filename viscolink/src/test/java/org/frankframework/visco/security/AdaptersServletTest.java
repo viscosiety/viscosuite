@@ -53,7 +53,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AdaptersServletTest {
 
-	private static final String REQUIRED_ROLE = "viscoforge-tenant:bo-demo";
+	private static final String REQUIRED_ROLE = "api-service:tester";
 
 	@Mock ServletContext servletContext;
 	@Mock WebApplicationContext webApplicationContext;

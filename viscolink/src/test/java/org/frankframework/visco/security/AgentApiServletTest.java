@@ -44,7 +44,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class AgentApiServletTest {
 
-	private static final String REQUIRED_ROLE = "viscoforge-tenant:bo-demo";
+	private static final String REQUIRED_ROLE = "api-service:tester";
 
 	@Mock HttpServletRequest request;
 	@Mock HttpServletResponse response;
