@@ -4,6 +4,18 @@
 #     url: "${VISCOLINK_JDBC_URL}"
 #     username: "${VISCOLINK_JDBC_USERNAME}"
 #     password: "${VISCOLINK_JDBC_PASSWORD}"
+#
+#   # Optional: give Ladybug its OWN database instead of sharing jdbc/viscolink.
+#   # Recommended when you want the debug report of a FAILED, transacted message to
+#   # survive the business-transaction rollback -- otherwise its journey is rolled back
+#   # with the transaction and lost, which blinds a debug/journey view exactly where it
+#   # matters. Point the property ladybug.jdbc.datasource=jdbc/ladybug at this resource
+#   # and set LADYBUG_JDBC_* accordingly. The ViscoForge runner declares exactly this.
+#   - name: "ladybug"
+#     type: "${LADYBUG_JDBC_DRIVER}"
+#     url: "${LADYBUG_JDBC_URL}"
+#     username: "${LADYBUG_JDBC_USERNAME}"
+#     password: "${LADYBUG_JDBC_PASSWORD}"
 
 # Uncomment and adjust to enable inbound MLLP connections:
 # mllp:
