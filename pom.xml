@@ -11,6 +11,14 @@
 
 	<name>ViscoSuite parent</name>
 
+	<licenses>
+		<license>
+			<name>Apache License, Version 2.0</name>
+			<url>https://www.apache.org/licenses/LICENSE-2.0.txt</url>
+			<distribution>repo</distribution>
+		</license>
+	</licenses>
+
 	<properties>
 		<!-- Check https://central.sonatype.com/namespace/org.frankframework for the latest release -->
 		<frankframework.version>10.2.0-20260516.042329</frankframework.version>

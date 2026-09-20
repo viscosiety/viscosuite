@@ -169,3 +169,7 @@ Then add two **Before launch** steps to your IntelliJ Remote JVM Debug configura
 ## Smoke Tests
 
 Integration smoke tests are IntelliJ HTTP Client `.rest` files in `viscostore/src/test/smoketest/`. They must be run sequentially. Configure the target server in `http-client.env.json`.
+
+## License
+
+ViscoSuite is licensed under the [Apache License, Version 2.0](LICENSE).
