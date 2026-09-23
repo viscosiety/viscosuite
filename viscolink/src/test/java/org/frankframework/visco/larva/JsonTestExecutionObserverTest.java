@@ -6,6 +6,7 @@ import java.util.Properties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import org.frankframework.core.SenderException;
 import org.frankframework.larva.LarvaConfig;
 import org.frankframework.larva.LarvaTool;
 import org.frankframework.larva.Scenario;
@@ -206,5 +207,135 @@ class JsonTestExecutionObserverTest {
 		doc.clipToBudget();
 		assertTrue(doc.clipped);
 		assertTrue(doc.serializedBytes() <= LarvaRunDocument.DOCUMENT_MAX);
+	}
+
+	@Test
+	void cleanupFailureWithANullStepBecomesASyntheticCleanupStep() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.write");
+		Step write = Step.of(sc, "step1.x.write");
+		observer.startScenario(status, sc);
+		observer.startStep(status, sc, write);
+		observer.finishStep(status, sc, write, LarvaTool.RESULT_OK, "Step 'write' passed");
+
+		// Null-step callbacks other than finishStep are ignored rather than NPE-ing.
+		assertDoesNotThrow(() -> observer.startStep(status, sc, null));
+		assertDoesNotThrow(() -> observer.stepMessageFailed(sc, null, "compare", "a", "a", "b", "b"));
+		assertDoesNotThrow(() -> observer.stepMessage(sc, null, "d", "m"));
+		assertDoesNotThrow(() -> observer.stepMessageSuccess(sc, null, "d", "m", "m"));
+		// ScenarioRunner's cleanup: exactly this call.
+		observer.finishStep(status, sc, null, LarvaTool.RESULT_ERROR,
+				"Found one or more messages on actions or in database after scenario executed");
+		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "Scenario failed");
+
+		LarvaRunDocument.ScenarioResult result = observer.document().scenarios.get(0);
+		assertEquals("failed", result.result);
+		assertEquals(2, result.steps.size());
+		LarvaRunDocument.StepResult cleanup = result.steps.get(1);
+		assertEquals("cleanup", cleanup.name);
+		assertEquals("failed", cleanup.result);
+		assertEquals("Found one or more messages on actions or in database after scenario executed", cleanup.message);
+	}
+
+	@Test
+	void scenarioMessagesCarryTheNonDiffFailureReasons() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.write");
+		sc.addError("Timeout sending message to 'x': no reply in 1000 ms");
+		sc.addWarning("Deprecation Warning: properties x.requestTimeOut/x.responseTimeOut have been replaced with x.timeout");
+		SenderException cause = new SenderException("backend body " + "z".repeat(5000));
+		sc.addError("Could not send message to 'x' (SenderException): " + "q".repeat(1000), cause);
+		observer.startScenario(status, sc);
+		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "Scenario failed");
+
+		JsonNode messages = new ObjectMapper().valueToTree(observer.document()).get("scenarios").get(0).get("messages");
+		assertEquals(3, messages.size());
+		// Scenario.getMessages() is a SortedSet ordered by text.
+		JsonNode send = messages.get(0);
+		assertEquals("error", send.get("level").asText());
+		String text = send.get("text").asText();
+		assertTrue(text.startsWith("Could not send message to 'x' (SenderException): qqq"));
+		assertTrue(text.endsWith(JsonTestExecutionObserver.TRUNCATION_SUFFIX + " (SenderException)"), text);
+		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "clipped INCLUDING the exception suffix");
+		assertFalse(text.contains("backend body"), "never the exception's own message beyond Larva's text");
+		assertFalse(text.contains("\tat "), "never a stack trace");
+		assertEquals("warning", messages.get(1).get("level").asText());
+		assertTrue(messages.get(1).get("text").asText().startsWith("Deprecation Warning"));
+		assertEquals("error", messages.get(2).get("level").asText());
+		assertEquals("Timeout sending message to 'x': no reply in 1000 ms", messages.get(2).get("text").asText());
+	}
+
+	@Test
+	void scenarioMessagesAreCapped() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01");
+		for (int i = 0; i < LarvaRunDocument.SCENARIO_MESSAGES_MAX + 20; i++) {
+			sc.addError("error " + String.format("%03d", i));
+		}
+		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "Scenario failed");
+		assertEquals(LarvaRunDocument.SCENARIO_MESSAGES_MAX, observer.document().scenarios.get(0).messages.size());
+	}
+
+	@Test
+	void clipsIncrementallySoEarlyScenariosKeepDetailAndTheDocumentNeverOutgrowsTheCap() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		String big = "x".repeat(JsonTestExecutionObserver.STEP_TEXT_MAX);
+		for (int i = 0; i < 40; i++) {
+			Scenario sc = scenario("S" + i + "/scenario01", "step1.x.read");
+			Step read = Step.of(sc, "step1.x.read");
+			observer.startScenario(status, sc);
+			observer.startStep(status, sc, read);
+			observer.stepMessageFailed(sc, read, "compare", big, big, big, big);
+			observer.finishStep(status, sc, read, LarvaTool.RESULT_ERROR, "differs");
+			observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "failed");
+			// While running, never past the cap (each GET serialises the whole document).
+			assertTrue(observer.document().serializedBytes() <= LarvaRunDocument.DOCUMENT_MAX, "over the cap after scenario " + i);
+		}
+		LarvaRunDocument doc = observer.document();
+		assertTrue(doc.clipped);
+		assertEquals(40, doc.scenarios.size());
+		LarvaRunDocument.ScenarioResult first = doc.scenarios.get(0);
+		assertEquals(1, first.steps.size(), "first scenarios keep their detail");
+		assertEquals(big, first.steps.get(0).expected);
+		LarvaRunDocument.ScenarioResult last = doc.scenarios.get(39);
+		assertEquals("S39/scenario01.properties", last.path);
+		assertEquals("failed", last.result);
+		assertTrue(last.steps.isEmpty());
+		assertNull(last.description);
+		assertNull(last.message);
+		// clipToBudget is a no-op on an already-bounded document.
+		int before = doc.serializedBytes();
+		doc.clipToBudget();
+		assertEquals(before, doc.serializedBytes());
+	}
+
+	@Test
+	void runLevelMessagesAreCappedAndTheOverflowCounted() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		for (int i = 0; i < LarvaRunDocument.MESSAGES_MAX + 50; i++) {
+			observer.messageError("remaining", "message " + i);
+		}
+		LarvaRunDocument doc = observer.document();
+		assertEquals(LarvaRunDocument.MESSAGES_MAX, doc.messages.size());
+		assertEquals(50, doc.messagesDropped);
+		assertEquals(50, new ObjectMapper().valueToTree(doc).get("messagesDropped").asInt());
+	}
+
+	@Test
+	void clipToBudgetDropsTrailingMessagesWhenScenariosAloneCannotFit() {
+		LarvaRunDocument doc = new LarvaRunDocument();
+		for (int i = 0; i < 5000; i++) {
+			doc.messages.add(new LarvaRunDocument.LogMessage("error", "m".repeat(290)));
+		}
+		assertTrue(doc.serializedBytes() > LarvaRunDocument.DOCUMENT_MAX, "test setup");
+		doc.clipToBudget();
+		assertTrue(doc.clipped);
+		assertTrue(doc.serializedBytes() <= LarvaRunDocument.DOCUMENT_MAX);
+		assertEquals(5000, doc.messages.size() + doc.messagesDropped);
+		assertTrue(doc.messagesDropped > 0);
 	}
 }

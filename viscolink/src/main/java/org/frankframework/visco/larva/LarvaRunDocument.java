@@ -30,6 +30,27 @@ import com.fasterxml.jackson.databind.ObjectMapper;
  *
  * <p>Mutable on purpose: the observer fills it while the run progresses and the servlet
  * hands out snapshots of the same object (state "running" until the worker finishes).</p>
+ *
+ * <p>Wire contract beyond spec §5's example (additive fields the portal must tolerate):</p>
+ * <ul>
+ *   <li>{@code scenarios[].messages[]} -- {@code {level, text}} entries Larva recorded on the
+ *   scenario itself ({@code Scenario.getMessages()}): the reason a step failed WITHOUT a diff
+ *   (timeouts, "Could not send message to ...", "Property 'x.className' not found", action
+ *   creation errors, deprecation warnings). {@code level} is the lower-cased {@code LarvaLogLevel}
+ *   name ({@code "error"}, {@code "warning"}, ...); {@code text} is clipped to
+ *   {@link JsonTestExecutionObserver#MESSAGE_MAX} and, when Larva attached an exception, ends with
+ *   {@code " (<ExceptionSimpleName>)"} -- never a stack trace. At most
+ *   {@link #SCENARIO_MESSAGES_MAX} per scenario.</li>
+ *   <li>{@code messagesDropped} -- how many run-level {@code messages} were not recorded because
+ *   {@link #MESSAGES_MAX} was reached (0 normally).</li>
+ *   <li>A scenario can carry a synthetic step named {@code "cleanup"}: Larva reports "Found one or
+ *   more messages on actions or in database after scenario executed" as a step failure with no
+ *   step, which lands here.</li>
+ * </ul>
+ *
+ * <p>Size: the observer clips incrementally (see {@link JsonTestExecutionObserver}), so the
+ * document stays near {@link #DOCUMENT_MAX} while it runs; {@link #clipToBudget()} is only the
+ * end-of-run safety net.</p>
  */
 @JsonInclude(JsonInclude.Include.ALWAYS)
 public class LarvaRunDocument {
@@ -40,6 +61,10 @@ public class LarvaRunDocument {
 
 	/** Hard cap on the serialised document size; owned here so {@link #clipToBudget()} can enforce it directly. */
 	public static final int DOCUMENT_MAX = 1024 * 1024;
+	/** Run-level {@link #messages} cap; later ones only increment {@link #messagesDropped}. */
+	public static final int MESSAGES_MAX = 200;
+	/** Per-scenario {@link ScenarioResult#messages} cap. */
+	public static final int SCENARIO_MESSAGES_MAX = 50;
 
 	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
@@ -56,6 +81,7 @@ public class LarvaRunDocument {
 	public final Summary summary = new Summary();
 	public final List<ScenarioResult> scenarios = new ArrayList<>();
 	public final List<LogMessage> messages = new ArrayList<>();
+	public int messagesDropped;
 	public String error;
 	public boolean clipped;
 
@@ -81,6 +107,7 @@ public class LarvaRunDocument {
 		public String result;
 		public String message;
 		public final List<StepResult> steps = new ArrayList<>();
+		public final List<LogMessage> messages = new ArrayList<>();
 
 		public ScenarioResult(String path, String description) {
 			this.path = path;
@@ -103,6 +130,15 @@ public class LarvaRunDocument {
 		}
 	}
 
+	/** Records a run-level message, or counts it in {@link #messagesDropped} once {@link #MESSAGES_MAX} is reached. */
+	public void addMessage(String level, String text) {
+		if (messages.size() >= MESSAGES_MAX) {
+			messagesDropped++;
+			return;
+		}
+		messages.add(new LogMessage(level, text));
+	}
+
 	/**
 	 * The real serialised size in UTF-8 JSON bytes -- not a character-count estimate. A
 	 * character-length sum undercounts JSON escaping (each {@code "} or {@code \} doubles in
@@ -110,28 +146,63 @@ public class LarvaRunDocument {
 	 * can guarantee the {@link #DOCUMENT_MAX} cap.
 	 */
 	public int serializedBytes() {
+		return bytesOf(this);
+	}
+
+	/** Serialised UTF-8 JSON size of any part of the document (one scenario, one message). */
+	static int bytesOf(Object value) {
 		try {
-			return OBJECT_MAPPER.writeValueAsBytes(this).length;
+			return OBJECT_MAPPER.writeValueAsBytes(value).length;
 		} catch (JsonProcessingException e) {
-			throw new IllegalStateException("Failed to serialise LarvaRunDocument", e);
+			throw new IllegalStateException("Failed to serialise " + value.getClass().getSimpleName(), e);
 		}
 	}
 
+	/** Reduces a scenario to {@code {path, result}}: steps, description, message and messages dropped. */
+	static void reduce(ScenarioResult scenario) {
+		scenario.steps.clear();
+		scenario.messages.clear();
+		scenario.description = null;
+		scenario.message = null;
+	}
+
+	private static boolean isReduced(ScenarioResult scenario) {
+		return scenario.steps.isEmpty() && scenario.messages.isEmpty() && scenario.description == null && scenario.message == null;
+	}
+
 	/**
-	 * Enforces the document cap: while over budget, the LAST detailed scenario is reduced to
-	 * {@code {path, result}} (steps, description and message dropped). Reduced from the tail so
-	 * the scenarios that ran first -- the ones a reader looks at first -- keep their diffs.
+	 * End-of-run safety net for the document cap (the observer already clips incrementally, so
+	 * this normally returns after one serialisation). While over budget, the LAST detailed
+	 * scenario is reduced to {@code {path, result}}, so the scenarios that ran first -- the ones
+	 * a reader looks at first -- keep their diffs; if reducing every scenario is still not enough
+	 * the run-level messages are dropped from the tail (counted in {@link #messagesDropped}).
+	 * Linear: the whole document is serialised once and each reduced scenario twice.
 	 */
 	public void clipToBudget() {
-		for (int i = scenarios.size() - 1; i >= 0 && serializedBytes() > DOCUMENT_MAX; i--) {
+		long total = serializedBytes();
+		if (total <= DOCUMENT_MAX) {
+			return;
+		}
+		for (int i = scenarios.size() - 1; i >= 0 && total > DOCUMENT_MAX; i--) {
 			ScenarioResult scenario = scenarios.get(i);
-			if (scenario.steps.isEmpty() && scenario.description == null && scenario.message == null) {
+			if (isReduced(scenario)) {
 				continue;
 			}
-			scenario.steps.clear();
-			scenario.description = null;
-			scenario.message = null;
+			int before = bytesOf(scenario);
+			reduce(scenario);
+			total -= before - bytesOf(scenario);
 			clipped = true;
+		}
+		while (total > DOCUMENT_MAX && !messages.isEmpty()) {
+			LogMessage last = messages.remove(messages.size() - 1);
+			// +1 for the separating comma; a slight over-estimate of the saving is harmless because
+			// the loop re-checks against a fresh serialisation below.
+			total -= bytesOf(last) + 1L;
+			messagesDropped++;
+			clipped = true;
+			if (total <= DOCUMENT_MAX) {
+				total = serializedBytes();
+			}
 		}
 	}
 }
