@@ -75,6 +75,18 @@ minor version).
   precedence over the framework jar) that makes only the interactive login
   chain stateful; bearer/API callers are unaffected. Delete the override once
   the consumed `frankframework.version` carries the upstream fix.
+- `LarvaRunServlet`'s JSON run document no longer loses two Larva failure reasons.
+  A failed compare's real reason (XMLUnit's diff text, or "Exception during XML
+  diff: ..." when even the malformed-but-identical case can't be parsed) is now
+  kept as the step's `message` instead of being overwritten by Larva's generic
+  "Step '...' failed"; `JsonTestExecutionObserver.stepMessageFailed` records it
+  and `finishStep` no longer clobbers an already-recorded reason. A scenario file
+  that fails to load entirely (e.g. an `include=` that does not resolve --
+  `ScenarioLoader` resolves includes relative to the scenario file's own folder)
+  used to be silently dropped, with the run document only saying "no scenarios
+  found ..."; `LarvaRunner` now forwards `LarvaTool`'s ERROR/WARNING messages
+  produced while loading scenarios as run-level messages, and the "no scenarios
+  found" message itself now hints at an unresolved include as a cause.
 
 ## [0.10.0] — 2026-09-04
 

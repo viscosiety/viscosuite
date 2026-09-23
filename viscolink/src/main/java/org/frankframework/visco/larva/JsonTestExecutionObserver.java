@@ -182,7 +182,13 @@ public class JsonTestExecutionObserver implements TestExecutionObserver {
 			result = stepResultFor(scenario, step);
 		}
 		result.result = stepResult == LarvaTool.RESULT_ERROR ? "failed" : "passed";
-		result.message = clip(stepResultMessage, MESSAGE_MAX);
+		// stepMessageFailed (called earlier for a failed compare) already recorded the real reason
+		// (an XML diff / text diff description) as the message -- don't clobber it with Larva's
+		// generic "Step '...' failed". Only a step that never went through a compare (or passed)
+		// lands here with no message yet.
+		if (result.message == null) {
+			result.message = clip(stepResultMessage, MESSAGE_MAX);
+		}
 	}
 
 	@Override
@@ -209,6 +215,9 @@ public class JsonTestExecutionObserver implements TestExecutionObserver {
 		result.actual = cut(stepActualResultMessage);
 		result.actualPrepared = cut(stepActualResultMessagePreparedForDiff);
 		result.truncated = truncated;
+		// The real compare reason -- XMLUnit's diff text, "Exception during XML diff: ...", or
+		// "Starting at char N ..." for a text compare -- so it survives finishStep's generic message.
+		result.message = clip(description, MESSAGE_MAX);
 	}
 
 	@Override
