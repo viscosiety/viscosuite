@@ -174,4 +174,50 @@ class LarvaRunnerLarvaToolTest {
 		assertTrue(broken.messages.stream().anyMatch(m -> "error".equals(m.level) && m.text.contains("java.nope.className")),
 				() -> "scenario messages: " + broken.messages.stream().map(m -> m.level + ":" + m.text).toList());
 	}
+
+	@Test
+	void anUnresolvedIncludeReachesTheRunLevelMessagesWithTheHint() throws Exception {
+		// include= paths resolve relative to the scenario file's own folder, not the scenarios
+		// root -- common.properties lives one folder up from Includes/, so ScenarioLoader fails to
+		// read the scenario file entirely (it never becomes a Scenario) and the reason used to be
+		// swallowed: the run document only said "no scenarios found ...".
+		write("Includes/scenario01.properties", "scenario.description=missing include\ninclude=common.properties\n" + ECHO
+				+ "step1.java.echo.writeline=Echo This\nstep2.java.echo.read=out.txt\n");
+		write("common.properties", "some.prop=value\n");
+		write("Includes/out.txt", "Echo This");
+
+		// A directory execute rather than the exact .properties path: the "no scenarios found"
+		// message then skips the long "(the file exists but was not registered ...)" detail, leaving
+		// enough of the MESSAGE_MAX budget for the appended hint to survive clipping.
+		LarvaRunDocument doc = run(root.resolve("Includes") + File.separator);
+
+		assertTrue(doc.scenarios.isEmpty(), "the scenario never loaded");
+		assertTrue(doc.messages.stream().anyMatch(m -> m.text.contains("Could not read properties file")),
+				() -> "messages: " + doc.messages.stream().map(m -> m.text).toList());
+		assertTrue(doc.messages.stream().anyMatch(m -> m.text.contains("or an include that does not resolve")),
+				() -> "messages: " + doc.messages.stream().map(m -> m.text).toList());
+	}
+
+	@Test
+	void aMalformedXmlCompareCarriesARealReasonNotTheGenericMessage() throws Exception {
+		// Both the expected file and the echoed actual message are the SAME malformed (unclosed
+		// tag) XML fragment: XMLUnit's Diff still fails to PARSE them before it ever gets to an
+		// identical() check, so two byte-identical prepared texts still fail the compare -- with a
+		// real reason, not Larva's generic "Step '...' failed".
+		String malformed = "<a><b>x</b>";
+		write("XmlBroken/scenario01.properties", "scenario.description=malformed xml\n" + ECHO
+				+ "step1.java.echo.writeline=" + malformed + "\nstep2.java.echo.read=expected.xml\n");
+		write("XmlBroken/expected.xml", malformed);
+
+		LarvaRunDocument doc = run(root.resolve("XmlBroken/scenario01.properties").toString());
+
+		LarvaRunDocument.ScenarioResult broken = scenario(doc, "XmlBroken/scenario01.properties");
+		assertEquals("failed", broken.result);
+		LarvaRunDocument.StepResult read = broken.steps.get(1);
+		assertEquals("step2.java.echo.read", read.name);
+		assertEquals("failed", read.result);
+		assertNotNull(read.message);
+		assertNotEquals("Step 'step2.java.echo.read' failed", read.message, () -> "must not be the generic message");
+		assertTrue(read.message.contains("Exception during XML diff") || !read.message.isBlank(), read.message);
+	}
 }

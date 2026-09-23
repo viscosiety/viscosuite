@@ -94,7 +94,10 @@ class JsonTestExecutionObserverTest {
 		String big = "x".repeat(JsonTestExecutionObserver.STEP_TEXT_MAX + 100);
 		observer.startScenario(status, sc);
 		observer.startStep(status, sc, read);
-		observer.stepMessageFailed(sc, read, "compare", big, big, big, big);
+		// The step message now comes from stepMessageFailed's description (kept over finishStep's
+		// generic message, see the dedicated tests for that), so it is the description that must be
+		// long enough here to prove the clipping.
+		observer.stepMessageFailed(sc, read, "d".repeat(1000), big, big, big, big);
 		observer.finishStep(status, sc, read, LarvaTool.RESULT_ERROR, "m".repeat(1000));
 		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "n".repeat(1000));
 
@@ -236,6 +239,54 @@ class JsonTestExecutionObserverTest {
 		assertEquals("cleanup", cleanup.name);
 		assertEquals("failed", cleanup.result);
 		assertEquals("Found one or more messages on actions or in database after scenario executed", cleanup.message);
+	}
+
+	@Test
+	void aFailedCompareKeepsItsDescriptionAsTheStepMessageAfterFinishStep() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.read");
+		Step read = Step.of(sc, "step1.x.read");
+		observer.startScenario(status, sc);
+		observer.startStep(status, sc, read);
+		observer.stepMessageFailed(sc, read, "Exception during XML diff: XML document structures must start and end within the same entity",
+				"<a/>", "<a/>", "<b/>", "<b/>");
+		// finishStep's generic message must not clobber the real reason recorded above.
+		observer.finishStep(status, sc, read, LarvaTool.RESULT_ERROR, "Step 'step1.x.read' failed");
+
+		LarvaRunDocument.StepResult step = observer.document().scenarios.get(0).steps.get(0);
+		assertEquals("Exception during XML diff: XML document structures must start and end within the same entity", step.message);
+	}
+
+	@Test
+	void aStepWithNoCompareDescriptionStillGetsTheGenericFinishStepMessage() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.write");
+		Step write = Step.of(sc, "step1.x.write");
+		observer.startScenario(status, sc);
+		observer.startStep(status, sc, write);
+		// No stepMessageFailed call -- e.g. a step that errors before ever comparing.
+		observer.finishStep(status, sc, write, LarvaTool.RESULT_ERROR, "Step 'step1.x.write' failed");
+
+		LarvaRunDocument.StepResult step = observer.document().scenarios.get(0).steps.get(0);
+		assertEquals("Step 'step1.x.write' failed", step.message);
+	}
+
+	@Test
+	void theCompareDescriptionIsClippedLikeOtherStepMessages() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.read");
+		Step read = Step.of(sc, "step1.x.read");
+		observer.startScenario(status, sc);
+		observer.startStep(status, sc, read);
+		observer.stepMessageFailed(sc, read, "d".repeat(1000), "<a/>", "<a/>", "<b/>", "<b/>");
+		observer.finishStep(status, sc, read, LarvaTool.RESULT_ERROR, "Step 'step1.x.read' failed");
+
+		LarvaRunDocument.StepResult step = observer.document().scenarios.get(0).steps.get(0);
+		assertTrue(step.message.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "description clipped INCLUDING the suffix");
+		assertTrue(step.message.endsWith(JsonTestExecutionObserver.TRUNCATION_SUFFIX));
 	}
 
 	@Test

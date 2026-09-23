@@ -25,6 +25,7 @@ import java.util.function.LongSupplier;
 
 import org.frankframework.larva.LarvaConfig;
 import org.frankframework.larva.LarvaLogLevel;
+import org.frankframework.larva.LarvaMessage;
 import org.frankframework.larva.LarvaTool;
 import org.frankframework.larva.Scenario;
 import org.frankframework.larva.ScenarioRunner;
@@ -61,6 +62,10 @@ public interface LarvaRunner {
 	/** Floor of the suite deadline: short action timeouts must not starve an ordinary suite. */
 	long MIN_SUITE_DEADLINE_MS = 15 * 60_000L;
 
+	/** Appended to the "no scenarios found" message: an unresolved include is a common cause. */
+	String NO_SCENARIOS_INCLUDE_HINT = " -- or an include that does not resolve (include paths are "
+			+ "relative to the scenario file's own folder)";
+
 	TestRunStatus run(ApplicationContext applicationContext, String rootDirectory, String executeAbsolutePath,
 			long timeoutMs, TestExecutionObserver observer) throws Exception;
 
@@ -86,7 +91,13 @@ public interface LarvaRunner {
 			// initScenarioDirectories keeps a preset activeScenariosDirectory; re-assert it in case
 			// the property scan replaced it (it only does when the preset was empty).
 			config.setActiveScenariosDirectory(rootDirectory);
+			// Snapshot before loading: a scenario file that fails to load (e.g. an include= that does
+			// not resolve) never becomes a Scenario -- it only shows up as a LarvaMessage on the tool,
+			// which otherwise only reaches the discarded LarvaWriter. Forward just what loading added,
+			// not the whole run's messages.
+			int messagesBeforeLoad = tool.getMessages().size();
 			status.readScenarioFiles(tool.getScenarioLoader());
+			forwardScenarioLoadMessages(tool.getMessages(), messagesBeforeLoad, observer);
 
 			observer.startTestSuiteExecution(status);
 			List<Scenario> scenarios;
@@ -116,7 +127,7 @@ public interface LarvaRunner {
 						? " (the file exists but was not registered as a scenario -- check scenario.active, "
 								+ "adapter.unstable, and scenario.description)"
 						: "";
-				observer.messageError("scenarios", "no scenarios found under [" + executeAbsolutePath + "]" + detail);
+				observer.messageError("scenarios", "no scenarios found under [" + executeAbsolutePath + "]" + detail + NO_SCENARIOS_INCLUDE_HINT);
 				observer.endTestSuiteExecution(status);
 				return status;
 			}
@@ -159,6 +170,34 @@ public interface LarvaRunner {
 			ran++;
 		}
 		return ran;
+	}
+
+	/**
+	 * Forwards every {@link LarvaMessage} added to {@code allMessages} at or after
+	 * {@code fromIndex} (i.e. produced while loading scenarios, via
+	 * {@code ScenarioLoader}/{@code LarvaTool.errorMessage}) to the observer as a run-level
+	 * message, e.g. {@code "Could not read properties file [...]: ..."} for an include that does
+	 * not resolve. Only ERROR and WARNING are forwarded; a WARNING is prefixed {@code "warning: "}
+	 * since {@link TestExecutionObserver#messageError} carries no level of its own. The observer
+	 * clips the text and reduces an attached exception to its simple class name.
+	 */
+	static void forwardScenarioLoadMessages(List<LarvaMessage> allMessages, int fromIndex, TestExecutionObserver observer) {
+		for (int i = fromIndex; i < allMessages.size(); i++) {
+			LarvaMessage message = allMessages.get(i);
+			LarvaLogLevel level = message.getLogLevel();
+			if (level == LarvaLogLevel.ERROR) {
+				observer.messageError("scenarios", loadMessageText(message));
+			} else if (level == LarvaLogLevel.WARNING) {
+				observer.messageError("scenarios", "warning: " + loadMessageText(message));
+			}
+		}
+	}
+
+	/** The message text plus, if Larva attached one, the exception's simple class name -- never a stack trace. */
+	private static String loadMessageText(LarvaMessage message) {
+		String text = message.getMessage() == null ? "" : message.getMessage();
+		Exception exception = message.getException();
+		return exception == null ? text : text + " (" + exception.getClass().getSimpleName() + ")";
 	}
 
 	/**
