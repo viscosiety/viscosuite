@@ -341,6 +341,31 @@ public class GitClassLoader extends AbstractClassLoader {
         return repoSubdir;
     }
 
+    /**
+     * The directory this configuration's resources are read from: {@code <localPath>/<repoSubdir>}
+     * (the whole clone when no subdir is configured). Null before {@link #configure}. The Larva run
+     * servlet resolves a configuration's {@code larva/} scenario root from it; it never writes there.
+     */
+    public File getResourceDir() {
+        return resourceDir;
+    }
+
+    /**
+     * Full SHA of the clone's current HEAD, or null when the clone cannot be read. Unlike
+     * {@link #currentRef()} this never falls back to a branch name, so a caller can tell exactly
+     * which commit the working tree carries (the portal compares it with the branch tip to warn
+     * about tests that are behind). Lock-free: opens the repository read-only.
+     */
+    public String currentCommit() {
+        try (Git git = Git.open(localDir)) {
+            ObjectId head = git.getRepository().resolve(Constants.HEAD);
+            return head == null ? null : head.getName();
+        } catch (Exception e) {
+            log.warn("[{}] could not resolve HEAD commit", getConfigurationName(), e);
+            return null;
+        }
+    }
+
     @Override
     public void destroy() {
         if (getConfigurationName() != null) {

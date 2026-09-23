@@ -8,6 +8,27 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- `LarvaRunServlet` (bearer-gated `/api-service/larva/runs`) runs Frank!Framework Larva
+  scenarios for a configuration and serves JSON results headlessly. `POST {configuration,
+  execute?, timeoutMs?}` returns 202 with a runId; `GET …/runs/{runId}` serves per-scenario
+  and per-step results with expected-vs-actual. Gated like `ConfigRefServlet`:
+  `servlet.larvaRun.authenticator=bearer` + `servlet.larvaRun.securityRoles=<tenant role>`.
+  Scenario root, resolved through the configuration's own classloader:
+  `<clone>/<repoSubdir>/larva` for git-loaded configurations (ref and commit reported, never
+  pulled; `commit` becomes null with a "clone moved during the run" message when HEAD moved
+  mid-run), `<DirectoryClassLoader directory>/larva` for castings, else
+  `<configurations.<name>.directory or configurations.directory>/<name>/larva`. A directory
+  `execute` matches that directory only (not `OrdersIn-rejects` for `OrdersIn`); an `execute`
+  that does not exist is a 400. Refused on `dtap.stage=PRD`. One run at a time per instance,
+  bounded by a suite deadline of max(4 x timeoutMs, 15 min) checked between scenarios; the
+  last 20 runs are kept. Beyond the spec's document shape: `scenarios[].messages[]`
+  (`{level, text}`, the failure reasons Larva records without a diff -- timeouts, send
+  errors, missing `x.className` -- clipped, never a stack trace), a synthetic `cleanup` step
+  for "messages left on actions after the scenario", and `messagesDropped` (run-level
+  `messages` are capped at 200). The document is clipped incrementally to 1 MiB while it
+  runs (first scenarios keep their detail, `clipped: true`).
+- `GitClassLoader` gains `getResourceDir()` and `currentCommit()` accessors to support
+  loading Larva scenarios from the configuration's git tree.
 - Combined OIDC + Basic API access: the `OAuth2Authenticator` override gains
   `allowBasicAuthentication` and `basicUsersFile` (a `YmlFileAuthenticator`
   user list), so the users of that file are accepted with HTTP Basic on the
