@@ -23,6 +23,9 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.frankframework.core.SenderException;
+import org.frankframework.larva.LarvaLogLevel;
+import org.frankframework.larva.LarvaMessage;
 import org.frankframework.larva.Scenario;
 import org.junit.jupiter.api.Test;
 
@@ -131,5 +134,64 @@ class LarvaRunnerTest {
 		assertEquals(15 * 60_000L, LarvaRunner.suiteDeadlineMs(1_000L));
 		assertEquals(15 * 60_000L, LarvaRunner.suiteDeadlineMs(120_000L));
 		assertEquals(40 * 60_000L, LarvaRunner.suiteDeadlineMs(600_000L));
+	}
+
+	@Test
+	void forwardsEveryErrorAndCapsWarningsWithASummaryLine() {
+		// A big suite where many included scenarios override the same property warns once per
+		// override -- 30 of those must never bury (or, via the document's own MESSAGES_MAX, push
+		// out) the one real load ERROR.
+		List<LarvaMessage> messages = new ArrayList<>();
+		for (int i = 0; i < 30; i++) {
+			messages.add(new LarvaMessage(LarvaLogLevel.WARNING, "warning " + i));
+		}
+		messages.add(new LarvaMessage(LarvaLogLevel.ERROR, "a real load error"));
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+
+		LarvaRunner.forwardScenarioLoadMessages(messages, 0, observer);
+
+		List<String> texts = observer.document().messages.stream().map(m -> m.text).toList();
+		assertTrue(texts.stream().anyMatch(t -> t.contains("a real load error")), () -> "messages: " + texts);
+		long forwardedWarnings = texts.stream().filter(t -> t.contains("warning ") && !t.contains("more warnings")).count();
+		assertEquals(LarvaRunner.MAX_FORWARDED_SCENARIO_LOAD_WARNINGS, forwardedWarnings, () -> "messages: " + texts);
+		assertTrue(texts.stream().anyMatch(t -> t.contains("and 10 more warnings while loading scenarios")),
+				() -> "messages: " + texts);
+	}
+
+	@Test
+	void forwardsEveryErrorEvenWhenThereAreNoWarningsToCap() {
+		List<LarvaMessage> messages = List.of(
+				new LarvaMessage(LarvaLogLevel.ERROR, "first error"),
+				new LarvaMessage(LarvaLogLevel.ERROR, "second error"),
+				new LarvaMessage(LarvaLogLevel.DEBUG, "not forwarded"));
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+
+		LarvaRunner.forwardScenarioLoadMessages(messages, 0, observer);
+
+		List<String> texts = observer.document().messages.stream().map(m -> m.text).toList();
+		assertEquals(2, texts.size(), () -> "messages: " + texts);
+		assertTrue(texts.stream().anyMatch(t -> t.contains("first error")));
+		assertTrue(texts.stream().anyMatch(t -> t.contains("second error")));
+	}
+
+	@Test
+	void loadMessageTextReservesRoomForTheExceptionSuffix() {
+		// Mirrors JsonTestExecutionObserver#logMessage's reserved-suffix pattern: a long message
+		// must not push the "(ExceptionClass)" suffix past what the observer's own MESSAGE_MAX clip
+		// keeps, or the suffix is lost entirely.
+		String longMessage = "m".repeat(1000);
+		LarvaMessage message = new LarvaMessage(LarvaLogLevel.ERROR, longMessage, new SenderException("boom"));
+
+		String text = LarvaRunner.loadMessageText(message);
+
+		assertTrue(text.endsWith(" (SenderException)"), text);
+		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "leaves room for the \"scenarios: \" prefix too");
+	}
+
+	@Test
+	void loadMessageTextWithNoExceptionIsJustTheMessage() {
+		LarvaMessage message = new LarvaMessage(LarvaLogLevel.ERROR, "plain text");
+
+		assertEquals("plain text", LarvaRunner.loadMessageText(message));
 	}
 }

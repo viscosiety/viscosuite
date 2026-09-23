@@ -150,8 +150,11 @@ class LarvaRunnerLarvaToolTest {
 		LarvaRunDocument doc = run(root.resolve("OrdersIn/inactive.properties").toString());
 
 		assertTrue(doc.scenarios.isEmpty());
-		assertEquals(1, doc.messages.size());
+		// The "no scenarios found" message and the unresolved-include hint are now two separate
+		// run-level messages (the hint used to be concatenated onto the first).
+		assertEquals(2, doc.messages.size(), () -> "messages: " + doc.messages.stream().map(m -> m.text).toList());
 		assertTrue(doc.messages.get(0).text.contains("was not registered as a scenario"), doc.messages.get(0).text);
+		assertEquals("scenarios: " + LarvaRunner.NO_SCENARIOS_INCLUDE_HINT, doc.messages.get(1).text);
 	}
 
 	@Test
@@ -178,24 +181,30 @@ class LarvaRunnerLarvaToolTest {
 	@Test
 	void anUnresolvedIncludeReachesTheRunLevelMessagesWithTheHint() throws Exception {
 		// include= paths resolve relative to the scenario file's own folder, not the scenarios
-		// root -- common.properties lives one folder up from Includes/, so ScenarioLoader fails to
-		// read the scenario file entirely (it never becomes a Scenario) and the reason used to be
-		// swallowed: the run document only said "no scenarios found ...".
-		write("Includes/scenario01.properties", "scenario.description=missing include\ninclude=common.properties\n" + ECHO
+		// root -- common.properties lives one folder up from Includes/nested/deep/, so
+		// ScenarioLoader fails to read the scenario file entirely (it never becomes a Scenario) and
+		// the reason used to be swallowed: the run document only said "no scenarios found ...".
+		//
+		// A realistic long path (nested a few levels deep, the exact .properties execute path so
+		// "no scenarios found" also carries its long "(the file exists but was not registered ...)"
+		// detail clause): the hint must survive as its OWN run-level message, verbatim, rather than
+		// being concatenated onto -- and clipped away from -- the "no scenarios found" message. A
+		// real tenant-instance execute path is comfortably this long or longer.
+		write("Includes/nested/deep/scenario01.properties", "scenario.description=missing include\ninclude=common.properties\n" + ECHO
 				+ "step1.java.echo.writeline=Echo This\nstep2.java.echo.read=out.txt\n");
-		write("common.properties", "some.prop=value\n");
-		write("Includes/out.txt", "Echo This");
+		write("Includes/nested/common.properties", "some.prop=value\n");
+		write("Includes/nested/deep/out.txt", "Echo This");
 
-		// A directory execute rather than the exact .properties path: the "no scenarios found"
-		// message then skips the long "(the file exists but was not registered ...)" detail, leaving
-		// enough of the MESSAGE_MAX budget for the appended hint to survive clipping.
-		LarvaRunDocument doc = run(root.resolve("Includes") + File.separator);
+		LarvaRunDocument doc = run(root.resolve("Includes/nested/deep/scenario01.properties").toString());
 
 		assertTrue(doc.scenarios.isEmpty(), "the scenario never loaded");
 		assertTrue(doc.messages.stream().anyMatch(m -> m.text.contains("Could not read properties file")),
 				() -> "messages: " + doc.messages.stream().map(m -> m.text).toList());
-		assertTrue(doc.messages.stream().anyMatch(m -> m.text.contains("or an include that does not resolve")),
+		assertTrue(doc.messages.stream().anyMatch(m -> m.text.contains("no scenarios found under")
+						&& m.text.contains("was not registered as a scenario")),
 				() -> "messages: " + doc.messages.stream().map(m -> m.text).toList());
+		assertTrue(doc.messages.stream().anyMatch(m -> m.text.equals("scenarios: " + LarvaRunner.NO_SCENARIOS_INCLUDE_HINT)),
+				() -> "hint must be its own verbatim message: " + doc.messages.stream().map(m -> m.text).toList());
 	}
 
 	@Test

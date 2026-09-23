@@ -62,9 +62,19 @@ public interface LarvaRunner {
 	/** Floor of the suite deadline: short action timeouts must not starve an ordinary suite. */
 	long MIN_SUITE_DEADLINE_MS = 15 * 60_000L;
 
-	/** Appended to the "no scenarios found" message: an unresolved include is a common cause. */
-	String NO_SCENARIOS_INCLUDE_HINT = " -- or an include that does not resolve (include paths are "
-			+ "relative to the scenario file's own folder)";
+	/**
+	 * A run-level message of its own alongside "no scenarios found ..." -- NOT concatenated onto
+	 * it: that message already carries the (possibly long, real tenant-path) execute path plus an
+	 * optional detail clause, and appending more text risked the hint itself being clipped away by
+	 * {@link JsonTestExecutionObserver#MESSAGE_MAX} on realistic (long) paths.
+	 */
+	String NO_SCENARIOS_INCLUDE_HINT = "an include that does not resolve is a common cause "
+			+ "(include paths are relative to the scenario file's own folder)";
+
+	/** Forwarded WARNINGs from loading scenarios are capped so a big suite's benign "property occurs in
+	 * both scenario and included file" warnings can't crowd out a real ERROR or fill the run-level
+	 * message budget; the rest are folded into one summary message. */
+	int MAX_FORWARDED_SCENARIO_LOAD_WARNINGS = 20;
 
 	TestRunStatus run(ApplicationContext applicationContext, String rootDirectory, String executeAbsolutePath,
 			long timeoutMs, TestExecutionObserver observer) throws Exception;
@@ -127,7 +137,8 @@ public interface LarvaRunner {
 						? " (the file exists but was not registered as a scenario -- check scenario.active, "
 								+ "adapter.unstable, and scenario.description)"
 						: "";
-				observer.messageError("scenarios", "no scenarios found under [" + executeAbsolutePath + "]" + detail + NO_SCENARIOS_INCLUDE_HINT);
+				observer.messageError("scenarios", "no scenarios found under [" + executeAbsolutePath + "]" + detail);
+				observer.messageError("scenarios", NO_SCENARIOS_INCLUDE_HINT);
 				observer.endTestSuiteExecution(status);
 				return status;
 			}
@@ -180,24 +191,57 @@ public interface LarvaRunner {
 	 * not resolve. Only ERROR and WARNING are forwarded; a WARNING is prefixed {@code "warning: "}
 	 * since {@link TestExecutionObserver#messageError} carries no level of its own. The observer
 	 * clips the text and reduces an attached exception to its simple class name.
+	 *
+	 * <p>ERRORs are forwarded first and in full -- a load failure worth reporting is rare and must
+	 * never be pushed out. WARNINGs (e.g. "Property 'x' occurs both in scenario file [...] and
+	 * included file [...]", one per overriding scenario on a big suite) are capped at
+	 * {@link #MAX_FORWARDED_SCENARIO_LOAD_WARNINGS}; anything past that is folded into one summary
+	 * message instead of individually risking the run-level {@code messages} budget or burying the
+	 * ERRORs under noise.</p>
 	 */
 	static void forwardScenarioLoadMessages(List<LarvaMessage> allMessages, int fromIndex, TestExecutionObserver observer) {
-		for (int i = fromIndex; i < allMessages.size(); i++) {
-			LarvaMessage message = allMessages.get(i);
-			LarvaLogLevel level = message.getLogLevel();
-			if (level == LarvaLogLevel.ERROR) {
+		List<LarvaMessage> loadMessages = allMessages.subList(fromIndex, allMessages.size());
+		for (LarvaMessage message : loadMessages) {
+			if (message.getLogLevel() == LarvaLogLevel.ERROR) {
 				observer.messageError("scenarios", loadMessageText(message));
-			} else if (level == LarvaLogLevel.WARNING) {
-				observer.messageError("scenarios", "warning: " + loadMessageText(message));
 			}
+		}
+		int forwardedWarnings = 0;
+		int suppressedWarnings = 0;
+		for (LarvaMessage message : loadMessages) {
+			if (message.getLogLevel() != LarvaLogLevel.WARNING) {
+				continue;
+			}
+			if (forwardedWarnings < MAX_FORWARDED_SCENARIO_LOAD_WARNINGS) {
+				observer.messageError("scenarios", "warning: " + loadMessageText(message));
+				forwardedWarnings++;
+			} else {
+				suppressedWarnings++;
+			}
+		}
+		if (suppressedWarnings > 0) {
+			observer.messageError("scenarios", "warning: ... and " + suppressedWarnings + " more warnings while loading scenarios");
 		}
 	}
 
-	/** The message text plus, if Larva attached one, the exception's simple class name -- never a stack trace. */
-	private static String loadMessageText(LarvaMessage message) {
+	/**
+	 * The message text plus, if Larva attached one, the exception's simple class name -- never a
+	 * stack trace. Reserves room for that {@code " (ExceptionClass)"} suffix the same way
+	 * {@link JsonTestExecutionObserver#logMessage} does, so a long message can't push the suffix
+	 * past what {@code observer.messageError} then clips to
+	 * {@link JsonTestExecutionObserver#MESSAGE_MAX}. Not private: an interface static method is
+	 * implicitly public, which doubles as a directly unit-testable seam (see
+	 * {@link #selectByPropertiesPath}).
+	 */
+	static String loadMessageText(LarvaMessage message) {
 		String text = message.getMessage() == null ? "" : message.getMessage();
 		Exception exception = message.getException();
-		return exception == null ? text : text + " (" + exception.getClass().getSimpleName() + ")";
+		if (exception == null) {
+			return text;
+		}
+		String suffix = " (" + exception.getClass().getSimpleName() + ")";
+		int max = Math.max(0, JsonTestExecutionObserver.MESSAGE_MAX - suffix.length());
+		return JsonTestExecutionObserver.clip(text, max) + suffix;
 	}
 
 	/**
