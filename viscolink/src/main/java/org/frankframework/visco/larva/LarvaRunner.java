@@ -17,9 +17,11 @@
 package org.frankframework.visco.larva;
 
 import java.io.File;
-import java.io.StringWriter;
+import java.io.Writer;
 import java.util.List;
 import java.util.Map;
+import java.util.function.Function;
+import java.util.function.LongSupplier;
 
 import org.frankframework.larva.LarvaConfig;
 import org.frankframework.larva.LarvaLogLevel;
@@ -41,11 +43,23 @@ import org.springframework.context.ApplicationContext;
  * {@code readScenarioFiles}, {@code getScenariosToRun}, {@code createScenarioRunner}) are the same
  * ones the entry point calls.
  *
- * <p>A seam interface so the servlet tests can substitute a fake runner -- a real Larva run
- * needs a booted F!F application context.</p>
+ * <p>Scenarios run one by one through {@link ScenarioRunner#runOneFile(Scenario, boolean)} (what
+ * {@code ScenarioRunner.runScenarios} does single-threaded) so a suite deadline can be checked
+ * between scenarios: {@code timeoutMs} is only Larva's per-action default, and a suite against a
+ * down adapter would otherwise hold the single worker (and answer every later POST with 409) for
+ * scenarios x steps x timeout. The deadline is derived, see {@link #suiteDeadlineMs(long)}; on
+ * expiry the remaining scenarios are skipped and a run-level message says so. It is checked
+ * BETWEEN scenarios only -- one scenario still runs to its end, and a step that hangs inside a
+ * call Larva's timeout does not cover (an inline JDBC call without a query timeout) still needs
+ * the pod deleted.</p>
+ *
+ * <p>A seam interface so the servlet tests can substitute a fake runner.</p>
  */
 @FunctionalInterface
 public interface LarvaRunner {
+
+	/** Floor of the suite deadline: short action timeouts must not starve an ordinary suite. */
+	long MIN_SUITE_DEADLINE_MS = 15 * 60_000L;
 
 	TestRunStatus run(ApplicationContext applicationContext, String rootDirectory, String executeAbsolutePath,
 			long timeoutMs, TestExecutionObserver observer) throws Exception;
@@ -63,8 +77,9 @@ public interface LarvaRunner {
 			config.setAutoSaveDiffs(false);
 
 			LarvaTool tool = new LarvaTool(applicationContext, config);
-			// LarvaTool writes its own log lines through this writer; the observer is what we read.
-			tool.setWriter(new LarvaWriter(config, new StringWriter()));
+			// LarvaTool writes its own log lines (incl. wrong pipeline messages) through this writer; the
+			// observer is what we read, so discard them rather than buffer a whole suite's worth.
+			tool.setWriter(new LarvaWriter(config, Writer.nullWriter()));
 
 			TestRunStatus status = tool.createTestRunStatus();
 			status.initScenarioDirectories();
@@ -108,12 +123,42 @@ public interface LarvaRunner {
 			ScenarioRunner runner = tool.createScenarioRunner(observer, status);
 			runner.setMultipleThreads(false);
 			long startTime = System.currentTimeMillis();
-			runner.runScenarios(scenarios, rootDirectory);
+			runWithinDeadline(scenarios, scenario -> runner.runOneFile(scenario, true), System::currentTimeMillis,
+					suiteDeadlineMs(timeoutMs), observer);
 			tool.flushOutput();
 			observer.executionOverview(status, System.currentTimeMillis() - startTime);
 			observer.endTestSuiteExecution(status);
 			return status;
 		};
+	}
+
+	/** The suite deadline for a per-action {@code timeoutMs}: four action timeouts, at least {@link #MIN_SUITE_DEADLINE_MS}. */
+	static long suiteDeadlineMs(long timeoutMs) {
+		return Math.max(timeoutMs * 4, MIN_SUITE_DEADLINE_MS);
+	}
+
+	/**
+	 * Runs {@code scenarios} in order until the list ends or {@code suiteDeadlineMs} (measured
+	 * with {@code clock} from the call) has passed; checked before each scenario, so the one that
+	 * crosses the deadline still completes. On expiry reports
+	 * {@code "suite deadline of N s reached after M of K scenarios; remaining skipped"} through
+	 * {@code observer.messageError("suite", ...)}. Returns how many scenarios ran. Pulled out (like
+	 * {@link #selectByPropertiesPath}) so the loop is unit-testable without a Larva runtime.
+	 */
+	static int runWithinDeadline(List<Scenario> scenarios, Function<Scenario, String> runOne, LongSupplier clock,
+			long suiteDeadlineMs, TestExecutionObserver observer) {
+		long start = clock.getAsLong();
+		int ran = 0;
+		for (Scenario scenario : scenarios) {
+			if (clock.getAsLong() - start >= suiteDeadlineMs) {
+				observer.messageError("suite", "suite deadline of " + (suiteDeadlineMs / 1000) + " s reached after "
+						+ ran + " of " + scenarios.size() + " scenarios; remaining skipped");
+				break;
+			}
+			runOne.apply(scenario);
+			ran++;
+		}
+		return ran;
 	}
 
 	/**
