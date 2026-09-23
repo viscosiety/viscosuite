@@ -19,6 +19,7 @@ package org.frankframework.visco.security;
 import java.io.File;
 import java.io.IOException;
 import java.io.Serial;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -42,7 +43,10 @@ import com.viscosiety.classloaders.GitClassLoader;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.frankframework.configuration.Configuration;
 import org.frankframework.configuration.IbisContext;
+import org.frankframework.configuration.IbisManager;
+import org.frankframework.configuration.classloaders.DirectoryClassLoader;
 import org.frankframework.larva.Scenario;
 import org.frankframework.larva.Step;
 import org.frankframework.larva.TestRunStatus;
@@ -53,6 +57,7 @@ import org.frankframework.util.AppConstants;
 import org.frankframework.visco.larva.JsonTestExecutionObserver;
 import org.frankframework.visco.larva.LarvaRunDocument;
 import org.frankframework.visco.larva.LarvaRunner;
+import org.springframework.beans.BeansException;
 import org.springframework.context.ApplicationContext;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContext;
@@ -69,8 +74,11 @@ import org.springframework.security.web.authentication.preauth.PreAuthenticatedA
  * {@code GET /api-service/larva/runs} lists the recent ones.</p>
  *
  * <p>The scenario root is {@code <resource dir>/larva} of the configuration's
- * {@link GitClassLoader} clone (workspace instances) or {@code <configurations.directory>/<name>/larva}
- * for any other classloader (casting images). The servlet never pulls and never reloads: it runs
+ * {@link GitClassLoader} clone (workspace instances), {@code <directory>/larva} of its F!F
+ * {@link DirectoryClassLoader} (casting images: {@code configurations.<name>.directory} plus the
+ * name the classloader appends itself), else {@code <configurations.<name>.directory>/<name>/larva},
+ * else {@code <configurations.directory>/<name>/larva} -- see {@link #resolveRoot}. The servlet
+ * never pulls and never reloads: it runs
  * whatever is on disk at the clone's current ref and reports that ref and commit, so the portal can
  * tell when the tests on the instance are behind their branch (the sync contract is
  * apply_configuration / run_draft, exactly as for configuration files -- pulling here without a
@@ -235,7 +243,7 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 		if (!isSafeConfigurationName(configuration)) {
-			// resolveRoot's DirectoryClassLoader fallback uses this value as a file path segment
+			// resolveRoot's property fallbacks use this value as a file path segment
 			// (new File(configurationsDirectory, configuration)) -- a plain name only, never a
 			// path: no separators, no ".."/"." component.
 			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "configuration must be a plain name");
@@ -261,9 +269,19 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			return;
 		}
 
-		Root root = resolveRoot(configuration);
+		// Before root resolution: a non-git configuration is only found through the IbisManager.
+		ApplicationContext applicationContext = contextResolver.apply(req);
+		if (applicationContext == null) {
+			resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "console not initialised -- retry");
+			return;
+		}
+		Root root = resolveRoot(configuration, applicationContext);
 		if (root == null) {
 			sendCode(resp, HttpServletResponse.SC_NOT_FOUND, CODE_NOT_REGISTERED, Map.of("configuration", configuration));
+			return;
+		}
+		if (root.directory == null) {
+			sendCode(resp, HttpServletResponse.SC_NOT_FOUND, CODE_NO_ROOT, Map.of("configuration", configuration));
 			return;
 		}
 		if (!root.directory.isDirectory()) {
@@ -278,12 +296,18 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "execute must stay under the larva root");
 			return;
 		}
-
-		ApplicationContext applicationContext = contextResolver.apply(req);
-		if (applicationContext == null) {
-			resp.sendError(HttpServletResponse.SC_SERVICE_UNAVAILABLE, "console not initialised -- retry");
+		if (!Files.exists(targetPath)) {
+			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "execute does not exist under the larva root");
 			return;
 		}
+		String executeAbsolute = targetPath.toString();
+		if (!targetPath.equals(rootPath) && Files.isDirectory(targetPath)) {
+			// Larva selects a directory with startsWith(execute): without the separator
+			// "OrdersIn" would also run "OrdersIn-rejects/...". The root itself stays exact --
+			// Larva compares it with equals() against the active scenarios directory.
+			executeAbsolute += File.separator;
+		}
+
 		String callerName = SecurityContextHolder.getContext().getAuthentication().getName();
 
 		if (!RUN_LOCK.tryLock()) {
@@ -311,12 +335,13 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 				RUNS.put(doc.runId, doc);
 			}
 			TestExecutionObserver observer = new SynchronizedObserver(doc, new JsonTestExecutionObserver(doc));
-			String executeAbsolute = targetPath.toString();
+			String executeTarget = executeAbsolute;
 			String rootAbsolute = rootPath.toString();
 			long timeout = timeoutMs;
+			GitClassLoader clone = root.gitLoader;
 			inFlightRunId = doc.runId;
 			try {
-				inFlight = RUN_EXECUTOR.submit(() -> runOne(applicationContext, rootAbsolute, executeAbsolute, timeout, observer, doc, callerName));
+				inFlight = RUN_EXECUTOR.submit(() -> runOne(applicationContext, rootAbsolute, executeTarget, timeout, observer, doc, callerName, clone));
 			} catch (RuntimeException e) {
 				// RejectedExecutionException (executor shut down / queue refused) -- same reasoning
 				// as ConfigRefServlet's reload-submit guard: nothing is coming for this run, so it
@@ -340,7 +365,7 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 	}
 
 	private void runOne(ApplicationContext applicationContext, String root, String execute, long timeoutMs,
-			TestExecutionObserver observer, LarvaRunDocument doc, String callerName) {
+			TestExecutionObserver observer, LarvaRunDocument doc, String callerName, GitClassLoader clone) {
 		long started = System.currentTimeMillis();
 		try {
 			SecurityContext elevated = SecurityContextHolder.createEmptyContext();
@@ -361,7 +386,14 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 				doc.error = t instanceof Exception e ? sanitizedReason(e) : t.getClass().getSimpleName();
 			}
 		} finally {
+			// Lock-free re-read (no loader monitor): an apply_configuration / run_draft during the
+			// run moves HEAD under Larva's feet, so the start commit no longer describes what ran.
+			String endCommit = clone == null ? null : clone.currentCommit();
 			synchronized (doc) {
+				if (clone != null && doc.commit != null && !doc.commit.equals(endCommit)) {
+					doc.addMessage("warning", "clone moved during the run");
+					doc.commit = null;
+				}
 				doc.finishedAt = Instant.now().toString();
 				doc.durationMs = System.currentTimeMillis() - started;
 				doc.clipToBudget();
@@ -372,27 +404,80 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 		}
 	}
 
-	private record Root(File directory, String ref, String commit) {}
+	/** {@code directory} null = the configuration is registered but no directory could be derived. */
+	private record Root(File directory, String ref, String commit, GitClassLoader gitLoader) {
+
+		static Root git(GitClassLoader loader) {
+			return new Root(new File(loader.getResourceDir(), "larva"), loader.currentRef(), loader.currentCommit(), loader);
+		}
+
+		static Root directory(File directory) {
+			return new Root(directory, null, null, null);
+		}
+	}
 
 	/**
-	 * Git-backed configuration: {@code <resource dir>/larva} with its ref + commit. Any other
-	 * registered configuration (a casting's DirectoryClassLoader): {@code <configurations.directory>/<name>/larva},
-	 * no ref. Null when neither resolves (unknown configuration).
+	 * Resolves the configuration's scenario root through its REAL classloader, in this order:
+	 * <ol>
+	 *   <li>the {@link GitClassLoader} registry (works even before the IbisManager lists the
+	 *   configuration): {@code <resource dir>/larva} with ref + commit;</li>
+	 *   <li>the configuration's classloader from the {@link IbisManager}: a {@link GitClassLoader}
+	 *   as above, a {@link DirectoryClassLoader} -> {@code <getDirectory()>/larva} (the directory
+	 *   already includes the base path, i.e. the configuration name a casting's
+	 *   {@code configurations.<name>.directory=/opt/frank/baked-configurations} relies on);</li>
+	 *   <li>any other classloader: {@code <configurations.<name>.directory>/<name>/larva}, else
+	 *   {@code <configurations.directory>/<name>/larva}, else a root without directory.</li>
+	 * </ol>
+	 * Null when neither the registry nor the IbisManager knows the configuration.
 	 */
-	private static Root resolveRoot(String configuration) {
-		GitClassLoader loader = GitClassLoader.lookup(configuration);
-		if (loader != null && loader.getResourceDir() != null) {
-			return new Root(new File(loader.getResourceDir(), "larva"), loader.currentRef(), loader.currentCommit());
+	private static Root resolveRoot(String configuration, ApplicationContext applicationContext) {
+		GitClassLoader registered = GitClassLoader.lookup(configuration);
+		if (registered != null && registered.getResourceDir() != null) {
+			return Root.git(registered);
 		}
-		String configurationsDirectory = AppConstants.getInstance().getProperty("configurations.directory");
-		if (configurationsDirectory == null || configurationsDirectory.isBlank()) {
+		Configuration loaded = findConfiguration(applicationContext, configuration);
+		if (loaded == null) {
 			return null;
 		}
-		File configDir = new File(configurationsDirectory, configuration);
-		if (!configDir.isDirectory()) {
-			return null;
+		ClassLoader classLoader = loaded.getClassLoader();
+		if (classLoader instanceof GitClassLoader git && git.getResourceDir() != null) {
+			return Root.git(git);
 		}
-		return new Root(new File(configDir, "larva"), null, null);
+		if (classLoader instanceof DirectoryClassLoader directoryLoader && directoryLoader.getDirectory() != null) {
+			return Root.directory(new File(directoryLoader.getDirectory(), "larva"));
+		}
+		AppConstants appConstants = AppConstants.getInstance();
+		for (String property : List.of("configurations." + configuration + ".directory", "configurations.directory")) {
+			String base = appConstants.getProperty(property);
+			if (base != null && !base.isBlank()) {
+				return Root.directory(new File(new File(base, configuration), "larva"));
+			}
+		}
+		return Root.directory(null);
+	}
+
+	/** The named configuration from the first {@link IbisManager} up the context hierarchy, or null. */
+	private static Configuration findConfiguration(ApplicationContext applicationContext, String configuration) {
+		for (ApplicationContext ctx = applicationContext; ctx != null; ctx = ctx.getParent()) {
+			IbisManager manager;
+			try {
+				manager = ctx.getBean(IbisManager.class);
+			} catch (BeansException e) {
+				continue;
+			}
+			if (manager == null) {
+				continue;
+			}
+			try {
+				return manager.getConfiguration(configuration);
+			} catch (RuntimeException e) {
+				// IbisManager keeps a plain ArrayList: a concurrent (re)load can make the stream
+				// throw. Treat it as "not registered right now"; the caller retries.
+				log.debug("could not look up configuration [{}] in the IbisManager", configuration, e);
+				return null;
+			}
+		}
+		return null;
 	}
 
 	static boolean isSafeExecute(String execute) {
@@ -412,8 +497,7 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 
 	/**
 	 * A plain name, not a path: {@link #resolveRoot} uses it as a single file-path segment
-	 * ({@code new File(configurationsDirectory, configuration)}) for the DirectoryClassLoader
-	 * fallback, so unlike {@link #isSafeExecute} no separator is tolerated at all -- {@code "a/b"}
+	 * ({@code new File(configurationsDirectory, configuration)}) for the property fallbacks, so unlike {@link #isSafeExecute} no separator is tolerated at all -- {@code "a/b"}
 	 * would still escape one level, exactly like {@code ".."} would.
 	 */
 	static boolean isSafeConfigurationName(String configuration) {

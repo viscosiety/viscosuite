@@ -25,7 +25,11 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viscosiety.classloaders.GitClassLoader;
 import com.viscosiety.classloaders.TempGitRepo;
 
+import org.eclipse.jgit.api.Git;
+import org.frankframework.configuration.Configuration;
 import org.frankframework.configuration.IbisContext;
+import org.frankframework.configuration.IbisManager;
+import org.frankframework.configuration.classloaders.DirectoryClassLoader;
 import org.frankframework.larva.LarvaConfig;
 import org.frankframework.larva.LarvaTool;
 import org.frankframework.larva.TestRunStatus;
@@ -256,22 +260,161 @@ class LarvaRunServletTest {
 		assertEquals("boom", doc.get("error").asText());
 	}
 
+	/** An application context whose IbisManager knows {@code name} with the given classloader. */
+	private static ApplicationContext contextWithConfiguration(String name, ClassLoader classLoader) {
+		ApplicationContext ctx = mock(ApplicationContext.class);
+		IbisManager manager = mock(IbisManager.class);
+		Configuration configuration = mock(Configuration.class);
+		when(ctx.getBean(IbisManager.class)).thenReturn(manager);
+		when(manager.getConfiguration(name)).thenReturn(configuration);
+		when(configuration.getClassLoader()).thenReturn(classLoader);
+		return ctx;
+	}
+
+	private String rootOfOnlyRun() throws Exception {
+		JsonNode list = get(null);
+		JsonNode doc = get(list.get("runs").get(0).get("runId").asText());
+		assertTrue(doc.get("ref").isNull());
+		assertTrue(doc.get("commit").isNull());
+		return doc.get("root").asText();
+	}
+
 	@Test
-	void directoryClassLoaderFallsBackToConfigurationsDirectory() throws Exception {
-		Path baked = tmp.resolve("baked");
+	void castingResolvesThroughItsDirectoryClassLoader() throws Exception {
+		// A casting: configurations.other.directory=<baked>, the DirectoryClassLoader appends the
+		// configuration name itself (basePath) -> <baked>/other. The GLOBAL configurations.directory
+		// points elsewhere on runner images and must not be used.
+		Path baked = tmp.resolve("baked-configurations");
 		Files.createDirectories(baked.resolve("other/larva"));
-		AppConstants.getInstance().setProperty("configurations.directory", baked.toString());
+		DirectoryClassLoader directoryLoader = new DirectoryClassLoader(getClass().getClassLoader());
+		directoryLoader.setDirectory(baked.toString());
+		directoryLoader.configure(mock(IbisContext.class), "other");
+		assertEquals(baked.resolve("other").toFile(), directoryLoader.getDirectory(), "test setup: F!F appended the name");
+		AppConstants.getInstance().setProperty("configurations.directory", tmp.resolve("configurations").toString());
 		try {
+			servlet = new LarvaRunServlet(fakeRunner(), req -> contextWithConfiguration("other", directoryLoader));
 			post("{\"configuration\":\"other\"}");
+			verify(response).setStatus(HttpServletResponse.SC_ACCEPTED);
 			LarvaRunServlet.awaitIdle(5_000);
 			assertEquals(baked.resolve("other/larva").toString(), runnerArgs.get()[0]);
-			JsonNode list = get(null);
-			JsonNode doc = get(list.get("runs").get(0).get("runId").asText());
-			assertTrue(doc.get("ref").isNull());
-			assertTrue(doc.get("commit").isNull());
+			assertEquals(baked.resolve("other/larva").toString(), rootOfOnlyRun());
 		} finally {
 			AppConstants.getInstance().remove("configurations.directory");
 		}
+	}
+
+	@Test
+	void otherClassLoaderFallsBackToTheConfigurationsOwnDirectoryProperty() throws Exception {
+		Path own = tmp.resolve("own");
+		Files.createDirectories(own.resolve("other/larva"));
+		AppConstants.getInstance().setProperty("configurations.other.directory", own.toString());
+		AppConstants.getInstance().setProperty("configurations.directory", tmp.resolve("global").toString());
+		try {
+			servlet = new LarvaRunServlet(fakeRunner(), req -> contextWithConfiguration("other", getClass().getClassLoader()));
+			post("{\"configuration\":\"other\"}");
+			LarvaRunServlet.awaitIdle(5_000);
+			assertEquals(own.resolve("other/larva").toString(), runnerArgs.get()[0], "configurations.<name>.directory wins over the global one");
+		} finally {
+			AppConstants.getInstance().remove("configurations.other.directory");
+			AppConstants.getInstance().remove("configurations.directory");
+		}
+	}
+
+	@Test
+	void otherClassLoaderFallsBackToTheGlobalConfigurationsDirectoryLast() throws Exception {
+		Path global = tmp.resolve("global");
+		Files.createDirectories(global.resolve("other/larva"));
+		AppConstants.getInstance().setProperty("configurations.directory", global.toString());
+		try {
+			servlet = new LarvaRunServlet(fakeRunner(), req -> contextWithConfiguration("other", getClass().getClassLoader()));
+			post("{\"configuration\":\"other\"}");
+			LarvaRunServlet.awaitIdle(5_000);
+			assertEquals(global.resolve("other/larva").toString(), runnerArgs.get()[0]);
+			assertEquals(global.resolve("other/larva").toString(), rootOfOnlyRun());
+		} finally {
+			AppConstants.getInstance().remove("configurations.directory");
+		}
+	}
+
+	@Test
+	void aConfigurationTheIbisManagerDoesNotKnowIs404NotRegisteredEvenWithADirectoryOnDisk() throws Exception {
+		Path global = tmp.resolve("global");
+		Files.createDirectories(global.resolve("ghost/larva"));
+		AppConstants.getInstance().setProperty("configurations.directory", global.toString());
+		try {
+			servlet = new LarvaRunServlet(fakeRunner(), req -> contextWithConfiguration("other", getClass().getClassLoader()));
+			JsonNode body = post("{\"configuration\":\"ghost\"}");
+			verify(response).setStatus(HttpServletResponse.SC_NOT_FOUND);
+			assertEquals("configuration-not-registered", body.get("code").asText());
+			assertNull(runnerArgs.get());
+		} finally {
+			AppConstants.getInstance().remove("configurations.directory");
+		}
+	}
+
+	@Test
+	void aDirectoryExecuteGetsATrailingSeparatorSoSiblingsDoNotMatch() throws Exception {
+		Path larva = loader.getResourceDir().toPath().resolve("larva");
+		Files.createDirectories(larva.resolve("OrdersIn-rejects"));
+		Files.writeString(larva.resolve("OrdersIn-rejects/scenario01.properties"), "scenario.description=x\n");
+		post("{\"configuration\":\"tenant\",\"execute\":\"OrdersIn\"}");
+		LarvaRunServlet.awaitIdle(5_000);
+		assertEquals(larva.resolve("OrdersIn") + File.separator, runnerArgs.get()[1]);
+		assertEquals(larva.toString(), runnerArgs.get()[0], "the root itself stays exact");
+	}
+
+	@Test
+	void anExecuteThatResolvesToNothingIs400() throws Exception {
+		HttpServletResponse resp = newResponse(new ByteArrayOutputStream());
+		givenBody("{\"configuration\":\"tenant\",\"execute\":\"OrdersOut\"}");
+		servlet.doPost(request, resp);
+		verify(resp).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		assertNull(runnerArgs.get(), "no run started");
+	}
+
+	@Test
+	void anOversizedBodyIs413() throws Exception {
+		givenBody("{\"configuration\":\"tenant\"}");
+		when(request.getContentLengthLong()).thenReturn((long) LarvaRunServlet.MAX_BODY_BYTES + 1);
+		servlet.doPost(request, response);
+		verify(response).sendError(eq(HttpServletResponse.SC_REQUEST_ENTITY_TOO_LARGE), anyString());
+		assertNull(runnerArgs.get());
+	}
+
+	@Test
+	void anUninitialisedConsoleIs503() throws Exception {
+		servlet = new LarvaRunServlet(fakeRunner(), req -> null);
+		givenBody("{\"configuration\":\"tenant\"}");
+		servlet.doPost(request, response);
+		verify(response).sendError(eq(HttpServletResponse.SC_SERVICE_UNAVAILABLE), anyString());
+		assertNull(runnerArgs.get());
+	}
+
+	@Test
+	void aNonNumericTimeoutIs400() throws Exception {
+		givenBody("{\"configuration\":\"tenant\",\"timeoutMs\":\"soon\"}");
+		servlet.doPost(request, response);
+		verify(response).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		assertNull(runnerArgs.get());
+	}
+
+	@Test
+	void aCloneThatMovesDuringTheRunDropsTheCommitAndSaysSo() throws Exception {
+		servlet = new LarvaRunServlet((ctx, root, execute, timeoutMs, observer) -> {
+			try (Git git = Git.open(tmp.resolve(TempGitRepo.CLONE_DIR).toFile())) {
+				git.commit().setAllowEmpty(true).setSign(false).setMessage("moved under the run").call();
+			}
+			TestRunStatus status = new TestRunStatus(new LarvaConfig(), mock(LarvaTool.class));
+			observer.endTestSuiteExecution(status);
+			return status;
+		}, req -> mock(ApplicationContext.class));
+		JsonNode accepted = post("{\"configuration\":\"tenant\"}");
+		LarvaRunServlet.awaitIdle(5_000);
+		JsonNode doc = get(accepted.get("runId").asText());
+		assertEquals("finished", doc.get("state").asText());
+		assertTrue(doc.get("commit").isNull());
+		assertEquals("warning", doc.get("messages").get(0).get("level").asText());
+		assertEquals("clone moved during the run", doc.get("messages").get(0).get("text").asText());
 	}
 
 	@Test
