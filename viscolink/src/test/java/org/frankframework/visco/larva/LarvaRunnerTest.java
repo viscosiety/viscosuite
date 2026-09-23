@@ -175,23 +175,64 @@ class LarvaRunnerTest {
 	}
 
 	@Test
-	void loadMessageTextReservesRoomForTheExceptionSuffix() {
-		// Mirrors JsonTestExecutionObserver#logMessage's reserved-suffix pattern: a long message
-		// must not push the "(ExceptionClass)" suffix past what the observer's own MESSAGE_MAX clip
-		// keeps, or the suffix is lost entirely.
+	void loadMessageTextReservesRoomForTheExceptionSuffixAndTheCallersPrefix() {
+		// Mirrors JsonTestExecutionObserver#logMessage's reserved-suffix pattern, extended to also
+		// reserve the "<description>: " prefix observer.messageError still prepends AFTER this
+		// method returns: with reservedPrefixLength honoured, prefix + this result together fit
+		// exactly MESSAGE_MAX, so messageError's own clip never re-clips it and the suffix survives.
 		String longMessage = "m".repeat(1000);
 		LarvaMessage message = new LarvaMessage(LarvaLogLevel.ERROR, longMessage, new SenderException("boom"));
+		int reservedPrefixLength = LarvaRunner.descriptionPrefixLength();
 
-		String text = LarvaRunner.loadMessageText(message);
+		String text = LarvaRunner.loadMessageText(message, reservedPrefixLength);
 
 		assertTrue(text.endsWith(" (SenderException)"), text);
-		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "leaves room for the \"scenarios: \" prefix too");
+		assertEquals(JsonTestExecutionObserver.MESSAGE_MAX - reservedPrefixLength, text.length(),
+				"leaves exactly reservedPrefixLength room for the caller's prefix");
 	}
 
 	@Test
 	void loadMessageTextWithNoExceptionIsJustTheMessage() {
 		LarvaMessage message = new LarvaMessage(LarvaLogLevel.ERROR, "plain text");
 
-		assertEquals("plain text", LarvaRunner.loadMessageText(message));
+		assertEquals("plain text", LarvaRunner.loadMessageText(message, LarvaRunner.descriptionPrefixLength()));
+	}
+
+	@Test
+	void aLongMessageWithAnExceptionSurvivesTheRealMessageErrorPathWithItsSuffixIntact() {
+		// The bug this guards against: loadMessageText alone reserved room for the exception suffix
+		// within MESSAGE_MAX, but observer.messageError then prepends "scenarios: " (or
+		// "scenarios: warning: ") and re-clips the COMPOSED string to MESSAGE_MAX -- so the suffix
+		// (and part of the message) was silently clipped a second time, ending in two truncation
+		// markers with the exception name gone. Goes through the real forwardScenarioLoadMessages ->
+		// observer.messageError -> LarvaRunDocument path, not loadMessageText in isolation.
+		LarvaMessage errorWithException = new LarvaMessage(LarvaLogLevel.ERROR, "m".repeat(1000), new SenderException("boom"));
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+
+		LarvaRunner.forwardScenarioLoadMessages(List.of(errorWithException), 0, observer);
+
+		assertEquals(1, observer.document().messages.size());
+		String text = observer.document().messages.get(0).text;
+		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, () -> "over budget: " + text);
+		assertTrue(text.endsWith(" (SenderException)"), () -> "exception suffix lost: " + text);
+		int truncationMarkers = text.split("\\[truncated]", -1).length - 1;
+		assertEquals(1, truncationMarkers, () -> "exactly one truncation marker, not a double-clip: " + text);
+	}
+
+	@Test
+	void aLongWarningWithAnExceptionAlsoSurvivesTheRealMessageErrorPathWithItsSuffixIntact() {
+		// Same as above but for the WARNING path, which carries an extra "warning: " prefix on top
+		// of "scenarios: " -- both must be reserved for, not just the description prefix.
+		LarvaMessage warningWithException = new LarvaMessage(LarvaLogLevel.WARNING, "w".repeat(1000), new SenderException("boom"));
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+
+		LarvaRunner.forwardScenarioLoadMessages(List.of(warningWithException), 0, observer);
+
+		assertEquals(1, observer.document().messages.size());
+		String text = observer.document().messages.get(0).text;
+		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, () -> "over budget: " + text);
+		assertTrue(text.endsWith(" (SenderException)"), () -> "exception suffix lost: " + text);
+		int truncationMarkers = text.split("\\[truncated]", -1).length - 1;
+		assertEquals(1, truncationMarkers, () -> "exactly one truncation marker, not a double-clip: " + text);
 	}
 }
