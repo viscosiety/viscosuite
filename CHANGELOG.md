@@ -8,6 +8,16 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- `LarvaRunServlet` (bearer-gated `/api-service/larva/runs`) runs Frank!Framework Larva
+  scenarios for a configuration and serves JSON results headlessly. `POST {configuration,
+  execute?, timeoutMs?}` returns 202 with a runId; `GET …/runs/{runId}` serves per-scenario
+  and per-step results with expected-vs-actual. Gated like `ConfigRefServlet`:
+  `servlet.larvaRun.authenticator=bearer` + `servlet.larvaRun.securityRoles=<tenant role>`.
+  Scenario root: `<clone>/<repoSubdir>/larva` for git-loaded configurations (ref and commit
+  reported, never pulled) or `<configurations.directory>/<name>/larva` otherwise. Refused on
+  `dtap.stage=PRD`. One run at a time per instance; the last 20 runs are kept.
+- `GitClassLoader` gains `getResourceDir()` and `currentCommit()` accessors to support
+  loading Larva scenarios from the configuration's git tree.
 - Combined OIDC + Basic API access: the `OAuth2Authenticator` override gains
   `allowBasicAuthentication` and `basicUsersFile` (a `YmlFileAuthenticator`
   user list), so the users of that file are accepted with HTTP Basic on the
