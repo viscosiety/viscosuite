@@ -39,7 +39,8 @@ import org.frankframework.larva.output.TestExecutionObserver;
 public class JsonTestExecutionObserver implements TestExecutionObserver {
 
 	public static final int STEP_TEXT_MAX = 16 * 1024;
-	public static final int DOCUMENT_MAX = 1024 * 1024;
+	/** Kept here (delegating to {@link LarvaRunDocument#DOCUMENT_MAX}) so callers of this class don't need to know the document owns the cap. */
+	public static final int DOCUMENT_MAX = LarvaRunDocument.DOCUMENT_MAX;
 	public static final int MESSAGE_MAX = 300;
 	static final String TRUNCATION_SUFFIX = " ...[truncated]";
 
@@ -164,10 +165,12 @@ public class JsonTestExecutionObserver implements TestExecutionObserver {
 		return text == null || text.length() <= STEP_TEXT_MAX ? text : text.substring(0, STEP_TEXT_MAX);
 	}
 
+	/** Clips so the result INCLUDING the suffix never exceeds {@code max}. */
 	static String clip(String text, int max) {
 		if (text == null || text.length() <= max) {
 			return text;
 		}
-		return text.substring(0, max) + TRUNCATION_SUFFIX;
+		int cut = Math.max(0, max - TRUNCATION_SUFFIX.length());
+		return text.substring(0, cut) + TRUNCATION_SUFFIX;
 	}
 }

@@ -95,13 +95,17 @@ class JsonTestExecutionObserverTest {
 		observer.startStep(status, sc, read);
 		observer.stepMessageFailed(sc, read, "compare", big, big, big, big);
 		observer.finishStep(status, sc, read, LarvaTool.RESULT_ERROR, "m".repeat(1000));
-		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, null);
+		observer.finishScenario(status, sc, LarvaTool.RESULT_ERROR, "n".repeat(1000));
 
-		LarvaRunDocument.StepResult step = observer.document().scenarios.get(0).steps.get(0);
+		LarvaRunDocument.ScenarioResult scenarioResult = observer.document().scenarios.get(0);
+		LarvaRunDocument.StepResult step = scenarioResult.steps.get(0);
 		assertTrue(step.truncated);
 		assertEquals(JsonTestExecutionObserver.STEP_TEXT_MAX, step.expected.length());
 		assertEquals(JsonTestExecutionObserver.STEP_TEXT_MAX, step.actualPrepared.length());
-		assertTrue(step.message.length() <= JsonTestExecutionObserver.MESSAGE_MAX + 20, "message clipped");
+		assertTrue(step.message.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "message clipped INCLUDING the suffix");
+		assertTrue(step.message.endsWith(JsonTestExecutionObserver.TRUNCATION_SUFFIX));
+		assertTrue(scenarioResult.message.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "scenario message clipped INCLUDING the suffix");
+		assertTrue(scenarioResult.message.endsWith(JsonTestExecutionObserver.TRUNCATION_SUFFIX));
 	}
 
 	@Test
@@ -110,7 +114,34 @@ class JsonTestExecutionObserverTest {
 		observer.messageError("boot", "e".repeat(2000));
 		assertEquals(1, observer.document().messages.size());
 		assertEquals("error", observer.document().messages.get(0).level);
-		assertTrue(observer.document().messages.get(0).text.length() <= JsonTestExecutionObserver.MESSAGE_MAX + 20);
+		String text = observer.document().messages.get(0).text;
+		assertTrue(text.length() <= JsonTestExecutionObserver.MESSAGE_MAX, "messageError text clipped INCLUDING the suffix");
+		assertTrue(text.endsWith(JsonTestExecutionObserver.TRUNCATION_SUFFIX));
+	}
+
+	@Test
+	void handlesMissingStartCallsDefensively() {
+		JsonTestExecutionObserver observer = new JsonTestExecutionObserver();
+		TestRunStatus status = status();
+		Scenario sc = scenario("A/scenario01", "step1.x.read");
+		Step read = Step.of(sc, "step1.x.read");
+
+		// finishScenario with no preceding startScenario still produces a scenario entry.
+		observer.finishScenario(status, sc, LarvaTool.RESULT_OK, "ok");
+		assertEquals(1, observer.document().scenarios.size());
+		assertEquals("passed", observer.document().scenarios.get(0).result);
+
+		// finishStep with no preceding startStep still produces a step entry under the scenario.
+		observer.finishStep(status, sc, read, LarvaTool.RESULT_OK, "done");
+		LarvaRunDocument.ScenarioResult scenarioResult = observer.document().scenarios.get(0);
+		assertEquals(1, scenarioResult.steps.size());
+		assertEquals("passed", scenarioResult.steps.get(0).result);
+
+		// stepMessageFailed with no preceding startStep, on a fresh Step instance, also produces its own entry.
+		Step other = Step.of(sc, "step1.x.read");
+		observer.stepMessageFailed(sc, other, "compare", "<a/>", "<a/>", "<b/>", "<b/>");
+		assertEquals(2, scenarioResult.steps.size());
+		assertEquals("<a/>", scenarioResult.steps.get(1).expected);
 	}
 
 	@Test
@@ -128,11 +159,52 @@ class JsonTestExecutionObserverTest {
 		}
 		doc.clipToBudget();
 		assertTrue(doc.clipped);
-		assertTrue(doc.approximateBytes() <= JsonTestExecutionObserver.DOCUMENT_MAX);
+		assertTrue(doc.serializedBytes() <= LarvaRunDocument.DOCUMENT_MAX);
 		LarvaRunDocument.ScenarioResult last = doc.scenarios.get(199);
 		assertEquals("failed", last.result);
 		assertTrue(last.steps.isEmpty());
 		assertNull(last.description);
 		assertFalse(doc.scenarios.get(0).steps.isEmpty(), "leading scenarios keep their detail");
+	}
+
+	@Test
+	void documentBudgetUsesRealSerializedBytesNotACharCountEstimate() {
+		// Quote-dense XML with a non-ASCII codepoint: each '"' doubles in size when JSON-escaped
+		// (-> \") and 'é' takes 2 bytes in UTF-8 but only 1 java char -- a naive sum of
+		// String#length() (what the old approximateBytes() estimate did) does not see either
+		// inflation, so it can understate the real encoded size enough to skip clipping it should
+		// have done.
+		String unit = "<a x=\"é\"/>";
+		String text = unit.repeat(1550); // 15500 chars, comfortably under STEP_TEXT_MAX
+		LarvaRunDocument doc = new LarvaRunDocument();
+		for (int i = 0; i < 30; i++) {
+			LarvaRunDocument.ScenarioResult sc = new LarvaRunDocument.ScenarioResult("S" + i + "/scenario01.properties", "d");
+			LarvaRunDocument.StepResult step = new LarvaRunDocument.StepResult("step1.x.read");
+			step.result = "failed";
+			step.expected = text;
+			step.actual = text;
+			sc.steps.add(step);
+			sc.result = "failed";
+			doc.scenarios.add(sc);
+		}
+
+		// Prove the setup: a plain character-count sum over every text field stays UNDER budget...
+		long charCountEstimate = 0;
+		for (LarvaRunDocument.ScenarioResult sc : doc.scenarios) {
+			charCountEstimate += sc.path.length() + sc.description.length();
+			for (LarvaRunDocument.StepResult step : sc.steps) {
+				charCountEstimate += step.name.length() + step.expected.length() + step.actual.length();
+			}
+		}
+		assertTrue(charCountEstimate < LarvaRunDocument.DOCUMENT_MAX,
+				"test setup: a char-count estimate must understate the real size to prove the point");
+		// ...while the real UTF-8 JSON bytes are OVER budget: the escaping/multi-byte encoding the
+		// char count misses is exactly what clipToBudget() must react to.
+		assertTrue(doc.serializedBytes() > LarvaRunDocument.DOCUMENT_MAX,
+				"test setup: the real serialised size must exceed budget where the char-count estimate would not have caught it");
+
+		doc.clipToBudget();
+		assertTrue(doc.clipped);
+		assertTrue(doc.serializedBytes() <= LarvaRunDocument.DOCUMENT_MAX);
 	}
 }

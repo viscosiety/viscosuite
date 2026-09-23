@@ -20,6 +20,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * The JSON document one Larva run produces -- the wire contract with the portal
@@ -35,6 +37,11 @@ public class LarvaRunDocument {
 	public static final String STATE_RUNNING = "running";
 	public static final String STATE_FINISHED = "finished";
 	public static final String STATE_FAILED = "failed";
+
+	/** Hard cap on the serialised document size; owned here so {@link #clipToBudget()} can enforce it directly. */
+	public static final int DOCUMENT_MAX = 1024 * 1024;
+
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	public String runId;
 	public String state = STATE_RUNNING;
@@ -96,20 +103,18 @@ public class LarvaRunDocument {
 		}
 	}
 
-	/** Cheap upper bound on the serialised size: every string's length plus a per-object overhead. */
-	public int approximateBytes() {
-		int total = 512;
-		for (ScenarioResult scenario : scenarios) {
-			total += 128 + len(scenario.path) + len(scenario.description) + len(scenario.message);
-			for (StepResult step : scenario.steps) {
-				total += 160 + len(step.name) + len(step.message) + len(step.expected) + len(step.actual)
-						+ len(step.expectedPrepared) + len(step.actualPrepared);
-			}
+	/**
+	 * The real serialised size in UTF-8 JSON bytes -- not a character-count estimate. A
+	 * character-length sum undercounts JSON escaping (each {@code "} or {@code \} doubles in
+	 * size) and multi-byte UTF-8 encoding of non-ASCII text, so only the actual encoded bytes
+	 * can guarantee the {@link #DOCUMENT_MAX} cap.
+	 */
+	public int serializedBytes() {
+		try {
+			return OBJECT_MAPPER.writeValueAsBytes(this).length;
+		} catch (JsonProcessingException e) {
+			throw new IllegalStateException("Failed to serialise LarvaRunDocument", e);
 		}
-		for (LogMessage message : messages) {
-			total += 32 + len(message.text);
-		}
-		return total;
 	}
 
 	/**
@@ -118,7 +123,7 @@ public class LarvaRunDocument {
 	 * the scenarios that ran first -- the ones a reader looks at first -- keep their diffs.
 	 */
 	public void clipToBudget() {
-		for (int i = scenarios.size() - 1; i >= 0 && approximateBytes() > JsonTestExecutionObserver.DOCUMENT_MAX; i--) {
+		for (int i = scenarios.size() - 1; i >= 0 && serializedBytes() > DOCUMENT_MAX; i--) {
 			ScenarioResult scenario = scenarios.get(i);
 			if (scenario.steps.isEmpty() && scenario.description == null && scenario.message == null) {
 				continue;
@@ -128,9 +133,5 @@ public class LarvaRunDocument {
 			scenario.message = null;
 			clipped = true;
 		}
-	}
-
-	private static int len(String s) {
-		return s == null ? 0 : s.length();
 	}
 }
