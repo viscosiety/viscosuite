@@ -91,7 +91,7 @@ class LarvaRunServletTest {
 	@AfterEach
 	void tearDown() throws Exception {
 		release.countDown();
-		LarvaRunServlet.awaitIdle(5_000);
+		assertTrue(LarvaRunServlet.awaitIdle(5_000), "worker did not settle before teardown");
 		loader.destroy();
 		SecurityContextHolder.clearContext();
 		AppConstants.getInstance().remove(LarvaRunServlet.SECURITY_ROLES_PROPERTY);
@@ -272,5 +272,36 @@ class LarvaRunServletTest {
 		} finally {
 			AppConstants.getInstance().remove("configurations.directory");
 		}
+	}
+
+	@Test
+	void getWhileRunningShowsPrefilledFieldsAndRunningState() throws Exception {
+		blockRunner = true;
+		JsonNode accepted = post("{\"configuration\":\"tenant\"}");
+		String runId = accepted.get("runId").asText();
+
+		JsonNode doc = get(runId);
+
+		assertEquals("running", doc.get("state").asText());
+		assertEquals(runId, doc.get("runId").asText());
+		assertEquals("tenant", doc.get("configuration").asText());
+		String root = loader.getResourceDir().toPath().resolve("larva").toString();
+		assertEquals(root, doc.get("root").asText());
+		assertEquals("main", doc.get("ref").asText());
+		assertEquals(loader.currentCommit(), doc.get("commit").asText());
+		assertNotNull(doc.get("startedAt").asText());
+
+		release.countDown();
+	}
+
+	@Test
+	void configurationWithPathSeparatorsIs400() throws Exception {
+		for (String bad : List.of("../x", "a/b", "a\\b")) {
+			HttpServletResponse resp = newResponse(new ByteArrayOutputStream());
+			givenBody("{\"configuration\":\"" + bad.replace("\\", "\\\\") + "\"}");
+			servlet.doPost(request, resp);
+			verify(resp).sendError(eq(HttpServletResponse.SC_BAD_REQUEST), anyString());
+		}
+		assertNull(runnerArgs.get(), "no run started");
 	}
 }

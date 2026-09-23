@@ -43,6 +43,10 @@ import com.viscosiety.classloaders.GitClassLoader;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.frankframework.configuration.IbisContext;
+import org.frankframework.larva.Scenario;
+import org.frankframework.larva.Step;
+import org.frankframework.larva.TestRunStatus;
+import org.frankframework.larva.output.TestExecutionObserver;
 import org.frankframework.lifecycle.FrankApplicationInitializer;
 import org.frankframework.lifecycle.IbisInitializer;
 import org.frankframework.util.AppConstants;
@@ -171,11 +175,17 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			synchronized (RUNS) {
 				for (LarvaRunDocument doc : RUNS.values()) {
 					Map<String, Object> row = new LinkedHashMap<>();
-					row.put("runId", doc.runId);
-					row.put("state", doc.state);
-					row.put("startedAt", doc.startedAt);
-					row.put("configuration", doc.configuration);
-					row.put("execute", doc.execute);
+					// The worker thread mutates state/startedAt while it runs (via the
+					// SynchronizedObserver / runOne's own synchronized(doc) blocks) -- read this
+					// row's fields under the same monitor rather than let Jackson tear a half-written
+					// field, exactly like the single-document path below.
+					synchronized (doc) {
+						row.put("runId", doc.runId);
+						row.put("state", doc.state);
+						row.put("startedAt", doc.startedAt);
+						row.put("configuration", doc.configuration);
+						row.put("execute", doc.execute);
+					}
 					runs.add(row);
 				}
 			}
@@ -190,10 +200,17 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			sendCode(resp, HttpServletResponse.SC_NOT_FOUND, CODE_RUN_NOT_FOUND, Map.of("runId", runId));
 			return;
 		}
-		// Serialised under the document's own monitor: the worker mutates it while it runs.
+		// Serialise to bytes under the document's own monitor (the worker mutates it while it
+		// runs -- see SynchronizedObserver), then write those bytes with the lock released: holding
+		// the monitor across the actual response I/O would let a slow poller block every observer
+		// callback on the worker thread for as long as the write takes.
+		byte[] body;
 		synchronized (doc) {
-			writeJson(resp, doc);
+			body = JSON.writeValueAsBytes(doc);
 		}
+		resp.setContentType("application/json");
+		resp.setCharacterEncoding("UTF-8");
+		resp.getOutputStream().write(body);
 	}
 
 	@Override
@@ -215,6 +232,13 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 		String configuration = textOrNull(body, "configuration");
 		if (configuration == null || configuration.isBlank()) {
 			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "configuration is required");
+			return;
+		}
+		if (!isSafeConfigurationName(configuration)) {
+			// resolveRoot's DirectoryClassLoader fallback uses this value as a file path segment
+			// (new File(configurationsDirectory, configuration)) -- a plain name only, never a
+			// path: no separators, no ".."/"." component.
+			resp.sendError(HttpServletResponse.SC_BAD_REQUEST, "configuration must be a plain name");
 			return;
 		}
 		String execute = body.hasNonNull("execute") ? textOrNull(body, "execute") : "";
@@ -279,24 +303,44 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 			doc.ref = root.ref;
 			doc.commit = root.commit;
 			doc.startedAt = Instant.now().toString();
+			// Captured now, not re-read off doc after submit: a fast (e.g. fake, in-process) runner
+			// can finish and flip doc.state to "finished"/"failed" before this response is written,
+			// which would otherwise make the 202 body lie about the run's state at submit time.
+			String initialState = doc.state;
 			synchronized (RUNS) {
 				RUNS.put(doc.runId, doc);
 			}
-			JsonTestExecutionObserver observer = new JsonTestExecutionObserver(doc);
+			TestExecutionObserver observer = new SynchronizedObserver(doc, new JsonTestExecutionObserver(doc));
 			String executeAbsolute = targetPath.toString();
 			String rootAbsolute = rootPath.toString();
 			long timeout = timeoutMs;
 			inFlightRunId = doc.runId;
-			inFlight = RUN_EXECUTOR.submit(() -> runOne(applicationContext, rootAbsolute, executeAbsolute, timeout, observer, doc, callerName));
+			try {
+				inFlight = RUN_EXECUTOR.submit(() -> runOne(applicationContext, rootAbsolute, executeAbsolute, timeout, observer, doc, callerName));
+			} catch (RuntimeException e) {
+				// RejectedExecutionException (executor shut down / queue refused) -- same reasoning
+				// as ConfigRefServlet's reload-submit guard: nothing is coming for this run, so it
+				// must not linger in RUNS or hold the in-flight gate closed.
+				logBusFailure("larva run submit", e);
+				synchronized (RUNS) {
+					RUNS.remove(doc.runId);
+				}
+				inFlightRunId = null;
+				Map<String, Object> error = new LinkedHashMap<>();
+				error.put("error", "the Larva run could not be dispatched: " + sanitizedReason(e));
+				resp.setStatus(HttpServletResponse.SC_BAD_GATEWAY);
+				writeJson(resp, error);
+				return;
+			}
 			resp.setStatus(HttpServletResponse.SC_ACCEPTED);
-			writeJson(resp, Map.of("runId", doc.runId, "state", doc.state));
+			writeJson(resp, Map.of("runId", doc.runId, "state", initialState));
 		} finally {
 			RUN_LOCK.unlock();
 		}
 	}
 
 	private void runOne(ApplicationContext applicationContext, String root, String execute, long timeoutMs,
-			JsonTestExecutionObserver observer, LarvaRunDocument doc, String callerName) {
+			TestExecutionObserver observer, LarvaRunDocument doc, String callerName) {
 		long started = System.currentTimeMillis();
 		try {
 			SecurityContext elevated = SecurityContextHolder.createEmptyContext();
@@ -366,6 +410,19 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 		return true;
 	}
 
+	/**
+	 * A plain name, not a path: {@link #resolveRoot} uses it as a single file-path segment
+	 * ({@code new File(configurationsDirectory, configuration)}) for the DirectoryClassLoader
+	 * fallback, so unlike {@link #isSafeExecute} no separator is tolerated at all -- {@code "a/b"}
+	 * would still escape one level, exactly like {@code ".."} would.
+	 */
+	static boolean isSafeConfigurationName(String configuration) {
+		if (configuration.isEmpty() || configuration.equals(".") || configuration.equals("..")) {
+			return false;
+		}
+		return configuration.indexOf('/') < 0 && configuration.indexOf('\\') < 0 && configuration.indexOf('\0') < 0;
+	}
+
 	static boolean runInProgress() {
 		Future<?> current = inFlight;
 		return current != null && !current.isDone();
@@ -390,12 +447,13 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 		return node != null && node.isTextual() ? node.asText() : null;
 	}
 
-	/** Test hook: blocks until no run is queued or running (or the deadline passes). */
-	static void awaitIdle(long millis) throws InterruptedException {
+	/** Test hook: blocks until no run is queued or running, or the deadline passes. Returns whether it settled. */
+	static boolean awaitIdle(long millis) throws InterruptedException {
 		long deadline = System.currentTimeMillis() + millis;
 		while (runInProgress() && System.currentTimeMillis() < deadline) {
 			Thread.sleep(10);
 		}
+		return !runInProgress();
 	}
 
 	/** Test hook: forgets recorded runs and the in-flight marker. */
@@ -405,5 +463,106 @@ public class LarvaRunServlet extends AbstractBearerServiceServlet {
 		}
 		inFlight = null;
 		inFlightRunId = null;
+	}
+
+	/**
+	 * Wraps {@link JsonTestExecutionObserver} so every callback runs under {@code synchronized(doc)}
+	 * -- the same monitor {@link #doGet} takes to read the document. Without this, the worker
+	 * thread's unsynchronized list writes ({@code document.scenarios}/{@code owner.steps}/
+	 * {@code document.messages}) race a concurrent GET's Jackson serialisation of those same lists
+	 * (ConcurrentModificationException, no happens-before edge between the two threads). Task 2's
+	 * {@link JsonTestExecutionObserver} itself stays untouched -- it is not thread-safe by design,
+	 * a single caller assumed; this decorator is what makes that assumption hold for this servlet's
+	 * caller (the worker thread) against this servlet's reader (a concurrent GET).
+	 */
+	private static final class SynchronizedObserver implements TestExecutionObserver {
+
+		private final LarvaRunDocument doc;
+		private final TestExecutionObserver delegate;
+
+		SynchronizedObserver(LarvaRunDocument doc, TestExecutionObserver delegate) {
+			this.doc = doc;
+			this.delegate = delegate;
+		}
+
+		@Override
+		public void startTestSuiteExecution(TestRunStatus testRunStatus) {
+			synchronized (doc) {
+				delegate.startTestSuiteExecution(testRunStatus);
+			}
+		}
+
+		@Override
+		public void endTestSuiteExecution(TestRunStatus testRunStatus) {
+			synchronized (doc) {
+				delegate.endTestSuiteExecution(testRunStatus);
+			}
+		}
+
+		@Override
+		public void executionOverview(TestRunStatus testRunStatus, long executionTime) {
+			synchronized (doc) {
+				delegate.executionOverview(testRunStatus, executionTime);
+			}
+		}
+
+		@Override
+		public void startScenario(TestRunStatus testRunStatus, Scenario scenario) {
+			synchronized (doc) {
+				delegate.startScenario(testRunStatus, scenario);
+			}
+		}
+
+		@Override
+		public void finishScenario(TestRunStatus testRunStatus, Scenario scenario, int scenarioResult, String scenarioResultMessage) {
+			synchronized (doc) {
+				delegate.finishScenario(testRunStatus, scenario, scenarioResult, scenarioResultMessage);
+			}
+		}
+
+		@Override
+		public void startStep(TestRunStatus testRunStatus, Scenario scenario, Step step) {
+			synchronized (doc) {
+				delegate.startStep(testRunStatus, scenario, step);
+			}
+		}
+
+		@Override
+		public void finishStep(TestRunStatus testRunStatus, Scenario scenario, Step step, int stepResult, String stepResultMessage) {
+			synchronized (doc) {
+				delegate.finishStep(testRunStatus, scenario, step, stepResult, stepResultMessage);
+			}
+		}
+
+		@Override
+		public void stepMessage(Scenario scenario, Step step, String description, String stepMessage) {
+			synchronized (doc) {
+				delegate.stepMessage(scenario, step, description, stepMessage);
+			}
+		}
+
+		@Override
+		public void stepMessageSuccess(Scenario scenario, Step step, String description, String stepResultMessage,
+				String stepResultMessagePreparedForDiff) {
+			synchronized (doc) {
+				delegate.stepMessageSuccess(scenario, step, description, stepResultMessage, stepResultMessagePreparedForDiff);
+			}
+		}
+
+		@Override
+		public void stepMessageFailed(Scenario scenario, Step step, String description, String stepExpectedResultMessage,
+				String stepExpectedResultMessagePreparedForDiff, String stepActualResultMessage, String stepActualResultMessagePreparedForDiff) {
+			synchronized (doc) {
+				delegate.stepMessageFailed(scenario, step, description, stepExpectedResultMessage,
+						stepExpectedResultMessagePreparedForDiff, stepActualResultMessage, stepActualResultMessagePreparedForDiff);
+			}
+		}
+
+		@Override
+		public void messageError(String description, String messageError) {
+			synchronized (doc) {
+				delegate.messageError(description, messageError);
+			}
+		}
 	}
 }
