@@ -76,6 +76,17 @@ public interface LarvaRunner {
 	 * message budget; the rest are folded into one summary message. */
 	int MAX_FORWARDED_SCENARIO_LOAD_WARNINGS = 20;
 
+	/**
+	 * The {@code description} {@link #forwardScenarioLoadMessages} and the "no scenarios found"
+	 * messages report under. {@link JsonTestExecutionObserver#messageError} composes the final
+	 * run-level text as {@code description + ": " + messageError}, so this is also the fixed prefix
+	 * {@link #loadMessageText} must reserve room for -- kept as one constant so the two can't drift.
+	 */
+	String SCENARIO_LOAD_MESSAGE_DESCRIPTION = "scenarios";
+
+	/** Prefixed onto a forwarded WARNING's text, in addition to the description prefix above. */
+	String WARNING_TEXT_PREFIX = "warning: ";
+
 	TestRunStatus run(ApplicationContext applicationContext, String rootDirectory, String executeAbsolutePath,
 			long timeoutMs, TestExecutionObserver observer) throws Exception;
 
@@ -137,8 +148,8 @@ public interface LarvaRunner {
 						? " (the file exists but was not registered as a scenario -- check scenario.active, "
 								+ "adapter.unstable, and scenario.description)"
 						: "";
-				observer.messageError("scenarios", "no scenarios found under [" + executeAbsolutePath + "]" + detail);
-				observer.messageError("scenarios", NO_SCENARIOS_INCLUDE_HINT);
+				observer.messageError(SCENARIO_LOAD_MESSAGE_DESCRIPTION, "no scenarios found under [" + executeAbsolutePath + "]" + detail);
+				observer.messageError(SCENARIO_LOAD_MESSAGE_DESCRIPTION, NO_SCENARIOS_INCLUDE_HINT);
 				observer.endTestSuiteExecution(status);
 				return status;
 			}
@@ -188,9 +199,12 @@ public interface LarvaRunner {
 	 * {@code fromIndex} (i.e. produced while loading scenarios, via
 	 * {@code ScenarioLoader}/{@code LarvaTool.errorMessage}) to the observer as a run-level
 	 * message, e.g. {@code "Could not read properties file [...]: ..."} for an include that does
-	 * not resolve. Only ERROR and WARNING are forwarded; a WARNING is prefixed {@code "warning: "}
-	 * since {@link TestExecutionObserver#messageError} carries no level of its own. The observer
-	 * clips the text and reduces an attached exception to its simple class name.
+	 * not resolve. Only ERROR and WARNING are forwarded; a WARNING is prefixed
+	 * {@link #WARNING_TEXT_PREFIX} since {@link TestExecutionObserver#messageError} carries no
+	 * level of its own. The observer clips the FINAL composed text (description + this text) and
+	 * reduces an attached exception to its simple class name -- {@link #loadMessageText} reserves
+	 * room for both the description prefix {@code messageError} adds and that exception suffix, so
+	 * neither is silently clipped away by a second, blind truncation.
 	 *
 	 * <p>ERRORs are forwarded first and in full -- a load failure worth reporting is rare and must
 	 * never be pushed out. WARNINGs (e.g. "Property 'x' occurs both in scenario file [...] and
@@ -201,11 +215,13 @@ public interface LarvaRunner {
 	 */
 	static void forwardScenarioLoadMessages(List<LarvaMessage> allMessages, int fromIndex, TestExecutionObserver observer) {
 		List<LarvaMessage> loadMessages = allMessages.subList(fromIndex, allMessages.size());
+		int errorPrefixLength = descriptionPrefixLength();
 		for (LarvaMessage message : loadMessages) {
 			if (message.getLogLevel() == LarvaLogLevel.ERROR) {
-				observer.messageError("scenarios", loadMessageText(message));
+				observer.messageError(SCENARIO_LOAD_MESSAGE_DESCRIPTION, loadMessageText(message, errorPrefixLength));
 			}
 		}
+		int warningPrefixLength = errorPrefixLength + WARNING_TEXT_PREFIX.length();
 		int forwardedWarnings = 0;
 		int suppressedWarnings = 0;
 		for (LarvaMessage message : loadMessages) {
@@ -213,34 +229,43 @@ public interface LarvaRunner {
 				continue;
 			}
 			if (forwardedWarnings < MAX_FORWARDED_SCENARIO_LOAD_WARNINGS) {
-				observer.messageError("scenarios", "warning: " + loadMessageText(message));
+				observer.messageError(SCENARIO_LOAD_MESSAGE_DESCRIPTION, WARNING_TEXT_PREFIX + loadMessageText(message, warningPrefixLength));
 				forwardedWarnings++;
 			} else {
 				suppressedWarnings++;
 			}
 		}
 		if (suppressedWarnings > 0) {
-			observer.messageError("scenarios", "warning: ... and " + suppressedWarnings + " more warnings while loading scenarios");
+			observer.messageError(SCENARIO_LOAD_MESSAGE_DESCRIPTION,
+					WARNING_TEXT_PREFIX + "... and " + suppressedWarnings + " more warnings while loading scenarios");
 		}
+	}
+
+	/** The exact {@code "<description>: "} prefix {@link JsonTestExecutionObserver#messageError} composes. */
+	static int descriptionPrefixLength() {
+		return SCENARIO_LOAD_MESSAGE_DESCRIPTION.length() + ": ".length();
 	}
 
 	/**
 	 * The message text plus, if Larva attached one, the exception's simple class name -- never a
-	 * stack trace. Reserves room for that {@code " (ExceptionClass)"} suffix the same way
-	 * {@link JsonTestExecutionObserver#logMessage} does, so a long message can't push the suffix
-	 * past what {@code observer.messageError} then clips to
-	 * {@link JsonTestExecutionObserver#MESSAGE_MAX}. Not private: an interface static method is
-	 * implicitly public, which doubles as a directly unit-testable seam (see
-	 * {@link #selectByPropertiesPath}).
+	 * stack trace. {@code reservedPrefixLength} is how many characters {@code observer.messageError}
+	 * will still prepend to this method's result (the {@code "<description>: "} composed there, plus
+	 * {@link #WARNING_TEXT_PREFIX} for a warning) before clipping the FINAL composed text to
+	 * {@link JsonTestExecutionObserver#MESSAGE_MAX}. Both that prefix and the exception suffix here
+	 * are reserved up front -- the same reserved-suffix idea as
+	 * {@link JsonTestExecutionObserver#logMessage}, extended to also cover a prefix added by the
+	 * caller after this method returns, so a long message can push out neither. Not private: an
+	 * interface static method is implicitly public, which doubles as a directly unit-testable seam
+	 * (see {@link #selectByPropertiesPath}).
 	 */
-	static String loadMessageText(LarvaMessage message) {
+	static String loadMessageText(LarvaMessage message, int reservedPrefixLength) {
 		String text = message.getMessage() == null ? "" : message.getMessage();
 		Exception exception = message.getException();
 		if (exception == null) {
 			return text;
 		}
 		String suffix = " (" + exception.getClass().getSimpleName() + ")";
-		int max = Math.max(0, JsonTestExecutionObserver.MESSAGE_MAX - suffix.length());
+		int max = Math.max(0, JsonTestExecutionObserver.MESSAGE_MAX - reservedPrefixLength - suffix.length());
 		return JsonTestExecutionObserver.clip(text, max) + suffix;
 	}
 
