@@ -17,7 +17,6 @@
 package com.viscosiety.pack;
 
 import java.util.List;
-import java.util.Map;
 
 /**
  * What a vertical pack tells the market-neutral core about itself. Discovered through
@@ -25,6 +24,9 @@ import java.util.Map;
  *
  * <p>Nothing secret belongs here: the descriptor is rendered as JSON for authenticated
  * clients (see {@link PackJson}).</p>
+ *
+ * <p>A pack's property defaults are not part of the descriptor: they are the
+ * {@code DeploymentSpecifics.properties} of its jar (add-only keys).</p>
  */
 public interface PackDescriptor {
 
@@ -40,7 +42,11 @@ public interface PackDescriptor {
     /** The identifier of the person or thing a message is about. */
     SubjectIdentifier subject();
 
-    /** Extra Frank!Console views the pack contributes. Informational in M1, applied in M2. */
+    /**
+     * Extra Frank!Console views the pack contributes. Informational: the mirror of the pack's
+     * {@code customViews.<name>.*} properties, which the pack's own {@code DeploymentSpecifics.properties}
+     * declares (see the design's section 10).
+     */
     List<ConsoleView> consoleViews();
 
     /**
@@ -50,9 +56,6 @@ public interface PackDescriptor {
      * else when it resolves the pack.
      */
     List<String> frankOwnedPaths();
-
-    /** DeploymentSpecifics-level defaults the pack needs. Informational in M1, applied in M2. */
-    Map<String, String> propertyDefaults();
 
     /** Names only; the implementations live in viscoForge. */
     List<String> deidentificationStrategyIds();

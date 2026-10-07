@@ -17,7 +17,10 @@
 package com.viscosiety.viscorunner.it;
 
 import org.apache.catalina.Context;
+import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.webresources.DirResourceSet;
+import org.apache.catalina.webresources.StandardRoot;
 import org.apache.tomcat.util.descriptor.web.ContextResource;
 
 import java.io.IOException;
@@ -49,11 +52,21 @@ import java.util.zip.ZipInputStream;
  * <h3>Command-line arguments</h3>
  * <ol>
  *   <li>Absolute path to the viscolink WAR file</li>
- *   <li>Absolute path to the F!F configurations directory (demo-configurations)</li>
+ *   <li>Absolute path to the F!F configurations directory (a demo set, e.g.
+ *       {@code packs/health/demo-configurations})</li>
  *   <li>ViscoStore FHIR base URL, e.g. {@code http://localhost:8080/fhir/}</li>
  *   <li>H2 JDBC URL (file-based with AUTO_SERVER=TRUE)</li>
  *   <li>ViscoStore password for the {@code viscostore} credential alias</li>
  * </ol>
+ *
+ * <h3>System properties</h3>
+ * <ul>
+ *   <li>{@code viscolink.overlay.dir} (optional) — a pack overlay directory (the unpacked
+ *       overlay zip, e.g. {@code target/packs/health}). Its {@code WEB-INF/lib} and
+ *       {@code WEB-INF/classes} join the webapp class path as Tomcat pre-resources, the way the
+ *       runner image's {@code conf/Catalina/localhost/viscolink.xml} lays
+ *       {@code /opt/frank/webapp-overlay/viscolink} over the WAR.</li>
+ * </ul>
  *
  * <h3>Output protocol</h3>
  * <p>Once the server is ready it prints {@code READY:{port}} to stdout and then blocks
@@ -198,6 +211,15 @@ public class ViscolinkLauncher {
         // jdbc/viscostore — defined in the production context.xml; not used by lab-enrichment
         // adapters but must be bound to avoid JNDI lookup errors at startup
         ctx.getNamingResources().addResource(buildH2Resource("jdbc/viscostore", h2Url));
+
+        // The pack overlay: the runner image's PreResources set (conf/Catalina/localhost/viscolink.xml),
+        // reproduced — the pack's WEB-INF/lib and WEB-INF/classes join the webapp class path.
+        String overlayDir = System.getProperty("viscolink.overlay.dir");
+        if (overlayDir != null && Files.isDirectory(Path.of(overlayDir))) {
+            WebResourceRoot resources = new StandardRoot(ctx);
+            resources.addPreResources(new DirResourceSet(resources, "/", Path.of(overlayDir).toAbsolutePath().toString(), "/"));
+            ctx.setResources(resources);
+        }
 
         // ── Start and signal readiness ────────────────────────────────────────────────────
         tomcat.start();

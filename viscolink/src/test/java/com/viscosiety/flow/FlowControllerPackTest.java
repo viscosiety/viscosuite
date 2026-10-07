@@ -35,7 +35,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viscosiety.pack.CorePack;
 import com.viscosiety.pack.DistinctSubjectPack;
-import com.viscosiety.pack.HealthPack;
+import com.viscosiety.pack.HealthValuesPack;
 import com.viscosiety.pack.PackJson;
 import com.viscosiety.pack.PackRegistryTestSupport;
 
@@ -89,7 +89,7 @@ class FlowControllerPackTest {
 
     @Test
     void packEndpointServesTheDescriptorOfTheResolvedPack() throws Exception {
-        PackRegistryTestSupport.override(new HealthPack());
+        PackRegistryTestSupport.override(new HealthValuesPack());
 
         controller.doGet(request("/pack", ""), response);
 
@@ -101,7 +101,7 @@ class FlowControllerPackTest {
         assertEquals("health", body.path("id").asText());
         assertEquals("patientId", body.path("subject").path("metadataName").asText());
         assertEquals("Patient", body.path("subject").path("label").asText());
-        assertEquals(PackJson.of(new HealthPack()), responseBody.toString(), "the same JSON the descriptor endpoints serve");
+        assertEquals(PackJson.of(new HealthValuesPack()), responseBody.toString(), "the same JSON the descriptor endpoints serve");
         verify(response, never()).sendError(anyInt(), anyString());
         verify(servletContext, never()).getRequestDispatcher(anyString());
     }
@@ -131,7 +131,7 @@ class FlowControllerPackTest {
 
     @Test
     void subjectFilterUsesTheHealthPacksMetadataNameAsTheLadybugFilterHeader() throws Exception {
-        PackRegistryTestSupport.override(new HealthPack());
+        PackRegistryTestSupport.override(new HealthValuesPack());
 
         controller.doGet(request("/traces", "subjectFilter=x&flowFilter=f"), response);
 
@@ -141,7 +141,7 @@ class FlowControllerPackTest {
 
     @Test
     void patientFilterIsStillReadAsAnAliasForOneRelease() throws Exception {
-        PackRegistryTestSupport.override(new HealthPack());
+        PackRegistryTestSupport.override(new HealthValuesPack());
 
         controller.doGet(request("/traces", "patientFilter=x&flowFilter=f"), response);
 
@@ -151,7 +151,7 @@ class FlowControllerPackTest {
 
     @Test
     void subjectFilterWinsWhenBothParametersAreGiven() throws Exception {
-        PackRegistryTestSupport.override(new HealthPack());
+        PackRegistryTestSupport.override(new HealthValuesPack());
 
         controller.doGet(request("/traces", "patientFilter=old&subjectFilter=new&flowFilter=f"), response);
 
@@ -175,7 +175,7 @@ class FlowControllerPackTest {
     void theCombinedQueryPassesTheMetadataNamesThroughUnchanged() throws Exception {
         // The page sends the view's column list; the controller must not add, drop or reorder names, and
         // must not substitute the pack's subject for the "patientId" entry (D8: the health query is as before).
-        PackRegistryTestSupport.override(new HealthPack());
+        PackRegistryTestSupport.override(new HealthValuesPack());
 
         controller.doGet(request("/traces", "subjectFilter=x&flowFilter=f"
                 + "&metadataNames=storageId&metadataNames=patientId&metadataNames=flow"), response);

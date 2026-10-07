@@ -16,13 +16,13 @@
 
 package com.viscosiety.pack;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
@@ -87,8 +87,9 @@ class PackRegistryTest {
     }
 
     @Test
-    void getResolvesTheHealthPackFromTheServicesFile() {
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+    void getResolvesTheCorePackWhenNoPackIsOnTheClassPath() {
+        assertInstanceOf(CorePack.class, PackRegistry.get());
+        assertEquals("core", PackRegistry.get().id());
     }
 
     @Test
@@ -105,7 +106,7 @@ class PackRegistryTest {
         assertInstanceOf(CorePack.class, PackRegistry.get());
 
         PackRegistry.reset();
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+        assertInstanceOf(CorePack.class, PackRegistry.get());
     }
 
     @Test
@@ -115,7 +116,7 @@ class PackRegistryTest {
         assertSame(stub, PackRegistry.get());
 
         PackRegistry.reset();
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+        assertInstanceOf(CorePack.class, PackRegistry.get());
     }
 
     /** A candidate that is neither of the shipped packs. */
@@ -140,7 +141,6 @@ class PackRegistryTest {
         }
         @Override public List<ConsoleView> consoleViews() { return List.of(); }
         @Override public List<String> frankOwnedPaths() { return frankOwnedPaths; }
-        @Override public Map<String, String> propertyDefaults() { return Map.of(); }
         @Override public List<String> deidentificationStrategyIds() { return List.of(); }
     }
 }

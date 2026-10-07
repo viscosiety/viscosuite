@@ -3,7 +3,10 @@ services:
   viscolink:
     build:
       context: .
-      dockerfile: Dockerfile.viscolink
+      dockerfile: Dockerfile
+      args:
+        PACK: health
+        STORE: none
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscolink:latest
     ports:
       - "8180:8080"   # Frank!Console + ViscoLink APIs
@@ -48,6 +51,9 @@ services:
       - "5432:5432"
     volumes:
       - viscolink-postgres-data:/var/lib/postgresql/data
+      # Ladybug's own database: POSTGRES_DB above only creates "viscolink", and without "ladybug" the
+      # context never starts.
+      - ./postgres/init-ladybug.sql:/docker-entrypoint-initdb.d/init-ladybug.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U visco -d viscolink"]
       interval: 5s

@@ -47,6 +47,19 @@ minor version).
   `Origin`/`Referer` fallback) so the session cookie cannot be replayed cross-site;
   only active when the console authenticates with OAUTH2; opt out with
   `viscolink.api.sessionAuth=false`.
+- Vertical packs: a pack SPI in the core (`com.viscosiety.pack`, discovered through
+  `META-INF/services/com.viscosiety.pack.PackDescriptor`) with `CorePack` as the default, a
+  descriptor served at `GET /viscolink/api-service/pack` (bearer JWT only, settings
+  `servlet.pack.authenticator` and `servlet.pack.securityRoles`) and at
+  `GET /viscolink/flow-api/pack` (ViscoFlow, console session), and the subject identifier
+  (`patientId` for health) read from the descriptor instead of hardcoded.
+- `packs/health` (`viscolink-pack-health`): the healthcare specifics as a pack, laid over the core
+  WAR as a webapp overlay (FHIR facade servlets, MLLP, the HL7v2/FHIR pipes, their defaults, the
+  `patientid` Ladybug column, the demo configurations and the `hl7util`/`fhirutil`/`demo` tools).
+- Image tags `:<sha>-health` and `:latest-health` (the same manifest as the unsuffixed tags),
+  and `viscolink:<sha>-core` / `:latest-core`, the core without a pack or ViscoStore.
+- `viscorunner/docker-compose.core.yml` runs the core image; `viscorunner/postgres/init-ladybug.sql`
+  creates Ladybug's database for the stacks without ViscoStore.
 
 ### Changed
 - Frank!Framework bumped to nightly `10.3.0-20260924.042323` (frankframework
@@ -54,6 +67,23 @@ minor version).
   upstream file (unchanged since `e3803c17`); only its tracking note moved.
   No Java bump: the framework's artifacts are still compiled for JDK 21 —
   JDK 25 is only needed to build the framework itself (Frank!Doc, Javadoc).
+- One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`
+  (`viscostore` | `none`) builds every runner image; CI builds the matrix from it.
+- The `viscolink` image now carries `server.xml` and the viscorunner jar, like the combined image.
+- Tomcat's `conf/context-viscosuite.xml` and `conf/context-viscolink.xml` are now
+  `conf/context-viscostore.xml` and `conf/context-none.xml`; `STORE` picks the file.
+- The demo configurations moved to `packs/health/demo-configurations`; the core ships a one-adapter
+  `echo` demo in `viscolink/demo-configurations`.
+- The `util/*` tools moved to `packs/health/util/`.
+- Ladybug records the subject identifier in a `subjectid` column; the health pack adds its own
+  `patientid` column.
+- `customViews.names` in the core's `DeploymentSpecifics.properties` appends the pack's views through
+  `pack.customViews.names`.
+
+### Removed
+- `viscorunner/Dockerfile.viscolink`, replaced by `Dockerfile` with `STORE=none`.
+- `PackDescriptor.propertyDefaults()`: a pack's own `DeploymentSpecifics.properties` supplies its defaults.
+- The FHIR facade servlets, MLLP and the HAPI libraries from the core WAR; the health pack carries them.
 
 ### Fixed
 - The `OAuth2Authenticator` override no longer drops bearer authentication.

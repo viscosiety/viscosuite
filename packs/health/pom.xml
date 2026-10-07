@@ -1,0 +1,565 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.visco</groupId>
+	<artifactId>viscolink-pack-health</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<name>ViscoLink healthcare pack</name>
+	<description>FHIR facades, MLLP, HL7v2 pipes, the patient subject identifier — laid over the ViscoLink core WAR as a webapp overlay.</description>
+
+	<properties>
+		<!-- Keep these four in lock-step with viscolink/pom.xml: the pack's provided jars must be
+		     the exact versions the WAR ships, or the class path is not the one D8 promises.
+		     (ladybug.version is read by the dependencyManagement block copied below.) -->
+		<frankframework.version>10.3.0-20260924.042323</frankframework.version>
+		<ladybug.version>4.1-20260903.105841</ladybug.version>
+		<hapi.version>8.8.1</hapi.version>
+		<junit.version>5.14.1</junit.version>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!--
+				Importing frankframework-parent as a BOM gives us correct version management
+				for all F!F transitive dependencies (Spring, Jackson, CXF, Jakarta APIs, etc.).
+			-->
+			<dependency>
+				<groupId>org.frankframework</groupId>
+				<artifactId>frankframework-parent</artifactId>
+				<version>${frankframework.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!--
+				The F!F BOM pins junit-jupiter-engine and junit-jupiter-params to 6.0.3
+				(JUnit 6), which conflicts with our JUnit 5 API jar.  Override here to
+				keep all JUnit artifacts on 5.x.
+			-->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-engine</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-params</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-engine</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-launcher</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+			<!-- Pin to the specific official snapshot with #814 (offset pagination) merged,
+			     newer than whatever frankframework-parent's BOM currently pins. -->
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-common</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-backend-springmvc</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend-servlet</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- The pack SPI: compile against the core's classes, never ship them. -->
+		<dependency>
+			<groupId>com.visco</groupId>
+			<artifactId>viscolink</artifactId>
+			<version>${project.version}</version>
+			<classifier>classes</classifier>
+			<scope>provided</scope>
+			<exclusions>
+				<!-- Maven resolves netty, reached only through the core's protonj2-client, with scope runtime
+				     instead of provided, which would put nine netty jars the WAR already ships into the
+				     overlay. The pack never uses netty; it is the core's business. -->
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<!-- Frank!Framework: provided by the WAR. Add further frankframework-* artifacts here with
+		     scope provided until the moved code compiles (Task 2); never with scope compile. -->
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-core</artifactId>
+			<version>${frankframework.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- HAPI FHIR — server runtime and version-specific structures -->
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-server</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-r4</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-r5</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-structures-dstu3</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-validation-resources-dstu3</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-validation-resources-r4</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-validation-resources-r5</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-validation</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi.fhir</groupId>
+			<artifactId>hapi-fhir-caching-caffeine</artifactId>
+			<version>${hapi.version}</version>
+		</dependency>
+
+		<!-- HAPI HL7v2 — pipe-delimited ↔ XML conversion in Hl7v2ToXmlPipe / XmlToHl7v2Pipe -->
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-base</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<!-- HL7v2 message structures for commonly used versions -->
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v23</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v24</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v25</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v251</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v26</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v27</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+		<dependency>
+			<groupId>ca.uhn.hapi</groupId>
+			<artifactId>hapi-structures-v28</artifactId>
+			<version>2.5.1</version>
+		</dependency>
+
+		<!-- ══ The core WAR's libraries, kept out of the overlay (D8) ══════════════════════════════════
+		     The overlay is exactly the libraries the core WAR lacks: WAR + overlay must equal the libraries
+		     the one WAR shipped before the split (viscorunner HealthClasspathIT against
+		     golden/health-webapp-libs.txt, frozen). A direct provided declaration drops the artifact AND its
+		     subtree from the overlay (stage-overlay-libs copies Maven's runtime closure), so the parent of a
+		     group below carries its children. Versions are the WAR's: from the BOM where it manages the
+		     artifact, written out where it does not (keep those in step with the WAR, the IT says when not). -->
+
+		<!-- In both the WAR and, as HAPI transitives, the overlay. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.annotation</groupId>
+			<artifactId>jakarta.annotation-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-text</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>4.0.4</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.angus</groupId>
+			<artifactId>angus-mail</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>jakarta.json</artifactId>
+			<version>2.0.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-messaging</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- HAPI wants another version than the WAR carries (the golden has the WAR's): the WAR's copy runs,
+		     as it always did. -->
+		<dependency>
+			<groupId>net.sf.saxon</groupId>
+			<artifactId>Saxon-HE</artifactId>
+			<version>10.9</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+			<version>0.30.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark-ext-gfm-tables</artifactId>
+			<version>0.30.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.14.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>78.3</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.javassist</groupId>
+			<artifactId>javassist</artifactId>
+			<version>3.33.0-GA</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- The WAR pins these to HAPI's versions (viscolink/pom.xml, "D8 class-path pins"), so they are
+		     the WAR's now. -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>3.1.8</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>2.12.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-api</artifactId>
+			<version>1.44.1</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- guava is the WAR's (above) and its subtree went with it, but the WAR carries only guava's
+		     failureaccess: these two children are in the golden, so the overlay does. -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>listenablefuture</artifactId>
+			<version>9999.0-empty-to-avoid-conflict-with-guava</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.j2objc</groupId>
+			<artifactId>j2objc-annotations</artifactId>
+			<version>3.1</version>
+		</dependency>
+
+		<!-- Test -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes><include>pack-version.properties</include></includes>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.14.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<!-- Implementation-Title/-Version: F!F's ModuleInformation reads them (HealthPackModule). -->
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<!-- Redirect F!F's log directory during tests (same reason as viscolink/pom.xml). -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<log.dir>${project.build.directory}/logs</log.dir>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<!-- The FHIR block of the Frank!Console. The console's index.html is one file that never merges
+			     across jars, so the pack's build extracts the framework's page, adds the script tag and
+			     stages it as target/console-patched/console/index.html; the overlay assembly lays it into
+			     WEB-INF/classes, where it shadows the page inside frankframework-console-frontend.jar.
+			     The script itself (console/fhir-webservices.js) is a resource of this jar. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-console-index</id>
+						<phase>generate-resources</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<!-- overWriteSnapshots forces re-extraction from the current SNAPSHOT JAR on every
+							     build so the patched index.html always matches the bundled JS asset hash. -->
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-console-frontend</artifactId>
+									<version>${frankframework.version}</version>
+									<includes>console/index.html</includes>
+									<outputDirectory>${project.build.directory}/console-original</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+					<!-- The overlay's WEB-INF/lib: Maven's own runtime closure of this pom (compile + runtime,
+					     provided excluded), staged for the assembly. The assembly plugin's dependencySet is
+					     NOT used for the libraries: it re-resolves the direct non-provided dependencies on its
+					     own, so a direct <scope>provided</scope> declaration never removed a transitive of
+					     HAPI from the zip (measured: 115 jars before and after 25 declarations). This copy
+					     uses the resolved graph, where a direct provided declaration does win, and where the
+					     provided core (viscolink:classes) takes part in version mediation, so the libraries
+					     the pack shares with the WAR resolve to the WAR's versions. -->
+					<execution>
+						<id>stage-overlay-libs</id>
+						<phase>prepare-package</phase>
+						<goals><goal>copy-dependencies</goal></goals>
+						<configuration>
+							<includeScope>runtime</includeScope>
+							<outputDirectory>${project.build.directory}/overlay-libs</outputDirectory>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html. Phase
+			     process-resources (not prepare-package): the staged page must exist when the tests run
+			     and when the assembly packs it. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<!-- copy-dependencies only adds files: without this, a jar that a new provided declaration
+					     dropped would stay in an incremental build's overlay. -->
+					<execution>
+						<id>reset-overlay-libs</id>
+						<phase>generate-resources</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<delete dir="${project.build.directory}/overlay-libs"/>
+							</target>
+						</configuration>
+					</execution>
+					<execution>
+						<id>patch-console-index</id>
+						<phase>process-resources</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.directory}/console-patched/console"/>
+								<copy file="${project.build.directory}/console-original/console/index.html"
+								      tofile="${project.build.directory}/console-patched/console/index.html"
+								      overwrite="true"/>
+								<replace file="${project.build.directory}/console-patched/console/index.html">
+									<replacetoken><![CDATA[</body>]]></replacetoken>
+									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
+								</replace>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- The overlay zip: WEB-INF/lib = this jar + target/overlay-libs (stage-overlay-libs);
+			     WEB-INF/classes and WEB-INF/pack.properties come from the assembly descriptor. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.7.1</version>
+				<executions>
+					<execution>
+						<id>overlay</id>
+						<phase>package</phase>
+						<goals><goal>single</goal></goals>
+						<configuration>
+							<descriptors><descriptor>src/assembly/overlay.xml</descriptor></descriptors>
+							<appendAssemblyId>true</appendAssemblyId>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<repositories>
+		<repository>
+			<id>frankframework</id>
+			<name>Frank!Framework</name>
+			<url>https://nexus.frankframework.org/content/repositories/public</url>
+		</repository>
+	</repositories>
+</project>

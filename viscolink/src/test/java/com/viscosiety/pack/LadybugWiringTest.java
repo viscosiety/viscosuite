@@ -91,7 +91,7 @@ class LadybugWiringTest {
 
     @Test
     void healthPackLeavesLadybugsMetadataAsItWasWithAHardcodedPatientId() {
-        PackRegistry.override(new HealthPack());
+        PackRegistry.override(new HealthValuesPack());
         loadVisco();
 
         MetadataExtractor extractor = context.getBean("metadataExtractor", MetadataExtractor.class);

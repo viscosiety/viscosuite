@@ -4,7 +4,8 @@
 # Downloads FrankConfig.xsd from the frankframework-core JAR whose version is declared
 # in viscolink/pom.xml and writes it to:
 #   viscorunner/configurations/FrankConfig.xsd
-#   viscorunner/demo-configurations/FrankConfig.xsd
+#   packs/health/demo-configurations/FrankConfig.xsd
+#   viscolink/demo-configurations/FrankConfig.xsd
 #
 # Run from any directory inside the repository:
 #   ./viscorunner/scripts/update-frankconfig-xsd.sh
@@ -60,11 +61,12 @@ if ! unzip -p "$JAR" "$XSD_PATH_IN_JAR" > "$TMPDIR/FrankConfig.xsd"; then
     exit 1
 fi
 
-# ── 4. Write to both configuration directories ─────────────────────────────
+# ── 4. Write to every configuration directory ──────────────────────────────
 
 TARGETS=(
     "$VISCORUNNER_DIR/configurations/FrankConfig.xsd"
-    "$VISCORUNNER_DIR/demo-configurations/FrankConfig.xsd"
+    "$REPO_ROOT/packs/health/demo-configurations/FrankConfig.xsd"
+    "$REPO_ROOT/viscolink/demo-configurations/FrankConfig.xsd"
 )
 
 for TARGET in "${TARGETS[@]}"; do

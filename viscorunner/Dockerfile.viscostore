@@ -25,10 +25,13 @@ RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.pr
 # JDBC drivers on common.loader so Spring can find the driver class
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 
+# The landing page is shared with the runner image, where a pack fills the %%PACK_*%% placeholders.
+# There is no pack here: keep the page this image always showed (the hidden ViscoLink card stays blank).
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
 ARG BUILD_TIMESTAMP=""
 RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
-    sed -i "s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
+    sed -i "s|%%PACK_TAGLINE%%|Healthcare integration platform|; s|%%PACK_LINK_BLURB%%||; s|%%PACK_STAMP%%||; \
+            s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/viscostore.war
 
 # Fail fast if the WAR is a stale empty stub from .m2/ (< 1 MB)

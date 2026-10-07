@@ -3,10 +3,9 @@
     F!F loads this file via SPRING.CONFIG.LOCATIONS in AppConstants.properties.
     It is merged into a child context of IbisApplicationContext after the initial refresh.
 
-    FHIR servlet beans (R4FhirServlet, Dstu3FhirServlet, FhirFfBridge) are declared
-    in springFhir.xml, which is registered via ViscoLinkModule.getSpringConfigurationFiles()
-    so they participate in the main context refresh and are picked up by
-    ServletRegisteringPostProcessor.
+    A vertical pack's own beans (for example servlets that ServletRegisteringPostProcessor must
+    pick up) are declared in the pack's own Spring files, which the pack's Module registers via
+    getSpringConfigurationFiles() so they participate in the main context refresh.
 
     Use this file for Ladybug / debugger customisation only.
 -->

@@ -14,8 +14,8 @@ standard FHIR repository — with every record traceable back to its raw source.
   configurations into a mounted directory — no rebuild required.
 - **ViscoStore** — a HAPI FHIR JPA Server as the canonical FHIR repository: standard FHIR
   REST API, browser tester UI, Swagger docs, and an MCP endpoint for AI/LLM integration.
-- **ViscoRunner** — Docker packaging, reference configurations, and a demo mode that shows
-  the whole suite working in five minutes.
+- **ViscoRunner** — Docker packaging (one image recipe, several variants) and a demo mode
+  that shows the whole suite working in five minutes.
 
 ## Quick start — five minutes to live traffic
 
@@ -44,11 +44,13 @@ To start blank instead (your own configurations, no demo traffic), see
 viscosuite/
 ├── viscolink/               Frank!Framework integration middleware
 ├── viscostore/              HAPI FHIR JPA Server (persistent FHIR storage + MCP)
+├── packs/health/            healthcare pack: pipes, defaults, working reference configurations (see below)
 └── viscorunner/             Docker packaging and configuration hub
-    ├── configurations/          empty scaffold — mount your own integrations here
-    ├── demo-configurations/     working reference configurations (see below)
-    ├── docker-compose.yml       base service definitions
-    └── docker-compose.demo.yml  demo overlay (demo configurations + traffic generator)
+    ├── configurations/               empty scaffold — mount your own integrations here
+    ├── docker-compose.yml            base service definitions (health pack + ViscoStore)
+    ├── docker-compose.viscolink.yml  health pack without ViscoStore
+    ├── docker-compose.core.yml       the core without a pack (see Images)
+    └── docker-compose.demo.yml       demo overlay (demo configurations + traffic generator)
 ```
 
 **ViscoLink owns the integration concern.** It receives messages from source systems,
@@ -135,7 +137,7 @@ transformation step by step, and auditing routing decisions are first-class oper
 
 The demo overlay ships working F!F configurations — use them as starting points, study them
 as patterns, or run them as-is. They follow explicit
-[configuration conventions](viscorunner/demo-configurations/README.md).
+[configuration conventions](packs/health/demo-configurations/README.md).
 
 | Configuration | What it shows |
 |---|---|
@@ -190,17 +192,42 @@ Prerequisites: Docker ≥ 24 with Compose V2 (running), JDK 21+ (building). The 
 wrapper (`./mvnw`) downloads the correct Maven automatically.
 
 ```bash
-# Build all modules (viscorunner packages the WARs the others install)
-./mvnw install -pl viscolink,viscostore && ./mvnw package -pl viscorunner
+# Build all modules (viscorunner packages the WARs and the pack overlay the others install)
+./mvnw install -pl viscolink,packs/health,viscostore && ./mvnw package -pl viscorunner -DskipTests
 
 # Run tests
 ./mvnw test -pl viscolink
+./mvnw test -pl packs/health
 ./mvnw verify -pl viscostore        # unit + integration tests
+./mvnw verify -pl viscorunner       # class-path and launcher integration tests (after the install)
 ```
 
 Remote debugging (JPDA on `5005`) and smoke tests are described in
 [`viscorunner/README.md`](viscorunner/README.md) and
 `viscostore/src/test/smoketest/`.
+
+## Images
+
+One recipe, `viscorunner/Dockerfile`, builds every runner image from two build arguments:
+`PACK` (`health`, the default, or `core`) chooses the vertical pack laid over the ViscoLink
+core, and `STORE` (`viscostore`, the default, or `none`) whether the ViscoStore FHIR server
+is part of the image. CI publishes multi-arch images (amd64 and arm64); the `image:` lines of
+the compose files in `viscorunner/` give the registry path.
+
+| Image | Contents | Tags |
+|---|---|---|
+| `viscorunner` | health pack + ViscoStore | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | health pack, no store | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | the core: no pack, no store | `<sha>-core`, `latest-core` |
+| `viscostore` | the standalone FHIR server | `<sha>`, `latest` |
+
+`<sha>` is the commit; there are no version tags. The unsuffixed tags keep their long-standing
+meaning (the healthcare images) and `-health` is the explicit spelling. `-core` is the
+market-neutral integration platform: Frank!Framework, the console with OIDC, ViscoFlow and
+Ladybug, with no FHIR servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject
+identifier is a neutral "Subject" instead of "Patient", the pack descriptor endpoint reports
+`core`, and its demo is a one-adapter echo (`viscolink/demo-configurations/echo/`). Try it with
+`docker compose -f docker-compose.core.yml up --build` in `viscorunner/`.
 
 ## Versioning and compatibility
 

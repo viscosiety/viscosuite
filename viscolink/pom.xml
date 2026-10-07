@@ -27,7 +27,6 @@
 		     this build; postMessage bridge for ViscoFlow deep-link (ladybug-openReport/-ping)
 		     was already present upstream. Fork no longer needed, pending this holding up. -->
 		<ladybug.version>4.1-20260903.105841</ladybug.version>
-		<hapi.version>8.8.1</hapi.version>
 		<log4j2.version>2.25.3</log4j2.version>
 		<jboss-logging.version>3.6.1.Final</jboss-logging.version>
 		<h2.version>2.4.240</h2.version>
@@ -101,6 +100,31 @@
 				<groupId>org.wearefrank</groupId>
 				<artifactId>ladybug-frontend-servlet</artifactId>
 				<version>${ladybug.version}</version>
+			</dependency>
+			<!--
+				D8 class-path pins: the versions the image class path has always carried. Keep until a
+				deliberate dependency review; the viscorunner class-path IT is the oracle. The trailing
+				"would be" notes name the version that resolves without the pin.
+			-->
+			<dependency>
+				<groupId>com.github.ben-manes.caffeine</groupId>
+				<artifactId>caffeine</artifactId>
+				<version>3.1.8</version><!-- would be 3.2.3 (infinispan-core) -->
+			</dependency>
+			<dependency>
+				<groupId>com.google.code.gson</groupId>
+				<artifactId>gson</artifactId>
+				<version>2.12.0</version><!-- would be 2.8.9 (protobuf-java-util via ladybug-common) -->
+			</dependency>
+			<dependency>
+				<groupId>com.google.errorprone</groupId>
+				<artifactId>error_prone_annotations</artifactId>
+				<version>2.36.0</version><!-- would be 2.18.0 (protobuf-java-util via ladybug-common) -->
+			</dependency>
+			<dependency>
+				<groupId>io.opentelemetry</groupId>
+				<artifactId>opentelemetry-api</artifactId>
+				<version>1.44.1</version><!-- would be 1.62.0 (ladybug-common); opentelemetry-context follows the api, and opentelemetry-common is gone with 1.62.0 -->
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -181,53 +205,6 @@
 			<scope>runtime</scope>
 		</dependency>
 
-		<!-- HAPI FHIR — server runtime and version-specific structures -->
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-server</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-structures-r4</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-structures-r5</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-structures-dstu3</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-validation-resources-dstu3</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-validation-resources-r4</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-validation-resources-r5</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-validation</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi.fhir</groupId>
-			<artifactId>hapi-fhir-caching-caffeine</artifactId>
-			<version>${hapi.version}</version>
-		</dependency>
-
 		<!-- jakarta.activation-api is marked 'provided' in the F!F BOM but Tomcat does not supply it -->
 		<dependency>
 			<groupId>jakarta.activation</groupId>
@@ -241,49 +218,6 @@
 			<artifactId>h2</artifactId>
 			<version>${h2.version}</version>
 			<scope>runtime</scope>
-		</dependency>
-
-		<!-- HAPI HL7v2 — pipe-delimited ↔ XML conversion in Hl7v2ToXmlPipe / XmlToHl7v2Pipe -->
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-base</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<!-- HL7v2 message structures for commonly used versions -->
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v23</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v24</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v25</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v251</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v26</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v27</artifactId>
-			<version>2.5.1</version>
-		</dependency>
-		<dependency>
-			<groupId>ca.uhn.hapi</groupId>
-			<artifactId>hapi-structures-v28</artifactId>
-			<version>2.5.1</version>
 		</dependency>
 
 		<dependency>
@@ -313,55 +247,11 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.0</version>
 			</plugin>
-			<!-- Extract F!F console index.html so we can patch it at build time -->
-			<plugin>
-				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-dependency-plugin</artifactId>
-				<executions>
-					<execution>
-						<id>unpack-console-index</id>
-						<phase>generate-resources</phase>
-						<goals><goal>unpack</goal></goals>
-						<configuration>
-							<!-- overWriteSnapshots forces re-extraction from the current SNAPSHOT JAR on every
-							     build so the patched index.html always matches the bundled JS asset hash. -->
-							<overWriteSnapshots>true</overWriteSnapshots>
-							<artifactItems>
-								<artifactItem>
-									<groupId>org.frankframework</groupId>
-									<artifactId>frankframework-console-frontend</artifactId>
-									<version>${frankframework.version}</version>
-									<includes>console/index.html</includes>
-									<outputDirectory>${project.build.directory}/console-original</outputDirectory>
-								</artifactItem>
-							</artifactItems>
-						</configuration>
-					</execution>
-				</executions>
-			</plugin>
-			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
 				<version>3.1.0</version>
 				<executions>
-					<execution>
-						<id>patch-console-index</id>
-						<phase>prepare-package</phase>
-						<goals><goal>run</goal></goals>
-						<configuration>
-							<target>
-								<mkdir dir="${project.build.directory}/console-patched/console"/>
-								<copy file="${project.build.directory}/console-original/console/index.html"
-								      tofile="${project.build.directory}/console-patched/console/index.html"
-								      overwrite="true"/>
-								<replace file="${project.build.directory}/console-patched/console/index.html">
-									<replacetoken><![CDATA[</body>]]></replacetoken>
-									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
-								</replace>
-							</target>
-						</configuration>
-					</execution>
 					<!-- TEMPORARY: stage the OAuth2Authenticator override (see the class banner)
 					     into WEB-INF/classes. archiveClasses=true bundles target/classes into a
 					     JAR in WEB-INF/lib, where it would NOT reliably shadow frankframework-
@@ -410,6 +300,9 @@
 					     addDefaultImplementationEntries adds Implementation-Title and
 					     Implementation-Version, which ModuleInformation requires. -->
 					<archiveClasses>true</archiveClasses>
+					<!-- Also install the classes as viscolink-<v>-classes.jar: packs compile against the
+					     pack SPI (com.viscosiety.pack) with scope provided. The WAR provides them at runtime. -->
+					<attachClasses>true</attachClasses>
 					<archive>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>

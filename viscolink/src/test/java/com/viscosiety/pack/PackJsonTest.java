@@ -17,12 +17,10 @@
 package com.viscosiety.pack;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.regex.Pattern;
 
@@ -47,7 +45,7 @@ class PackJsonTest {
 
     @Test
     void healthPackHasExactlyTheDocumentedKeysInTheDocumentedOrder() throws Exception {
-        JsonNode json = parse(new HealthPack());
+        JsonNode json = parse(new HealthValuesPack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
                 "frankOwnedPaths", "deidentificationStrategyIds"), keys(json));
         assertEquals(List.of("sessionKey", "metadataName", "metadataLabel", "label", "format"),
@@ -56,10 +54,10 @@ class PackJsonTest {
 
     @Test
     void healthPackValues() throws Exception {
-        JsonNode json = parse(new HealthPack());
+        JsonNode json = parse(new HealthValuesPack());
         assertEquals("health", json.get("id").asText());
         assertEquals("Healthcare", json.get("displayName").asText());
-        assertEquals(new HealthPack().version(), json.get("version").asText());
+        assertEquals(new HealthValuesPack().version(), json.get("version").asText());
 
         JsonNode subject = json.get("subject");
         assertEquals("patientId", subject.get("sessionKey").asText());
@@ -103,24 +101,6 @@ class PackJsonTest {
     }
 
     @Test
-    void propertyDefaultsAreNeverSerialised() throws Exception {
-        PackDescriptor withDefaults = new DistinctSubjectPack() {
-            @Override
-            public Map<String, String> propertyDefaults() {
-                return Map.of("pack.secret.key", "pack-secret-value");
-            }
-        };
-
-        String json = PackJson.of(withDefaults);
-
-        assertFalse(json.contains("pack.secret.key"), json);
-        assertFalse(json.contains("pack-secret-value"), json);
-        assertFalse(json.contains("propertyDefaults"), json);
-        assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
-                "frankOwnedPaths", "deidentificationStrategyIds"), keys(MAPPER.readTree(json)));
-    }
-
-    @Test
     void aFormatIsRenderedAsThePatternSource() throws Exception {
         JsonNode withFormat = parse(new FormatPack(Pattern.compile("^\\d{9}$"), List.of()));
         assertEquals("^\\d{9}$", withFormat.get("subject").get("format").asText());
@@ -146,7 +126,6 @@ class PackJsonTest {
         }
         @Override public List<ConsoleView> consoleViews() { return views; }
         @Override public List<String> frankOwnedPaths() { return List.of(); }
-        @Override public Map<String, String> propertyDefaults() { return Map.of(); }
         @Override public List<String> deidentificationStrategyIds() { return List.of(); }
     }
 }

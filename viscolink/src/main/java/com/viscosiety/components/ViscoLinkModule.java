@@ -27,17 +27,13 @@ import org.frankframework.components.Module;
 import org.frankframework.components.ModuleInformation;
 
 /**
- * Frank!Framework module descriptor for ViscoLink.
- *
- * <p>Registers {@code springMllp.xml} so that the {@code MllpConnectionFactoryFactory} bean
- * is available in the Spring application context and can be auto-wired into
- * {@link com.viscosiety.mllp.MllpFacade} subclasses.</p>
+ * Frank!Framework module descriptor for ViscoLink: registers the core's own Spring files.
  */
 public class ViscoLinkModule implements Module {
 
     /**
-     * The module's {@code Implementation-Version}. One constant so the manifest below and the
-     * {@link com.viscosiety.pack.PackDescriptor#version() pack descriptors} cannot drift apart.
+     * The module's {@code Implementation-Version}. One constant so the manifest below and
+     * {@link com.viscosiety.pack.CorePack#version()}, the only reader, cannot drift apart.
      */
     public static final String IMPLEMENTATION_VERSION = "1.0.0-SNAPSHOT";
 
@@ -60,7 +56,6 @@ public class ViscoLinkModule implements Module {
         // Kubernetes lifecycle events come from the Frank!Framework's own
         // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer) —
         // the viscolink implementation was upstreamed and then removed here.
-        return List.of("springMllp.xml", "springFhir.xml", "springStubbedRun.xml",
-                "springConsoleSecurity.xml");
+        return List.of("springStubbedRun.xml", "springConsoleSecurity.xml");
     }
 }

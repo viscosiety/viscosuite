@@ -30,6 +30,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import com.viscosiety.pack.CorePack;
+import com.viscosiety.pack.HealthValuesPack;
 import com.viscosiety.pack.PackJson;
 import com.viscosiety.pack.PackRegistry;
 import com.viscosiety.pack.PackRegistryTestSupport;
@@ -163,6 +164,9 @@ class PackServletTest {
 
 	@Test
 	void callerWithTheRoleGetsTheDescriptorAsJson() throws Exception {
+		// The servlet serves whatever the registry resolved; install the health values explicitly so the
+		// assertions below pin real values instead of the core's defaults.
+		PackRegistryTestSupport.override(new HealthValuesPack());
 		servlet.doGet(request, response);
 
 		verify(response).setContentType("application/json");

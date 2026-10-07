@@ -36,7 +36,7 @@ class SubjectMetadataFieldExtractorTest {
 
     @Test
     void healthPackKeepsTodaysPatientIdField() {
-        PackRegistry.override(new HealthPack());
+        PackRegistry.override(new HealthValuesPack());
 
         SubjectMetadataFieldExtractor extractor = new SubjectMetadataFieldExtractor();
 
@@ -78,7 +78,7 @@ class SubjectMetadataFieldExtractorTest {
 
     @Test
     void theSubjectIsFixedWhenTheExtractorIsConstructed() {
-        PackRegistry.override(new HealthPack());
+        PackRegistry.override(new HealthValuesPack());
         SubjectMetadataFieldExtractor first = new SubjectMetadataFieldExtractor();
         PackRegistry.override(new CorePack());
         SubjectMetadataFieldExtractor second = new SubjectMetadataFieldExtractor();

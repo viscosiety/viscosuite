@@ -1,16 +1,25 @@
 # ViscoSuite CI/CD pipeline
 #
 # Stages:
-#   test     — unit + integration tests (all branches and MRs)
+#   test     — unit + integration tests, plus viscorunner's two fast class-path ITs (all branches and MRs)
 #   package  — full Maven build, produces WARs for the Docker image (main only)
 #   docker   — builds platform-specific images in parallel (main only)
 #   manifest — combines amd64 + arm64 images into a single multi-arch manifest (main only)
-#   cleanup  — deletes per-arch intermediate tags; keeps only :<sha> + :latest
+#   cleanup  — deletes per-arch intermediate tags; keeps only the multi-arch tags below
 #
 # Runners: self-hosted Docker runners
-#   amd64: tags [docker, dind]
+#   amd64: tags [docker, x86-64, dind]
 #   arm64: tags [docker, arm64, dind]  (Raspberry Pi 5)
 # Registry: $CI_REGISTRY_IMAGE (GitLab project registry)
+#
+# Images (the runner images are ONE recipe, viscorunner/Dockerfile, x PACK x STORE):
+#   image        PACK    STORE       tags (all multi-arch)
+#   viscorunner  health  viscostore  :<sha>        :latest        :<sha>-health  :latest-health
+#   viscolink    health  none        :<sha>        :latest        :<sha>-health  :latest-health
+#   viscolink    core    none        :<sha>-core   :latest-core
+#   viscostore   -       -           :<sha>        :latest        (viscorunner/Dockerfile.viscostore)
+# The unsuffixed tags keep their old meaning (health); -health is the explicit spelling and
+# -core is the pack-less core. Per-arch build intermediates are <tag>-amd64 / <tag>-arm64.
 
 stages:
   - test
@@ -60,8 +69,16 @@ variables:
 
 # ---------------------------------------------------------------------------
 # Stage: test
-# Unit and integration tests for viscolink and viscostore.
+# Unit and integration tests for viscolink, the health pack and viscostore.
 # Runs on every push and every merge request.
+#
+# Then viscorunner's two fast class-path ITs (HealthClasspathIT, the D8 oracle with its frozen
+# golden, and PackOverlayLayoutIT) so a Frank!Framework / ladybug / HAPI bump or a pack pom
+# change is caught on the merge request, not after the merge (the slow launcher ITs stay in
+# integration-test, main only). One `install` (tests on) both runs the three modules' tests and
+# leaves their artifacts in .m2/, which viscorunner's copy-dependencies and unpack resolve from
+# (not the reactor — see CLAUDE.md); a separate `verify` would package everything twice.
+# `verify -pl viscorunner` also runs viscorunner's unit tests (Dockerfile contract, event publisher).
 # ---------------------------------------------------------------------------
 test:
   stage: test
@@ -76,16 +93,19 @@ test:
     - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
-    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,viscostore
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
+    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
 
 # ---------------------------------------------------------------------------
 # Stage: package
-# Pure artifact production — no tests.  Installs viscolink + viscostore to
-# .m2/ so that viscorunner's copy-dependencies can resolve them, then packages
-# viscorunner (copies WARs + drivers into target/).
+# Pure artifact production — no tests.  Installs viscolink, the health pack and
+# viscostore to .m2/ so that viscorunner's copy-dependencies can resolve them, then
+# packages viscorunner (copies WARs + drivers into target/ and stages the pack
+# overlays, the demo sets and the store WARs that the one Dockerfile COPYs).
+# (packs/health/util/hl7util is a utility, not part of the image: CI does not build it.)
 #
 # NOTE: install before package is required because copy-dependencies resolves
 # from .m2/ rather than the reactor — see CLAUDE.md.
@@ -103,16 +123,26 @@ package:
     - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
-    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
     - ./mvnw $MAVEN_CLI_OPTS package -pl viscorunner -DskipTests
   artifacts:
     paths:
       - viscorunner/target/viscolink.war
       - viscorunner/target/viscostore.war
       - viscorunner/target/drivers/
+      # Staged for viscorunner/Dockerfile: packs/<PACK>/ (webapp overlay), demo/<PACK>/
+      # (demo configurations), store/<STORE>/ (viscostore.war, or nothing for none).
+      - viscorunner/target/packs/
+      - viscorunner/target/demo/
+      - viscorunner/target/store/
       # Shaded viscorunner jar (fabric8 + relocated Jackson/SnakeYAML) for ContextFailureEventPublisher,
       # placed on Tomcat's common.loader at /opt/frank/lib by the Dockerfile.
       - viscorunner/target/viscorunner-*.jar
+    # target/store/viscostore/viscostore.war is a second copy of target/viscostore.war (about
+    # 350 MB, already an artifact above): shipping both would add that to every pipeline and to
+    # each of the eight docker jobs that download it. The docker jobs recreate it (.docker-build).
+    exclude:
+      - viscorunner/target/store/viscostore/viscostore.war
     expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -120,8 +150,9 @@ package:
 # ---------------------------------------------------------------------------
 # Stage: integration-test
 # Runs viscorunner's LabEnrichmentIT (starts real viscostore + viscolink
-# processes).  Re-installs viscolink/viscostore from cache so the launcher
-# JARs are in .m2/, then runs verify which repackages and fires failsafe.
+# processes with the health pack's overlay).  Re-installs viscolink, the health
+# pack and viscostore from cache so the launcher JARs are in .m2/, then runs
+# verify which repackages and fires failsafe.
 # Docker build depends on both this job and package, so a failing IT blocks
 # the image push.
 # ---------------------------------------------------------------------------
@@ -138,7 +169,7 @@ integration-test:
     - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
-    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
     - ./mvnw $MAVEN_CLI_OPTS verify   -pl viscorunner
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -149,12 +180,19 @@ integration-test:
 # a platform suffix tag, e.g.:
 #   <registry>/viscorunner:<sha>-amd64
 #   <registry>/viscorunner:<sha>-arm64
-# The two jobs run in parallel.
+# The jobs run in parallel.
+#
+# One recipe (viscorunner/Dockerfile) x PACK x STORE x arch. The image name and
+# the tag suffix per variant:
+#   health + viscostore -> viscorunner:<sha>[-arch]        (today's meaning, kept)
+#   health + none       -> viscolink:<sha>[-arch]          (today's meaning, kept)
+#   core   + none       -> viscolink:<sha>-core[-arch]
+# .docker-build is the shared recipe; each job names its runner (tags), its arch and
+# one of the three variant variable sets below.
 # ---------------------------------------------------------------------------
-docker:viscosuite:amd64:
+.docker-build:
   stage: docker
   image: docker:27
-  tags: [docker, x86-64, dind]
   services:
     - docker:27-dind
   needs:
@@ -165,82 +203,42 @@ docker:viscosuite:amd64:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --platform linux/amd64
+    # Empty directories may not survive the artifact zip; COPY of a missing source would fail every STORE=none build.
+    - mkdir -p viscorunner/target/store/none viscorunner/target/packs/core/WEB-INF/lib
+    # The store copy is not an artifact (package excludes it, it is a duplicate of target/viscostore.war): recreate it.
+    - if [ "$STORE" != none ]; then mkdir -p viscorunner/target/store/viscostore && cp viscorunner/target/viscostore.war viscorunner/target/store/viscostore/viscostore.war; fi
+    - docker build --platform "linux/$ARCH"
+        --build-arg "PACK=$PACK" --build-arg "STORE=$STORE"
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
-        -t "$IMAGE:$CI_COMMIT_SHA-amd64"
+        -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA$TAG_SUFFIX-$ARCH"
         viscorunner/
-    - docker push "$IMAGE:$CI_COMMIT_SHA-amd64"
+    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA$TAG_SUFFIX-$ARCH"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
-docker:viscosuite:arm64:
-  stage: docker
-  image: docker:27
-  tags: [docker, arm64, dind]
-  services:
-    - docker:27-dind
-  needs:
-    - job: package
-      artifacts: true
-    - job: integration-test
-      artifacts: false
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --platform linux/arm64
-        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
-        -t "$IMAGE:$CI_COMMIT_SHA-arm64"
-        viscorunner/
-    - docker push "$IMAGE:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+# Per-variant variables (merged into each job's `variables` below).
+.health-suite: &health-suite
+  PACK: health
+  STORE: viscostore
+  IMAGE_NAME: viscorunner
+  TAG_SUFFIX: ""
+.health-link: &health-link
+  PACK: health
+  STORE: none
+  IMAGE_NAME: viscolink
+  TAG_SUFFIX: ""
+.core-link: &core-link
+  PACK: core
+  STORE: none
+  IMAGE_NAME: viscolink
+  TAG_SUFFIX: "-core"
 
-# ---------------------------------------------------------------------------
-# Stage: docker — standalone ViscoLink image
-# ---------------------------------------------------------------------------
-docker:viscolink:amd64:
-  stage: docker
-  image: docker:27
-  tags: [docker, x86-64, dind]
-  services:
-    - docker:27-dind
-  needs:
-    - job: package
-      artifacts: true
-    - job: integration-test
-      artifacts: false
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --platform linux/amd64
-        -f viscorunner/Dockerfile.viscolink
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
-        viscorunner/
-    - docker push "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-
-docker:viscolink:arm64:
-  stage: docker
-  image: docker:27
-  tags: [docker, arm64, dind]
-  services:
-    - docker:27-dind
-  needs:
-    - job: package
-      artifacts: true
-    - job: integration-test
-      artifacts: false
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --platform linux/arm64
-        -f viscorunner/Dockerfile.viscolink
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
-        viscorunner/
-    - docker push "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+docker:viscosuite:amd64:      { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *health-suite, ARCH: amd64 } }
+docker:viscosuite:arm64:      { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *health-suite, ARCH: arm64 } }
+docker:viscolink:amd64:       { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *health-link,  ARCH: amd64 } }
+docker:viscolink:arm64:       { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *health-link,  ARCH: arm64 } }
+docker:viscolink-core:amd64:  { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *core-link,    ARCH: amd64 } }
+docker:viscolink-core:arm64:  { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *core-link,    ARCH: arm64 } }
 
 # ---------------------------------------------------------------------------
 # Stage: docker — standalone ViscoStore image
@@ -292,9 +290,11 @@ docker:viscostore:arm64:
 # ---------------------------------------------------------------------------
 # Stage: manifest
 # Combines platform images into multi-arch manifests.
-# Combined:   <registry>/viscorunner:<sha> + :latest
-# ViscoLink:  <registry>/viscolink:<sha>   + :latest
-# ViscoStore: <registry>/viscostore:<sha>  + :latest
+# Combined:       <registry>/viscorunner:<sha>     + :latest + :<sha>-health + :latest-health
+# ViscoLink:      <registry>/viscolink:<sha>       + :latest + :<sha>-health + :latest-health
+# ViscoLink core: <registry>/viscolink:<sha>-core  + :latest-core
+# ViscoStore:     <registry>/viscostore:<sha>      + :latest
+# (-health tags are extra names for the same manifest as the unsuffixed ones: no extra build.)
 # ---------------------------------------------------------------------------
 manifest:viscosuite:
   stage: manifest
@@ -311,6 +311,8 @@ manifest:viscosuite:
     - docker buildx imagetools create
         -t "$IMAGE:$CI_COMMIT_SHA"
         -t "$IMAGE:latest"
+        -t "$IMAGE:$CI_COMMIT_SHA-health"
+        -t "$IMAGE:latest-health"
         "$IMAGE:$CI_COMMIT_SHA-amd64"
         "$IMAGE:$CI_COMMIT_SHA-arm64"
   rules:
@@ -331,8 +333,30 @@ manifest:viscolink:
     - docker buildx imagetools create
         -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA"
         -t "$IMAGE_VISCOLINK:latest"
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-health"
+        -t "$IMAGE_VISCOLINK:latest-health"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+
+manifest:viscolink-core:
+  stage: manifest
+  image: docker:27
+  tags: [dind]
+  services:
+    - docker:27-dind
+  needs:
+    - docker:viscolink-core:amd64
+    - docker:viscolink-core:arm64
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  script:
+    - docker buildx imagetools create
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core"
+        -t "$IMAGE_VISCOLINK:latest-core"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core-amd64"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core-arm64"
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
 
@@ -389,9 +413,10 @@ trigger:viscoforge:
 
 # ---------------------------------------------------------------------------
 # Stage: cleanup
-# Deletes per-arch intermediate tags (:<sha>-amd64, :<sha>-arm64) immediately
-# after manifests are pushed — these are build intermediates only.
-# Keeping only :<sha> (multi-arch manifest) + :latest per image.
+# Deletes per-arch intermediate tags (:<sha>-amd64, :<sha>-arm64, and for the
+# core variant :<sha>-core-amd64, :<sha>-core-arm64) immediately after manifests
+# are pushed — these are build intermediates only.
+# Keeping only the multi-arch tags (:<sha>, :latest, -health, -core; see the header).
 #
 # "Keep last N builds" is handled by GitLab's built-in cleanup policy:
 # Settings → Packages and registries → Cleanup policies
@@ -403,6 +428,7 @@ cleanup:arch-tags:
   needs:
     - manifest:viscosuite
     - manifest:viscolink
+    - manifest:viscolink-core
     - manifest:viscostore
   before_script:
     - apk add --no-cache curl jq
@@ -410,14 +436,18 @@ cleanup:arch-tags:
     - |
       REPOS=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/registry/repositories")
-      for IMAGE_NAME in viscorunner viscolink viscostore; do
+      # "<image>:<tag suffix>" pairs (an empty suffix is the plain <sha>-<arch> tag).
+      # The viscolink repo holds two variants: health (no suffix) and core (-core).
+      for PAIR in "viscorunner:" "viscolink:" "viscolink:-core" "viscostore:"; do
+        IMAGE_NAME=${PAIR%%:*}
+        TAG_SUFFIX=${PAIR#*:}
         REPO_ID=$(echo "$REPOS" | jq -r ".[] | select(.name == \"${IMAGE_NAME}\") | .id")
         if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
           echo "WARNING: repo not found for ${IMAGE_NAME}, skipping"
           continue
         fi
-        for SUFFIX in amd64 arm64; do
-          TAG="${CI_COMMIT_SHA}-${SUFFIX}"
+        for ARCH in amd64 arm64; do
+          TAG="${CI_COMMIT_SHA}${TAG_SUFFIX}-${ARCH}"
           STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
             --request DELETE \
             --header "JOB-TOKEN: $CI_JOB_TOKEN" \

@@ -119,15 +119,21 @@ class LabEnrichmentIT {
     void setUpOnce() throws Exception {
         Path viscoStoreWar = Paths.get("target/viscostore.war").toAbsolutePath();
         Path viscolinkWar  = Paths.get("target/viscolink.war").toAbsolutePath();
-        Path demoConfigs   = Paths.get("demo-configurations").toAbsolutePath();
+        Path demoConfigs   = Paths.get("../packs/health/demo-configurations").toAbsolutePath();
         Path testClasses   = Paths.get("target/test-classes").toAbsolutePath();
+        // The health pack, unpacked by `mvn package -pl viscorunner`: FHIR servlets, HL7v2 pipes and MLLP
+        // are no longer in the core WAR, they join the webapp class path from this overlay.
+        Path healthOverlay = Paths.get("target/packs/health").toAbsolutePath();
 
         if (!Files.exists(viscoStoreWar)) throw new IllegalStateException(
             "viscostore WAR not found at " + viscoStoreWar +
-            " — run `mvn install -pl viscolink,viscostore && mvn package -pl viscorunner` first");
+            " — run `mvn install -pl viscolink,packs/health,viscostore && mvn package -pl viscorunner` first");
         if (!Files.exists(viscolinkWar)) throw new IllegalStateException(
             "viscolink WAR not found at " + viscolinkWar +
-            " — run `mvn install -pl viscolink` first");
+            " — run `mvn install -pl viscolink,packs/health` first");
+        if (!Files.isDirectory(healthOverlay.resolve("WEB-INF/lib"))) throw new IllegalStateException(
+            "health pack overlay not found at " + healthOverlay +
+            " — run `mvn install -pl viscolink,packs/health,viscostore && mvn package -pl viscorunner` first");
 
         String javaExe = ProcessHandle.current().info().command()
             .orElse(Paths.get(System.getProperty("java.home"), "bin/java").toString());
@@ -195,7 +201,8 @@ class LabEnrichmentIT {
             // spring.main.allow-circular-references: see same flag in Hl7v2ToFhirIT --
             // ladybug-common's View gained setTestTool() (#814), cycling through
             // testTool -> views -> whiteBoxView in this directly-launched JVM too.
-            javaExe, "-Dspring.main.allow-circular-references=true", "-cp", classpath,
+            javaExe, "-Dspring.main.allow-circular-references=true",
+            "-Dviscolink.overlay.dir=" + healthOverlay, "-cp", classpath,
             "com.viscosiety.viscorunner.it.ViscolinkLauncher",
             viscolinkWar.toString(),
             demoConfigs.toString(),

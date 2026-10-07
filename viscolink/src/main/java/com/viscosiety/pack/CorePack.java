@@ -17,7 +17,6 @@
 package com.viscosiety.pack;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import com.viscosiety.components.ViscoLinkModule;
@@ -59,11 +58,6 @@ public final class CorePack implements PackDescriptor {
     @Override
     public List<String> frankOwnedPaths() {
         return List.of();
-    }
-
-    @Override
-    public Map<String, String> propertyDefaults() {
-        return Map.of();
     }
 
     @Override

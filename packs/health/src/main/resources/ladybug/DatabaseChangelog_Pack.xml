@@ -1,0 +1,17 @@
+<databaseChangeLog
+        xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+        xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+        xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-4.26.xsd">
+
+    <changeSet id="LadybugHealth:1" author="Tom Peeters">
+        <preConditions onFail="MARK_RAN">
+            <!-- Existing health databases got this column from the core's LadybugCustom:2 before the pack split. -->
+            <not><columnExists tableName="LADYBUG" columnName="patientid"/></not>
+        </preConditions>
+        <comment>Add column patientid — the health pack's subject identifier (lowercase to avoid the PostgreSQL
+                 quoted-identifier mismatch)</comment>
+        <addColumn tableName="LADYBUG">
+            <column name="patientid" type="java.sql.Types.VARCHAR(255)"/>
+        </addColumn>
+    </changeSet>
+</databaseChangeLog>

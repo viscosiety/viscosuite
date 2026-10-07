@@ -1,0 +1,70 @@
+# The market-neutral core: ViscoLink without a vertical pack and without ViscoStore (no HL7v2, no FHIR).
+# /viscolink/api/echo is its demo: mount ../viscolink/demo-configurations over /opt/frank/configurations
+# (the image also carries a copy in /opt/frank/demo-configurations) and POST to it.
+#
+#   docker compose -f docker-compose.core.yml up --build
+#
+services:
+
+  viscolink:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PACK: core
+        STORE: none
+    image: registry.git.viscosiety.com/public-applications/viscosuite/viscolink:latest-core
+    ports:
+      - "8180:8080"   # Frank!Console + ViscoLink APIs
+    environment:
+      dtap.stage: LOC
+
+      # F!F loads all subdirectories in the configurations directory automatically
+      configurations.directory.autoLoad: "true"
+      classloader.type: DirectoryClassLoader
+
+      # Frank!Framework (Ladybug) JNDI datasource — PostgreSQL
+      VISCOLINK_JDBC_DRIVER: org.postgresql.Driver
+      VISCOLINK_JDBC_URL: jdbc:postgresql://postgres:5432/viscolink
+      VISCOLINK_JDBC_USERNAME: visco
+      VISCOLINK_JDBC_PASSWORD: visco
+
+      # Ladybug's own database — keeps debug reports out of the business transaction,
+      # so journeys of FAILED transacted messages survive the rollback.
+      ladybug.jdbc.datasource: jdbc/ladybug
+      LADYBUG_JDBC_DRIVER: org.postgresql.Driver
+      LADYBUG_JDBC_URL: jdbc:postgresql://postgres:5432/ladybug
+      LADYBUG_JDBC_USERNAME: visco
+      LADYBUG_JDBC_PASSWORD: visco
+
+      # Activate Ladybug database storage (remove to use in-memory storage instead)
+      JAVA_OPTS: "-Dspring.profiles.active=ladybug-database -Dliquibase.duplicateFileMode=WARN -DcredentialFactory.class=org.frankframework.credentialprovider.PropertyFileCredentialFactory -DcredentialFactory.map.properties=/opt/frank/secrets/credentials.properties"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - ./secrets/credentials.properties:/opt/frank/secrets/credentials.properties:ro
+      - ./configurations:/opt/frank/configurations
+
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: viscolink
+      POSTGRES_USER: visco
+      POSTGRES_PASSWORD: visco
+    ports:
+      - "5432:5432"
+    volumes:
+      - viscolink-postgres-data:/var/lib/postgresql/data
+      # Ladybug's own database: POSTGRES_DB above only creates "viscolink", and without "ladybug" the
+      # context never starts.
+      - ./postgres/init-ladybug.sql:/docker-entrypoint-initdb.d/init-ladybug.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U visco -d viscolink"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  viscolink-postgres-data:

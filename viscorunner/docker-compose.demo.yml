@@ -4,9 +4,9 @@
 #   docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 #
 # What this overlay adds on top of the base:
-#   - Mounts demo-configurations/ over /opt/frank/configurations, replacing the base
+#   - Mounts ../packs/health/demo-configurations/ over /opt/frank/configurations, replacing the base
 #     (empty) configurations mount with the full reference implementation.
-#   - Enables Frank!Framework auto-discovery so all subdirectories in demo-configurations/
+#   - Enables Frank!Framework auto-discovery so all subdirectories in packs/health/demo-configurations/
 #     are loaded as F!F configurations without listing them explicitly.
 #   - Sets DirectoryClassLoader as the default so externally-mounted configurations
 #     are read from the filesystem rather than the WAR classpath.
@@ -98,7 +98,7 @@ services:
       # Shadow the base configurations mount with the demo reference implementation.
       # Docker applies bind mounts in order; this entry (being last) wins for
       # /opt/frank/configurations, giving F!F the demo configurations to auto-discover.
-      - ./demo-configurations:/opt/frank/configurations
+      - ../packs/health/demo-configurations:/opt/frank/configurations
       # Replace the base Tomcat context with the demo context, which adds the fake-emr JNDI datasource.
       - ./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro
       # Demo tool UIs — served under /viscolink/demo-tools/ via the webapp-overlay mechanism.
