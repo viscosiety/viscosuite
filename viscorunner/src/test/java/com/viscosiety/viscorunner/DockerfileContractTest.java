@@ -58,6 +58,13 @@ class DockerfileContractTest {
         return Pattern.compile(regex, Pattern.MULTILINE).matcher(text).find();
     }
 
+    /** A SQL file's statements: the {@code --} comment lines dropped, so prose in a header cannot satisfy an assertion. */
+    private static String sqlStatements(String relative) throws IOException {
+        return read(relative).lines()
+            .filter(line -> !line.stripLeading().startsWith("--"))
+            .collect(Collectors.joining("\n"));
+    }
+
     // ---- the Dockerfile ----
 
     @Test
@@ -183,16 +190,38 @@ class DockerfileContractTest {
             assertTrue(read(file).contains("./postgres/init-ladybug.sql:/docker-entrypoint-initdb.d/init-ladybug.sql:ro"),
                 file + " mounts the ladybug init");
         }
-        assertTrue(read("postgres/init-ladybug.sql").contains("ladybug"), "postgres/init-ladybug.sql creates it");
+        assertTrue(sqlStatements("postgres/init-ladybug.sql").contains("CREATE DATABASE ladybug OWNER visco"),
+            "postgres/init-ladybug.sql creates it (in a statement, not in a comment)");
     }
 
     @Test
     void theLadybugInitSurvivesTheSuiteComposeThatMountsTheWholeDirectory() throws IOException {
         String compose = read("docker-compose.yml");
         assertTrue(compose.contains("./postgres:/docker-entrypoint-initdb.d:ro"), "the suite compose mounts the whole postgres/ directory");
-        String sql = read("postgres/init-ladybug.sql");
-        assertTrue(sql.contains("NOT EXISTS") && sql.contains("\\gexec"),
-            "init-databases.sql already creates ladybug; a plain CREATE DATABASE would abort the suite's first start");
+        String sql = sqlStatements("postgres/init-ladybug.sql");
+        assertTrue(matches(sql, "WHERE NOT EXISTS \\(SELECT FROM pg_database WHERE datname = 'ladybug'\\)\\\\gexec"),
+            "init-databases.sql already creates ladybug; the CREATE DATABASE must be guarded and run by \\gexec"
+                + " (comments do not count: the header says the same words)");
+        assertFalse(matches(sql, "^\\s*CREATE DATABASE"),
+            "a plain CREATE DATABASE statement would abort the suite's first start");
+    }
+
+    // ---- the pack identity the Dockerfile stamps ----
+
+    @Test
+    void bothPackPropertiesFilesAreSafeForTheDockerfileSedAndDefineTheFiveKeys() throws IOException {
+        // The Dockerfile reads these files and fills the landing page with sed, using '|' as the delimiter and
+        // writing the values as the replacement text: a '|', '&' or backslash in a value would break it.
+        for (String file : List.of("../packs/health/src/main/overlay/WEB-INF/pack.properties",
+                "src/packs/core/WEB-INF/pack.properties")) {
+            String text = read(file);
+            for (char unsafe : new char[] {'|', '&', '\\'}) {
+                assertTrue(text.indexOf(unsafe) < 0, file + " contains '" + unsafe + "', which the Dockerfile's sed cannot take");
+            }
+            for (String key : List.of("pack.id", "pack.displayName", "pack.version", "pack.tagline", "pack.linkBlurb")) {
+                assertTrue(matches(text, "^" + Pattern.quote(key) + "=\\S.*$"), file + " defines " + key);
+            }
+        }
     }
 
     // ---- landing page ----
