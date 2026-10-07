@@ -15,7 +15,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CSV="${SCRIPT_DIR}/../../viscorunner/demo-configurations/loinc-mapping-api/loinc-mapping.csv"
+CSV="${SCRIPT_DIR}/../../../../viscorunner/demo-configurations/loinc-mapping-api/loinc-mapping.csv"
 
 DB_HOST="localhost"
 DB_PORT=5432

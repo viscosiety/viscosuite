@@ -1,0 +1,30 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.2.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.2.0 http://maven.apache.org/xsd/assembly-2.2.0.xsd">
+	<!-- The tree of this zip IS the webapp overlay (/opt/frank/webapp-overlay/viscolink/). -->
+	<id>overlay</id>
+	<formats><format>zip</format></formats>
+	<includeBaseDirectory>false</includeBaseDirectory>
+	<dependencySets>
+		<dependencySet>
+			<outputDirectory>WEB-INF/lib</outputDirectory>
+			<useProjectArtifact>true</useProjectArtifact>
+			<!-- runtime = compile + runtime transitives, minus everything marked provided:
+			     exactly the jars the core WAR lacks. -->
+			<scope>runtime</scope>
+			<useTransitiveFiltering>false</useTransitiveFiltering>
+		</dependencySet>
+	</dependencySets>
+	<fileSets>
+		<fileSet>
+			<directory>${project.build.directory}/console-patched</directory>
+			<outputDirectory>WEB-INF/classes</outputDirectory>
+			<!-- Task 3 fills this directory; until then the fileSet is empty and that is fine. -->
+		</fileSet>
+		<fileSet>
+			<directory>src/main/overlay</directory>
+			<outputDirectory>/</outputDirectory>
+			<filtered>true</filtered>
+		</fileSet>
+	</fileSets>
+</assembly>

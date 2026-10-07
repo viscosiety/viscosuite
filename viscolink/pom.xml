@@ -410,6 +410,9 @@
 					     addDefaultImplementationEntries adds Implementation-Title and
 					     Implementation-Version, which ModuleInformation requires. -->
 					<archiveClasses>true</archiveClasses>
+					<!-- Also install the classes as viscolink-<v>-classes.jar: packs compile against the
+					     pack SPI (com.viscosiety.pack) with scope provided. The WAR provides them at runtime. -->
+					<attachClasses>true</attachClasses>
 					<archive>
 						<manifest>
 							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>

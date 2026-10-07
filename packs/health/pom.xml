@@ -1,0 +1,208 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+		xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+		xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+
+	<groupId>com.visco</groupId>
+	<artifactId>viscolink-pack-health</artifactId>
+	<version>1.0.0-SNAPSHOT</version>
+	<packaging>jar</packaging>
+
+	<name>ViscoLink healthcare pack</name>
+	<description>FHIR facades, MLLP, HL7v2 pipes, the patient subject identifier — laid over the ViscoLink core WAR as a webapp overlay.</description>
+
+	<properties>
+		<!-- Keep these four in lock-step with viscolink/pom.xml: the pack's provided jars must be
+		     the exact versions the WAR ships, or the class path is not the one D8 promises.
+		     (ladybug.version is read by the dependencyManagement block copied below.) -->
+		<frankframework.version>10.3.0-20260924.042323</frankframework.version>
+		<ladybug.version>4.1-20260903.105841</ladybug.version>
+		<hapi.version>8.8.1</hapi.version>
+		<junit.version>5.14.1</junit.version>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!--
+				Importing frankframework-parent as a BOM gives us correct version management
+				for all F!F transitive dependencies (Spring, Jackson, CXF, Jakarta APIs, etc.).
+			-->
+			<dependency>
+				<groupId>org.frankframework</groupId>
+				<artifactId>frankframework-parent</artifactId>
+				<version>${frankframework.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!--
+				The F!F BOM pins junit-jupiter-engine and junit-jupiter-params to 6.0.3
+				(JUnit 6), which conflicts with our JUnit 5 API jar.  Override here to
+				keep all JUnit artifacts on 5.x.
+			-->
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-engine</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.jupiter</groupId>
+				<artifactId>junit-jupiter-params</artifactId>
+				<version>${junit.version}</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-engine</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.junit.platform</groupId>
+				<artifactId>junit-platform-launcher</artifactId>
+				<version>1.14.1</version>
+				<scope>test</scope>
+			</dependency>
+			<!-- Pin to the specific official snapshot with #814 (offset pagination) merged,
+			     newer than whatever frankframework-parent's BOM currently pins. -->
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-common</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-backend-springmvc</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>org.wearefrank</groupId>
+				<artifactId>ladybug-frontend-servlet</artifactId>
+				<version>${ladybug.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
+	<dependencies>
+		<!-- The pack SPI: compile against the core's classes, never ship them. -->
+		<dependency>
+			<groupId>com.visco</groupId>
+			<artifactId>viscolink</artifactId>
+			<version>${project.version}</version>
+			<classifier>classes</classifier>
+			<scope>provided</scope>
+		</dependency>
+		<!-- Frank!Framework: provided by the WAR. Add further frankframework-* artifacts here with
+		     scope provided until the moved code compiles (Task 2); never with scope compile. -->
+		<dependency>
+			<groupId>org.frankframework</groupId>
+			<artifactId>frankframework-core</artifactId>
+			<version>${frankframework.version}</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.servlet</groupId>
+			<artifactId>jakarta.servlet-api</artifactId>
+			<version>6.1.0</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- HAPI FHIR and HAPI HL7v2: moved verbatim from viscolink/pom.xml in Task 2 (compile scope,
+		     these are the jars the WAR will lack). -->
+
+		<!-- Test -->
+		<dependency>
+			<groupId>org.junit.jupiter</groupId>
+			<artifactId>junit-jupiter</artifactId>
+			<version>${junit.version}</version>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.mockito</groupId>
+			<artifactId>mockito-junit-jupiter</artifactId>
+			<scope>test</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-test</artifactId>
+			<scope>test</scope>
+		</dependency>
+	</dependencies>
+
+	<build>
+		<resources>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>false</filtering>
+			</resource>
+			<resource>
+				<directory>src/main/resources</directory>
+				<filtering>true</filtering>
+				<includes><include>pack-version.properties</include></includes>
+			</resource>
+		</resources>
+		<plugins>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.14.0</version>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<configuration>
+					<archive>
+						<manifest>
+							<!-- Implementation-Title/-Version: F!F's ModuleInformation reads them (HealthPackModule). -->
+							<addDefaultImplementationEntries>true</addDefaultImplementationEntries>
+						</manifest>
+					</archive>
+				</configuration>
+			</plugin>
+			<!-- Redirect F!F's log directory during tests (same reason as viscolink/pom.xml). -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-surefire-plugin</artifactId>
+				<configuration>
+					<systemPropertyVariables>
+						<log.dir>${project.build.directory}/logs</log.dir>
+					</systemPropertyVariables>
+				</configuration>
+			</plugin>
+			<!-- The overlay zip: WEB-INF/lib = this jar + runtime dependencies; WEB-INF/classes and
+			     WEB-INF/pack.properties come from the assembly descriptor. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-assembly-plugin</artifactId>
+				<version>3.7.1</version>
+				<executions>
+					<execution>
+						<id>overlay</id>
+						<phase>package</phase>
+						<goals><goal>single</goal></goals>
+						<configuration>
+							<descriptors><descriptor>src/assembly/overlay.xml</descriptor></descriptors>
+							<appendAssemblyId>true</appendAssemblyId>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+		</plugins>
+	</build>
+	<repositories>
+		<repository>
+			<id>frankframework</id>
+			<name>Frank!Framework</name>
+			<url>https://nexus.frankframework.org/content/repositories/public</url>
+		</repository>
+	</repositories>
+</project>

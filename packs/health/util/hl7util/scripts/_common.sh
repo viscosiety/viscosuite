@@ -28,7 +28,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[1]}")" && pwd)"
 JAR="${SCRIPT_DIR}/../target/hl7util.jar"
 
 if [[ ! -f "$JAR" ]]; then
-    echo "hl7util.jar not found at $JAR — run: mvn package -pl util/hl7util" >&2
+    echo "hl7util.jar not found at $JAR — run: mvn package -pl packs/health/util/hl7util" >&2
     exit 2
 fi
 
