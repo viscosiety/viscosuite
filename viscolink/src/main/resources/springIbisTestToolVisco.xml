@@ -21,11 +21,9 @@
                     <property name="label" value="Flow"/>
                     <property name="sessionKey" value="flow" />
                 </bean>
-                <bean class="org.wearefrank.ladybug.metadata.SessionKeyMetadataFieldExtractor">
-                    <property name="name" value="patientId"/>
-                    <property name="label" value="PatientId"/>
-                    <property name="sessionKey" value="patientId" />
-                </bean>
+                <!-- The subject of the message (the patient, with the health pack): its Ladybug column name,
+                     label and session key come from the pack registry instead of being written out here. -->
+                <bean class="com.viscosiety.pack.SubjectMetadataFieldExtractor" />
                 <!-- De-identified stubbed runs are marked by StubbedRunner with two session keys:
                      sharable=true (the report is a PHI-free synthetic copy) and originId=<source report id>.
                      These are extracted as metadata so the Shareable view (below) can FILTER on sharable
@@ -45,7 +43,10 @@
         </property>
     </bean>
 
-    <!-- Default column set for the standard views (whitebox/graybox/blackbox) — WITHOUT sharable/originId. -->
+    <!-- Default column set for the standard views (whitebox/graybox/blackbox) — WITHOUT sharable/originId.
+         The #{...} entry is the subject column: the pack's metadataName (patientId with the health pack),
+         in the same place the literal used to be. It is a SpEL expression, evaluated when this context
+         is created; it must name the same field as SubjectMetadataFieldExtractor above. -->
     <bean name="metadataNames" class="java.util.ArrayList">
         <constructor-arg>
             <list>
@@ -54,7 +55,7 @@
                 <value>duration</value>
                 <value>name</value>
                 <value>flow</value>
-                <value>patientId</value>
+                <value>#{T(com.viscosiety.pack.PackRegistry).get().subject().metadataName()}</value>
                 <value>correlationId</value>
                 <value>status</value>
                 <value>stubbed</value>
@@ -78,7 +79,9 @@
          metadataNames=sharable is also present). Without this entry the Shareable view's
          metadataFilter (sharable=true, below) is never actually applied and every report shows.
          Filed upstream: TODO(wearefrank/ladybug), confirm/link issue for the metadataNames-vs-
-         filterHeader merge gap in the Views client. -->
+         filterHeader merge gap in the Views client.
+
+         The #{...} entry is the same pack-supplied subject column as in the default set above. -->
     <bean name="shareableViewMetadataNames" class="java.util.ArrayList">
         <constructor-arg>
             <list>
@@ -88,7 +91,7 @@
                 <value>name</value>
                 <value>originId</value>
                 <value>sharable</value>
-                <value>patientId</value>
+                <value>#{T(com.viscosiety.pack.PackRegistry).get().subject().metadataName()}</value>
                 <value>correlationId</value>
                 <value>status</value>
             </list>
