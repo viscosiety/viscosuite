@@ -9,19 +9,26 @@ export async function getStorage() {
   return r.json();
 }
 
-export async function getTraces({ storage, limit, offset, flowFilter, patientFilter }) {
+// The vertical pack's descriptor (subject key and label); the page fetches it once before its first traces call.
+export async function getPack() {
+  const r = await fetch(`${BASE}/flow-api/pack`);
+  if (!r.ok) throw new Error(r.status);
+  return r.json();
+}
+
+export async function getTraces({ storage, limit, offset, flowFilter, subjectFilter, subject }) {
   const url = new URL(`${BASE}/flow-api/traces`, location.origin);
   url.searchParams.set('storage', storage);
   url.searchParams.set('limit', String(limit));
   url.searchParams.set('offset', String(offset));
-  ['storageId', 'endTime', 'duration', 'name', 'flow', 'patientId', 'correlationId', 'status', 'stubbed']
+  ['storageId', 'endTime', 'duration', 'name', 'flow', subject.metadataName, 'correlationId', 'status', 'stubbed']
     .forEach(n => url.searchParams.append('metadataNames', n));
-  if (patientFilter && flowFilter) {
-    url.searchParams.set('patientFilter', patientFilter);
+  if (subjectFilter && flowFilter) {
+    url.searchParams.set('subjectFilter', subjectFilter);
     url.searchParams.set('flowFilter', flowFilter);
-  } else if (patientFilter) {
-    url.searchParams.set('filterHeader', 'patientId');
-    url.searchParams.set('filter', patientFilter);
+  } else if (subjectFilter) {
+    url.searchParams.set('filterHeader', subject.metadataName);
+    url.searchParams.set('filter', subjectFilter);
   } else if (flowFilter) {
     url.searchParams.set('filterHeader', 'flow');
     url.searchParams.set('filter', flowFilter);

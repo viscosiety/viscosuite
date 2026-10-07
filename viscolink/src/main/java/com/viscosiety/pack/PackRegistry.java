@@ -1,0 +1,126 @@
+/*
+ * Copyright 2026 Viscosiety B.V.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+package com.viscosiety.pack;
+
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.List;
+import java.util.ServiceLoader;
+
+/**
+ * Resolves the one {@link PackDescriptor} of this JVM: none on the class path means
+ * {@link CorePack}, one means that one, two or more is a configuration error, as is a pack whose
+ * paths are malformed. Both fail fast at first use; the console security registrar makes that first
+ * use when the Spring context starts.
+ */
+public final class PackRegistry {
+
+    private static volatile PackDescriptor cached;
+    /** Tests only: what discovery "finds" instead of the services files, until {@link #reset()}. */
+    private static volatile List<PackDescriptor> candidatesOverride;
+
+    private PackRegistry() {
+    }
+
+    /** The resolution rule over any candidates; kept free of {@link ServiceLoader} so it can be tested directly. */
+    static PackDescriptor resolve(Collection<? extends PackDescriptor> candidates) {
+        if (candidates.isEmpty()) {
+            return new CorePack();
+        }
+        if (candidates.size() == 1) {
+            PackDescriptor only = candidates.iterator().next();
+            requireWellFormedFrankOwnedPaths(only);
+            return only;
+        }
+        List<String> ids = new ArrayList<>();
+        for (PackDescriptor candidate : candidates) {
+            ids.add(candidate.id());
+        }
+        throw new IllegalStateException("At most one vertical pack may be on the class path, but found "
+                + ids.size() + ": " + String.join(", ", ids));
+    }
+
+    /**
+     * The console matches these as prefixes of the request path, so a path without the leading or
+     * trailing slash would silently match the wrong requests (or none), and a path of only slashes
+     * would match (nearly) every request and switch the tool-page authentication off: fail at start
+     * instead.
+     */
+    private static void requireWellFormedFrankOwnedPaths(PackDescriptor pack) {
+        for (String path : pack.frankOwnedPaths()) {
+            if (!path.startsWith("/") || !path.endsWith("/")) {
+                throw new IllegalStateException("Vertical pack [" + pack.id() + "] declares the Frank!Framework-owned path ["
+                        + path + "], which must start and end with a slash");
+            }
+            if (path.chars().allMatch(c -> c == '/')) {
+                throw new IllegalStateException("Vertical pack [" + pack.id() + "] declares the Frank!Framework-owned path ["
+                        + path + "], which would hand every request to the Frank!Framework chain");
+            }
+        }
+    }
+
+    /** The descriptor every consumer reads; resolved once per JVM and cached. */
+    public static PackDescriptor get() {
+        PackDescriptor pack = cached;
+        if (pack == null) {
+            synchronized (PackRegistry.class) {
+                pack = cached;
+                if (pack == null) {
+                    List<PackDescriptor> found = candidatesOverride;
+                    pack = resolve(found != null ? found : discover());
+                    cached = pack;
+                }
+            }
+        }
+        return pack;
+    }
+
+    private static List<PackDescriptor> discover() {
+        // This class's own loader, not the thread context loader: a pack jar sits beside viscolink
+        // (webapp or a parent loader), and the context loader of the calling thread may be neither.
+        List<PackDescriptor> found = new ArrayList<>();
+        ServiceLoader.load(PackDescriptor.class, PackRegistry.class.getClassLoader()).forEach(found::add);
+        return found;
+    }
+
+    /** Tests only: replace the cached descriptor until {@link #reset()}. */
+    static void override(PackDescriptor pack) {
+        synchronized (PackRegistry.class) {
+            cached = pack;
+        }
+    }
+
+    /**
+     * Tests only: make the next {@link #get()} resolve these candidates (validation included) as if
+     * they were found on the class path, until {@link #reset()}. {@link #override} cannot do that: it
+     * installs a descriptor without resolving it, so a malformed pack never fails.
+     */
+    static void overrideCandidates(Collection<? extends PackDescriptor> candidates) {
+        synchronized (PackRegistry.class) {
+            candidatesOverride = List.copyOf(candidates);
+            cached = null;
+        }
+    }
+
+    /** Tests only: forget the cached or overridden descriptor so the next {@link #get()} resolves again. */
+    static void reset() {
+        synchronized (PackRegistry.class) {
+            cached = null;
+            candidatesOverride = null;
+        }
+    }
+}
