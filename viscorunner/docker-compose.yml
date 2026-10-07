@@ -5,6 +5,8 @@ services:
       context: .
       dockerfile: Dockerfile
       args:
+        PACK: health
+        STORE: viscostore
         BUILD_TIMESTAMP: "${BUILD_TIMESTAMP:-}"
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscorunner:latest
     ports:

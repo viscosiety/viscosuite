@@ -305,6 +305,7 @@
 						<goals><goal>unpack</goal></goals>
 						<configuration>
 							<overWriteSnapshots>true</overWriteSnapshots>
+							<overWriteReleases>true</overWriteReleases>
 							<artifactItems>
 								<artifactItem>
 									<groupId>com.visco</groupId>

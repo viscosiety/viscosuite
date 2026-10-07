@@ -102,12 +102,9 @@
 				<version>${ladybug.version}</version>
 			</dependency>
 			<!--
-				D8 class-path pins: the health WAR before the pack split mediated these through HAPI;
-				keep until a deliberate dependency review. With HAPI in the health pack (not in this WAR)
-				the core resolves them to the versions in the trailing comments, and WAR + overlay would
-				no longer be the libraries the health image always ran with (viscorunner
-				HealthClasspathIT against golden/health-webapp-libs.txt is the oracle). The pack declares
-				the same artifacts provided, so the WAR is where they are served from.
+				D8 class-path pins: the versions the image class path has always carried. Keep until a
+				deliberate dependency review; the viscorunner class-path IT is the oracle. The trailing
+				"would be" notes name the version that resolves without the pin.
 			-->
 			<dependency>
 				<groupId>com.github.ben-manes.caffeine</groupId>
