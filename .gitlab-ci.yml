@@ -75,8 +75,9 @@ variables:
 # Then viscorunner's two fast class-path ITs (HealthClasspathIT, the D8 oracle with its frozen
 # golden, and PackOverlayLayoutIT) so a Frank!Framework / ladybug / HAPI bump or a pack pom
 # change is caught on the merge request, not after the merge (the slow launcher ITs stay in
-# integration-test, main only). viscorunner's copy-dependencies and unpack resolve from .m2/,
-# not the reactor, and `verify` above does not install: hence the install first (see CLAUDE.md).
+# integration-test, main only). One `install` (tests on) both runs the three modules' tests and
+# leaves their artifacts in .m2/, which viscorunner's copy-dependencies and unpack resolve from
+# (not the reactor — see CLAUDE.md); a separate `verify` would package everything twice.
 # `verify -pl viscorunner` also runs viscorunner's unit tests (Dockerfile contract, event publisher).
 # ---------------------------------------------------------------------------
 test:
@@ -92,8 +93,7 @@ test:
     - corepack prepare pnpm@9.14.2 --activate
   tags: [docker]
   script:
-    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,packs/health,viscostore
-    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
