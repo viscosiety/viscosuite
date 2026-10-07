@@ -168,26 +168,87 @@ console session), because the UIs that need it are behind that login anyway:
 `BuildInfo` of a casting and the ROOT landing page print the pack id and
 version next to the F!F version, so an operator can tell what an image is.
 
-### 4.5 Images
+### 4.5 Images: how viscorunner builds them
 
-`viscorunner` builds from the same Tomcat base with two arguments: `PACK`
-(`health` | `core` | `public`) and `STORE` (`viscostore` | none). The pack jar
-is copied into the WAR's overlay lib directory
-(`/opt/frank/webapp-overlay/viscolink/WEB-INF/lib/`), which the context's
-`PreResources` already searches — the proven placement for jars that use F!F
-classes (a jar in `/opt/frank/drivers` or `/opt/frank/lib` sits on the wrong
-class loader and dies with `NoClassDefFoundError`). `plugins.directory` is
-left as it is.
+`viscorunner` stays the image builder and carries no domain code. It gains two
+build arguments and a Maven staging step.
 
-| Image | Contents | Tags |
-|---|---|---|
-| `viscolink` | core | `<v>-core` |
-| `viscolink` | core + health pack | `<v>` (today's meaning, kept) and `<v>-health` |
-| `viscorunner` | core + health pack + viscostore | `<v>` (today's meaning, kept) and `<v>-health` |
-| `viscolink` | core + public pack | `<v>-public` (M5) |
+**Maven staging (`viscorunner/pom.xml`).** Today it copies `viscolink.war`,
+`viscostore.war`, the drivers and the runner jar into `target/`. It also stages:
 
-CI builds the matrix from one job template; the `manifest` stage combines the
-architectures per tag as it does now.
+- `target/packs/<pack>/` — the pack jar plus its runtime dependencies (HAPI,
+  hl7util, …), and `target/packs/core/` empty. The rule that keeps this clean:
+  a pack pom marks everything the core WAR already provides (Frank!Framework,
+  Spring, Ladybug) as `provided`, so `dependency:copy-dependencies
+  -DincludeScope=runtime` yields exactly the jars the WAR lacks — no duplicate
+  classes on the webapp class path.
+- `target/demo/<pack>/` — the pack's demo configurations (the core ships one
+  echo/API adapter).
+- `target/store/viscostore/viscostore.war` or `target/store/none/` (empty).
+
+**One Dockerfile** replaces `Dockerfile`, `Dockerfile.viscolink` and
+`Dockerfile.viscostore`'s runner half (`Dockerfile.viscostore` stays for the
+standalone store image):
+
+```dockerfile
+ARG PACK=health        # health | core | public
+ARG STORE=viscostore   # viscostore | none
+# …unchanged: Tomcat base, user, catalinaAdditional.properties, the runner jar on
+# common.loader, context/server.xml, drivers, the ROOT landing page…
+COPY --chown=tomcat target/viscolink.war     /usr/local/tomcat/webapps/viscolink.war
+COPY --chown=tomcat target/packs/${PACK}/    /opt/frank/webapp-overlay/viscolink/WEB-INF/lib/
+COPY --chown=tomcat target/store/${STORE}/   /usr/local/tomcat/webapps/
+COPY --chown=tomcat target/demo/${PACK}/     /opt/frank/demo-configurations/
+# the ROOT page is stamped "Frank!Framework <v> · pack ${PACK} <version>" next to the build time
+```
+
+`COPY` cannot be conditional, hence the empty directories. The stale-stub size
+check stays for the WAR; the store check runs only when `STORE != none`.
+
+**Why the overlay lib directory.** `/opt/frank/webapp-overlay/viscolink/` is
+already a `PreResources` set of the `/viscolink` context, so jars under its
+`WEB-INF/lib/` load in the webapp class loader — the same loader as the WAR's
+own `WEB-INF/lib`. That is what a pack needs: its
+`META-INF/services/org.frankframework.components.Module` is found by the
+Frank!Framework's ServiceLoader, its Spring files by the class path, its pipes
+by the configuration digester. `/opt/frank/drivers` and `/opt/frank/lib` sit on
+Tomcat's common loader and die with `NoClassDefFoundError` on Frank!Framework
+classes (the lesson of the viscoForge jar). `plugins.directory` is left as it
+is. The core WAR stays one published artifact that no pack rebuilds, and
+viscoForge keeps layering on top of any pack image the way it does today.
+
+The alternative — one WAR per pack, a Maven `war` module per pack overlaying
+the core WAR — is standard Maven too, but multiplies published WARs and puts
+the Forge overlay on top of a pack-specific WAR. Rejected in favour of the
+overlay lib.
+
+**CI.** One job template with a matrix replaces the three hand-written image
+jobs; the amd64/arm64 builds and the `manifest` stage run per tag as today.
+
+| `PACK` | `STORE` | Image | Tags |
+|---|---|---|---|
+| health | viscostore | `viscorunner` | `<v>` (today's meaning, kept), `<v>-health` |
+| health | none | `viscolink` | `<v>` (today's meaning, kept), `<v>-health` |
+| core | none | `viscolink` | `<v>-core` |
+| public | none | `viscolink` | `<v>-public` (M5) |
+
+`viscorunner` keeps its name for the health suite only; a public-sector image
+with a store, if one is ever needed, gets its own name rather than a
+`viscorunner-public`. The standalone `viscostore` image is unchanged.
+
+**Compose files.** `docker-compose.yml` passes `PACK=health STORE=viscostore`,
+`docker-compose.viscolink.yml` passes `PACK=health STORE=none`, and a new
+`docker-compose.core.yml` passes `PACK=core STORE=none`. The Postgres
+`init-databases.sql` stays with the suite compose only.
+
+**At runtime nothing new happens.** Tomcat starts `/viscolink`, the pack's
+`Module` registers its Spring files, the core's descriptor loader finds the
+one `PackDescriptor` (or `CorePack`), Ladybug metadata and ViscoFlow labels
+follow it. Probes, the `wait-for-keycloak` gate and the portal's manifests see
+the same context paths as today. viscoFoundry picks an image by tag (its
+catalogue row), can verify it through `/pack`, and reads the pack from
+`BuildInfo`/the ROOT page; castings `FROM` the chosen image with the bake
+script unchanged.
 
 ### 4.6 Demo configurations and knowledge
 
