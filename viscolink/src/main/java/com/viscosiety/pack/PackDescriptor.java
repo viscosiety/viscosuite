@@ -42,7 +42,11 @@ public interface PackDescriptor {
     /** The identifier of the person or thing a message is about. */
     SubjectIdentifier subject();
 
-    /** Extra Frank!Console views the pack contributes. Informational in M1, applied in M2. */
+    /**
+     * Extra Frank!Console views the pack contributes. Informational: the mirror of the pack's
+     * {@code customViews.<name>.*} properties, which the pack's own {@code DeploymentSpecifics.properties}
+     * declares (see the design's section 10).
+     */
     List<ConsoleView> consoleViews();
 
     /**

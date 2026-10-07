@@ -47,7 +47,7 @@ import java.util.concurrent.ConcurrentHashMap;
  *
  * <p>F!F's {@code ServletRegisteringPostProcessor} lives in the parent "Frank EnvironmentContext"
  * and only processes beans in that context. Beans declared in module Spring files
- * (via {@code ViscoLinkModule.getSpringConfigurationFiles()}) end up in the child
+ * (via {@code HealthPackModule.getSpringConfigurationFiles()}) end up in the child
  * {@code IbisApplicationContext}, so SRPP never sees them.</p>
  *
  * <p>This registrar works around that by implementing {@link InitializingBean}: during the

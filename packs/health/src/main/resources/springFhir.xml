@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-    Loaded by ViscoLinkModule.getSpringConfigurationFiles() — merged into the F!F
+    Loaded by HealthPackModule.getSpringConfigurationFiles() — merged into the F!F
     IbisApplicationContext before the initial refresh().
 
     FhirServletRegistrar resolves the ServletContext during its InitializingBean callback and
