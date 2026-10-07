@@ -39,6 +39,14 @@ cd viscorunner && docker compose up --build
 
 Before running `docker compose up`, create `viscorunner/secrets/credentials.properties` (mounted at `/opt/frank/secrets/credentials.properties` inside the container). See `catalinaAdditional.properties` for the credential factory configuration.
 
+## Bumping Frank!Framework (or ladybug, HAPI)
+A bump changes the WAR's class path, and `HealthClasspathIT` compares it against the frozen golden `viscorunner/src/test/resources/golden/health-webapp-libs.txt` by exact jar name. CI's `test` job runs that IT (and `PackOverlayLayoutIT`) on every merge request, so a bump MR is red until the golden is updated by hand:
+
+1. Change the version in lock-step, everywhere it is declared: `frankframework.version` in the root `pom.xml`, `viscolink/pom.xml` and `packs/health/pom.xml`; `ladybug.version` in `viscolink/pom.xml` and `packs/health/pom.xml`; for HAPI, `hapi.version` in `packs/health/pom.xml` (the pack's HAPI jars are in the golden; the root `hapi.version` and viscostore's HAPI parent are the store's own pin and do not touch it). The pack's `provided` jars must be the exact versions the WAR ships.
+2. See the diff: `./mvnw -q clean install -pl viscolink,packs/health -DskipTests && ./mvnw -q verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT` (viscostore must be in `.m2/` too, `install` it as well if it is not). The assertion prints the golden and the actual jar set (and names any jar that is in both the WAR and the overlay); compare them.
+3. Edit the golden BY HAND, only the lines the bump legitimately changes (version strings, a transitive that appeared or went away); never regenerate it, a bump IS a deliberate class-path change and is reviewed line by line. Name those lines in the MR description, then re-run step 2 until green.
+4. Refresh `FrankConfig.xsd` (three copies) with `viscorunner/scripts/update-frankconfig-xsd.sh`.
+
 ## Architecture
 
 This is a Maven multi-module project for an integration platform whose first market is healthcare (HL7v2 and FHIR): a market-neutral core (`viscolink`) with the healthcare specifics as a pack (`packs/health`). The modules are built in reactor order: `viscolink` → `packs/health` (with `packs/health/util/hl7util`) → `viscostore` → `viscorunner`.
