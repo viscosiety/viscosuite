@@ -95,11 +95,26 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
 
     @Override
     public void afterPropertiesSet() {
-        // Resolve the vertical pack now, outside every catch below: a malformed or duplicate pack must
-        // abort the context start, not surface on the first non-core request (the per-request read in
-        // isFrankOwnedPath only hits the cache).
-        PackRegistry.get();
+        // Resolve the vertical pack now: a malformed or duplicate pack must abort the context start, not
+        // surface on the first non-core request. But the abort comes last. The tool filter is registered
+        // first, so that if the failed bean does not take the WAR down, every tool request still reaches
+        // the filter, whose per-request pack read (isFrankOwnedPath) throws again and answers 500: closed
+        // and visibly unhealthy, never open. A good pack is cached by this call, so the read there is free.
+        IllegalStateException badPack = null;
+        try {
+            PackRegistry.get();
+        } catch (IllegalStateException e) {
+            badPack = e;
+        }
 
+        registerToolSecurity();
+
+        if (badPack != null) {
+            throw badPack;
+        }
+    }
+
+    private void registerToolSecurity() {
         ServletContext servletContext = findServletContext(applicationContext);
         ApplicationContext parentCtx = applicationContext.getParent();
         if (servletContext == null || parentCtx == null) {
