@@ -44,9 +44,9 @@ To start blank instead (your own configurations, no demo traffic), see
 viscosuite/
 ├── viscolink/               Frank!Framework integration middleware
 ├── viscostore/              HAPI FHIR JPA Server (persistent FHIR storage + MCP)
+├── packs/health/            healthcare pack: pipes, defaults, working reference configurations (see below)
 └── viscorunner/             Docker packaging and configuration hub
     ├── configurations/          empty scaffold — mount your own integrations here
-    ├── demo-configurations/     working reference configurations (see below)
     ├── docker-compose.yml       base service definitions
     └── docker-compose.demo.yml  demo overlay (demo configurations + traffic generator)
 ```
@@ -135,7 +135,7 @@ transformation step by step, and auditing routing decisions are first-class oper
 
 The demo overlay ships working F!F configurations — use them as starting points, study them
 as patterns, or run them as-is. They follow explicit
-[configuration conventions](viscorunner/demo-configurations/README.md).
+[configuration conventions](packs/health/demo-configurations/README.md).
 
 | Configuration | What it shows |
 |---|---|

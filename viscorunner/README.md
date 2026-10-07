@@ -23,7 +23,7 @@ docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
 ```
 
 The demo overlay:
-- Mounts `demo-configurations/` as the Frank!Framework configuration directory with auto-discovery enabled, so all reference configurations load without manual setup.
+- Mounts `../packs/health/demo-configurations/` as the Frank!Framework configuration directory with auto-discovery enabled, so all reference configurations load without manual setup.
 - Replaces the base Tomcat context with `demo-conf/context.xml`, which adds the `jdbc/fake-emr` JNDI datasource.
 - Starts a RabbitMQ instance and wires it to ViscoLink via the AMQP event bus (`amqp.events.active=true`).
 - Mounts `demo-tools/` at `/opt/frank/webapp-overlay/viscolink/demo-tools/` so the browser tools are served without a WAR rebuild.
@@ -136,9 +136,12 @@ demo-tools/                 Browser tools served at /viscolink/demo-tools/ in de
 │                           (test-client.html, loinc-mapping-ui.html)
 configurations/             Mount point for user-created F!F configurations
 │                           Empty by default; contains FrankConfig.xsd for IDE support
-demo-configurations/        Reference F!F configurations:
+../packs/health/demo-configurations/
+│                           Reference F!F configurations (they live with the health pack):
 │                           hl7v2-to-fhir, hl7v2-to-xml, fhir-to-fhir,
 │                           fhir-store-proxy, loinc-mapping-api, fake-emr
+../viscolink/demo-configurations/
+│                           The core's neutral echo demo
 postgres/                   PostgreSQL init scripts (database + schema setup)
 scripts/                    Developer utilities (see below)
 secrets/                    Runtime credentials (gitignored; copy from .example)
@@ -149,13 +152,13 @@ src/scripts/                Build-time scripts baked into the Docker image (entr
 
 ## Updating FrankConfig.xsd
 
-The `FrankConfig.xsd` files in `configurations/` and `demo-configurations/` are used by IDEs to validate and autocomplete Frank!Framework XML. When the F!F version is bumped in `viscolink/pom.xml`, regenerate them:
+The `FrankConfig.xsd` files in `configurations/`, `../packs/health/demo-configurations/` and `../viscolink/demo-configurations/` are used by IDEs to validate and autocomplete Frank!Framework XML. When the F!F version is bumped in `viscolink/pom.xml`, regenerate them:
 
 ```bash
 ./scripts/update-frankconfig-xsd.sh
 ```
 
-The script reads the version from `viscolink/pom.xml`, downloads the matching `frankframework-core` JAR via Maven, and extracts the XSD into both directories.
+The script reads the version from `viscolink/pom.xml`, downloads the matching `frankframework-core` JAR via Maven, and extracts the XSD into all three directories.
 
 ---
 

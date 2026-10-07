@@ -32,17 +32,18 @@ class HealthDefaultsTest {
 
     /**
      * The pack's test class path holds TWO files named DeploymentSpecifics.properties: the pack's own
-     * (target/classes, a file: URL) and the core's (inside viscolink-...-classes.jar, a jar: URL).
-     * getResourceAsStream would return the pack's; enumerate both and tell them apart by protocol.
-     * (If surefire ever runs the pack's classes from a jar instead of target/classes, tell the copies
-     * apart by the URL path containing viscolink-pack-health instead.)
+     * and the core's. getResourceAsStream would return the pack's; enumerate both and tell them apart by
+     * where they come from: the pack's copy lives under the location the pack's own classes were loaded
+     * from (target/classes or the pack jar), the core's under whatever else the core resolves to
+     * (viscolink-...-classes.jar, or viscolink/target/classes in a reactor-only run).
      */
     private static Properties load(boolean pack) throws Exception {
+        String packLocation = HealthPack.class.getProtectionDomain().getCodeSource().getLocation().toString();
         Enumeration<URL> all = HealthDefaultsTest.class.getClassLoader().getResources("DeploymentSpecifics.properties");
         Properties found = null;
         while (all.hasMoreElements()) {
             URL url = all.nextElement();
-            boolean isPack = "file".equals(url.getProtocol());
+            boolean isPack = url.toString().startsWith(packLocation) || url.toString().startsWith("jar:" + packLocation);
             if (isPack != pack) {
                 continue;
             }

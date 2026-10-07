@@ -29,8 +29,10 @@ import com.viscosiety.pack.SubjectIdentifier;
  * wiring, ViscoFlow and the console security registrar used to hardcode, so a health image behaves
  * exactly as before.
  *
- * <p>{@link #consoleViews()} is empty on purpose: {@code DeploymentSpecifics.properties}
- * declares only {@code customViews.names=viscoLink}, which belongs to the core; ViscoFlow is a
+ * <p>{@link #consoleViews()} is empty on purpose: the core's {@code DeploymentSpecifics.properties}
+ * declares {@code customViews.names=viscoLink,${pack.customViews.names:-}}, the indirection a pack
+ * would use to append console views of its own, and this pack's own
+ * {@code DeploymentSpecifics.properties} sets no {@code pack.customViews.names}. ViscoFlow is a
  * {@code viscolink.views.*} landing-page entry, not a console custom view. The FHIR console block
  * is a script this pack's build injects into the console page served from the overlay, not a
  * {@code customViews.*} entry, so there is no health-specific view to carry over.</p>

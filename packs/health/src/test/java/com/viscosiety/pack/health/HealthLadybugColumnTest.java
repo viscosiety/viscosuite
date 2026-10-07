@@ -46,7 +46,8 @@ class HealthLadybugColumnTest {
     @Test
     void anExistingHealthDatabaseKeepsItsColumnThroughTheMarkRanPrecondition() throws Exception {
         // Health databases got the column from the core's old LadybugCustom:2; re-adding it would fail the start-up.
-        assertTrue(Pattern.compile("(?s)<preConditions onFail=\"MARK_RAN\">.*?<columnExists tableName=\"LADYBUG\" columnName=\"patientid\"/>.*?</preConditions>")
+        // The precondition must be NEGATED: MARK_RAN when the column already exists, not when it is missing.
+        assertTrue(Pattern.compile("(?s)<preConditions onFail=\"MARK_RAN\">.*?<not>\\s*<columnExists tableName=\"LADYBUG\" columnName=\"patientid\"/>\\s*</not>.*?</preConditions>")
                 .matcher(changelog()).find());
     }
 }

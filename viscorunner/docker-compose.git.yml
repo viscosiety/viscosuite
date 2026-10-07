@@ -7,10 +7,10 @@
 # JNDI datasource, resources.yml, the HAPI overlay, demo credentials) but switches
 # Frank!Framework configuration loading from the filesystem mount to the GitClassLoader:
 # the six reference configurations are cloned from GitLab at startup instead of read
-# from ./demo-configurations.
+# from ../packs/health/demo-configurations.
 #
 # This is a TEMPORARY overlay to exercise git-based configuration delivery. The demo
-# overlay still bind-mounts ./demo-configurations at /opt/frank/configurations; disabling
+# overlay still bind-mounts ../packs/health/demo-configurations at /opt/frank/configurations; disabling
 # filesystem auto-discovery (below) makes Frank!Framework ignore that mount entirely.
 #
 # Requires viscorunner/.env (gitignored) with:
@@ -20,7 +20,7 @@ services:
   viscorunner:
     environment:
       # Turn off filesystem auto-discovery. With autoLoad=false, Frank!Framework no longer
-      # scans /opt/frank/configurations (the demo-configurations mount, inherited from the
+      # scans /opt/frank/configurations (the packs/health/demo-configurations mount, inherited from the
       # demo overlay, is left in place but unused) — configurations come from git only.
       configurations.directory.autoLoad: "false"
 
