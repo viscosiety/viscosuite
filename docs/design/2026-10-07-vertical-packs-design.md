@@ -421,6 +421,14 @@ live properties, not once at JVM start.
   its `customViews.<name>.*`. Run: with the pack the console list is
   `viscoLink,fhir`; without one it is `viscoLink,`, and the empty name is skipped
   by the frontend (it needs name and url).
+- **Caveat: deployers set `customViews.names` themselves.** The environment beats
+  every file (see the property chain above), and `viscorunner/docker-compose.yml`,
+  viscoFoundry's manifest renderer and its casting bundle all set
+  `customViews.names` through the environment or a property of their own. In such a
+  deployment the core file's `viscoLink,${pack.customViews.names:-}` is never
+  consulted, so a pack's views would not show. M2 must either change those
+  deployers (each lists the names it wants, pack views included) or choose a
+  different mechanism.
 
 **Startup hooks.** `org.frankframework.components.Module` has two default methods,
 `getModuleInformation()` and `getSpringConfigurationFiles()`: no property hook.
@@ -466,6 +474,14 @@ when viscolink is built, before any pack jar is known.
   the console-session endpoint and appends `<script>` tags for the scripts the
   descriptor lists (a `consoleScripts` field, new in M2). (b) keeps a pack jar
   drop-in and the pom patch unchanged; it needs a live check in the console.
+
+**Rollout of `servlet.pack.*`.** `PackServlet` answers only with
+`servlet.pack.authenticator` and `servlet.pack.securityRoles` set (§4.4). viscoFoundry's
+manifest renderer will render them in M4 the way it renders `servlet.configRef.*` today:
+a new instance gets them at creation, and an instance created earlier only at its next
+stop/resume, when the renderer runs again. Until then
+`/api-service/pack` answers 401 to everyone, because the servlet fails closed without
+its roles. ViscoFlow's `/flow-api/pack` needs no setting and works at once.
 
 Remaining open question:
 

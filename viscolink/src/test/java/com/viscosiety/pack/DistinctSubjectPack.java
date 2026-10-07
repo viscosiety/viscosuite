@@ -20,42 +20,37 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.viscosiety.components.ViscoLinkModule;
-
 /**
- * The healthcare pack. It lives inside the viscolink module for now; the values are the ones
- * the Ladybug wiring, ViscoFlow and the console security registrar used to hardcode, so a
- * health image behaves exactly as before.
- *
- * <p>{@link #consoleViews()} is empty on purpose in M1: {@code DeploymentSpecifics.properties}
- * declares only {@code customViews.names=viscoLink}, which belongs to the core; ViscoFlow is a
- * {@code viscolink.views.*} landing-page entry, not a console custom view. The FHIR webservices
- * block is a script injected into the console's {@code index.html}, not a {@code customViews.*}
- * entry, so there is no health-specific view to carry over yet.</p>
+ * A descriptor whose four subject fields all differ, unlike the health and core packs, which use the
+ * same value for {@code sessionKey} and {@code metadataName}. A consumer that reads the wrong field
+ * (or the right one for the wrong purpose) passes against either shipped pack and fails against this
+ * one. Open for subclassing so a test can vary one more thing.
  */
-public final class HealthPack implements PackDescriptor {
+public class DistinctSubjectPack implements PackDescriptor {
 
-    private static final SubjectIdentifier SUBJECT =
-            new SubjectIdentifier("patientId", "patientId", "PatientId", "Patient", Optional.empty());
+    public static final String SESSION_KEY = "sk";
+    public static final String METADATA_NAME = "mn";
+    public static final String METADATA_LABEL = "ML";
+    public static final String DISPLAY_LABEL = "DL";
 
     @Override
     public String id() {
-        return "health";
+        return "distinct";
     }
 
     @Override
     public String displayName() {
-        return "Healthcare";
+        return "Distinct";
     }
 
     @Override
     public String version() {
-        return ViscoLinkModule.IMPLEMENTATION_VERSION;
+        return "1";
     }
 
     @Override
     public SubjectIdentifier subject() {
-        return SUBJECT;
+        return new SubjectIdentifier(SESSION_KEY, METADATA_NAME, METADATA_LABEL, DISPLAY_LABEL, Optional.empty());
     }
 
     @Override
@@ -65,8 +60,7 @@ public final class HealthPack implements PackDescriptor {
 
     @Override
     public List<String> frankOwnedPaths() {
-        // The FHIR facade servlets answer on /fhir/ and authenticate themselves.
-        return List.of("/fhir/");
+        return List.of();
     }
 
     @Override
@@ -76,6 +70,6 @@ public final class HealthPack implements PackDescriptor {
 
     @Override
     public List<String> deidentificationStrategyIds() {
-        return List.of("fhir-patient", "hl7v2");
+        return List.of();
     }
 }

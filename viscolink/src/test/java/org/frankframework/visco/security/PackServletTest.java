@@ -186,8 +186,8 @@ class PackServletTest {
 	}
 
 	@Test
-	void everyOtherMethodIs405() throws Exception {
-		// The base class overrides GET only; HttpServlet's own defaults must answer the rest.
+	void putPostDeleteAre405() throws Exception {
+		// The base class declares no doGet and PackServlet overrides GET only, so HttpServlet's own defaults answer the rest.
 		// A real PUT/POST/DELETE reaches those through service(), which reads the method and protocol.
 		lenient().when(request.getProtocol()).thenReturn("HTTP/1.1");
 		for (String method : List.of("PUT", "POST", "DELETE")) {

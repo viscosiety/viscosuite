@@ -34,6 +34,7 @@ import java.util.Map;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.viscosiety.pack.CorePack;
+import com.viscosiety.pack.DistinctSubjectPack;
 import com.viscosiety.pack.HealthPack;
 import com.viscosiety.pack.PackJson;
 import com.viscosiety.pack.PackRegistryTestSupport;
@@ -93,6 +94,9 @@ class FlowControllerPackTest {
         controller.doGet(request("/pack", ""), response);
 
         verify(response).setContentType("application/json");
+        verify(response).setCharacterEncoding("UTF-8");
+        // Same rule as /api-service/pack: an authenticated answer must not outlive the caller's session in a cache.
+        verify(response).setHeader("Cache-Control", "no-store");
         JsonNode body = JSON.readTree(responseBody.toString());
         assertEquals("health", body.path("id").asText());
         assertEquals("patientId", body.path("subject").path("metadataName").asText());
@@ -111,6 +115,18 @@ class FlowControllerPackTest {
         JsonNode body = JSON.readTree(responseBody.toString());
         assertEquals("core", body.path("id").asText());
         assertEquals("Subject", body.path("subject").path("label").asText());
+    }
+
+    @Test
+    void packEndpointServesTheMetadataNameUnderItsOwnKey() throws Exception {
+        PackRegistryTestSupport.override(new DistinctSubjectPack());
+
+        controller.doGet(request("/pack", ""), response);
+
+        JsonNode subject = JSON.readTree(responseBody.toString()).path("subject");
+        assertEquals("sk", subject.path("sessionKey").asText());
+        assertEquals("mn", subject.path("metadataName").asText());
+        assertEquals("DL", subject.path("label").asText());
     }
 
     @Test
@@ -141,6 +157,32 @@ class FlowControllerPackTest {
 
         assertEquals(1, ladybugUrls.size());
         assertTrue(ladybugUrls.get(0).contains("&filter=new&"), ladybugUrls.get(0));
+    }
+
+    @Test
+    void theFilterHeaderIsTheMetadataNameNotTheSessionKey() throws Exception {
+        // The shipped packs use one value for both, so only a pack that tells them apart can show which one
+        // Ladybug is asked to filter on (Ladybug filters on a metadata column, not on a session key).
+        PackRegistryTestSupport.override(new DistinctSubjectPack());
+
+        controller.doGet(request("/traces", "subjectFilter=x&flowFilter=f"), response);
+
+        assertEquals(1, ladybugUrls.size());
+        assertTrue(ladybugUrls.get(0).contains("?filterHeader=mn&filter=x&"), ladybugUrls.get(0));
+    }
+
+    @Test
+    void theCombinedQueryPassesTheMetadataNamesThroughUnchanged() throws Exception {
+        // The page sends the view's column list; the controller must not add, drop or reorder names, and
+        // must not substitute the pack's subject for the "patientId" entry (D8: the health query is as before).
+        PackRegistryTestSupport.override(new HealthPack());
+
+        controller.doGet(request("/traces", "subjectFilter=x&flowFilter=f"
+                + "&metadataNames=storageId&metadataNames=patientId&metadataNames=flow"), response);
+
+        assertEquals(List.of("http://localhost:8080/viscolink/iaf/ladybug/api/metadata/DatabaseDebugStorage"
+                + "?filterHeader=patientId&filter=x&limit=200&offset=0"
+                + "&metadataNames=storageId&metadataNames=patientId&metadataNames=flow"), ladybugUrls);
     }
 
     @Test

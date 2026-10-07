@@ -17,6 +17,7 @@ package com.viscosiety.pack;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -110,6 +111,25 @@ class LadybugWiringTest {
                 namesBean("metadataNames"));
         assertEquals(withSubject(SHAREABLE_METADATA_NAMES, SHAREABLE_SUBJECT_INDEX, "subjectId"),
                 namesBean("shareableViewMetadataNames"));
+    }
+
+    @Test
+    void eachSubjectFieldReachesItsOwnPlaceInTheXml() {
+        // The shipped packs use one value for sessionKey and metadataName, so only distinct values show
+        // that the SpEL entries take the metadata name and the bean takes name, label and session key.
+        PackRegistry.override(new DistinctSubjectPack());
+        loadVisco();
+
+        MetadataExtractor extractor = context.getBean("metadataExtractor", MetadataExtractor.class);
+        assertExtractors(extractor, "mn", "ML");
+        assertEquals(withSubject(DEFAULT_METADATA_NAMES, DEFAULT_SUBJECT_INDEX, "mn"), namesBean("metadataNames"));
+        assertEquals(withSubject(SHAREABLE_METADATA_NAMES, SHAREABLE_SUBJECT_INDEX, "mn"),
+                namesBean("shareableViewMetadataNames"));
+
+        MetadataFieldExtractor subject = extractor.extraMetadataFieldExtractors.get(EXTRACTOR_SUBJECT_INDEX);
+        assertEquals("S-1", subject.extractMetadata(SubjectMetadataFieldExtractorTest.reportWithSessionKey("sk", "S-1")),
+                "the bean reads the pack's sessionKey");
+        assertNull(subject.extractMetadata(SubjectMetadataFieldExtractorTest.reportWithSessionKey("mn", "S-1")));
     }
 
     private void assertExtractors(MetadataExtractor extractor, String subjectName, String subjectLabel) {

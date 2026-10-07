@@ -180,6 +180,7 @@ public class FlowController extends HttpServlet {
             // The descriptor ViscoFlow's page needs before its first traces call (subject key and label).
             resp.setContentType("application/json");
             resp.setCharacterEncoding("UTF-8");
+            resp.setHeader("Cache-Control", "no-store");
             resp.getWriter().write(PackJson.of(PackRegistry.get()));
             return;
         }

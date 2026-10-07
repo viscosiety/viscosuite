@@ -17,6 +17,7 @@
 package com.viscosiety.pack;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.ArrayList;
@@ -88,6 +89,35 @@ class PackJsonTest {
         assertEquals("SubjectId", subject.get("metadataLabel").asText());
         assertEquals("Subject", subject.get("label").asText());
         assertTrue(subject.get("format").isNull());
+    }
+
+    @Test
+    void eachSubjectFieldIsRenderedUnderItsOwnKey() throws Exception {
+        // The shipped packs use one value for sessionKey and metadataName, so a swapped pair of keys
+        // would go unnoticed against them; with four different values each key must carry its own.
+        JsonNode subject = parse(new DistinctSubjectPack()).get("subject");
+        assertEquals("sk", subject.get("sessionKey").asText());
+        assertEquals("mn", subject.get("metadataName").asText());
+        assertEquals("ML", subject.get("metadataLabel").asText());
+        assertEquals("DL", subject.get("label").asText());
+    }
+
+    @Test
+    void propertyDefaultsAreNeverSerialised() throws Exception {
+        PackDescriptor withDefaults = new DistinctSubjectPack() {
+            @Override
+            public Map<String, String> propertyDefaults() {
+                return Map.of("pack.secret.key", "pack-secret-value");
+            }
+        };
+
+        String json = PackJson.of(withDefaults);
+
+        assertFalse(json.contains("pack.secret.key"), json);
+        assertFalse(json.contains("pack-secret-value"), json);
+        assertFalse(json.contains("propertyDefaults"), json);
+        assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
+                "frankOwnedPaths", "deidentificationStrategyIds"), keys(MAPPER.readTree(json)));
     }
 
     @Test

@@ -341,6 +341,7 @@ async function loadDetail(id) {
 
 // ── Detail render ─────────────────────────────────────────────────────────────
 function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
+  if (subject == null) { showDetail('<div class="err-msg">The pack descriptor is not loaded.</div>', ''); return; }  // hash changed while getPack() was in flight, or it failed
   const { rows, sessionMeta } = processCheckpoints(report.checkpoints ?? [], sessionMetaKeys(subject));
   _rows        = rows;
   _exitStateMap = exitStateMap;

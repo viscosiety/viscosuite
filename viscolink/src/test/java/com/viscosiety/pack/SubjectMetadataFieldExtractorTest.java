@@ -60,6 +60,23 @@ class SubjectMetadataFieldExtractorTest {
     }
 
     @Test
+    void eachSubjectFieldLandsInItsOwnPlace() {
+        // The shipped packs use one value for sessionKey and metadataName, so only distinct values prove
+        // which field feeds which part of the extractor.
+        PackRegistry.override(new DistinctSubjectPack());
+
+        SubjectMetadataFieldExtractor extractor = new SubjectMetadataFieldExtractor();
+
+        assertEquals("mn", extractor.getName(), "the column name is the pack's metadataName");
+        assertEquals("ML", extractor.getLabel(), "the column label is the pack's metadataLabel, not its displayLabel");
+        assertEquals("S-1", extractor.extractMetadata(reportWithSessionKey("sk", "S-1")),
+                "the value is read from the session key named by the pack's sessionKey");
+        assertNull(extractor.extractMetadata(reportWithSessionKey("mn", "S-1")), "not from the metadata name");
+        assertNull(extractor.extractMetadata(reportWithSessionKey("ML", "S-1")), "not from the metadata label");
+        assertNull(extractor.extractMetadata(reportWithSessionKey("DL", "S-1")), "not from the display label");
+    }
+
+    @Test
     void theSubjectIsFixedWhenTheExtractorIsConstructed() {
         PackRegistry.override(new HealthPack());
         SubjectMetadataFieldExtractor first = new SubjectMetadataFieldExtractor();
@@ -71,7 +88,7 @@ class SubjectMetadataFieldExtractorTest {
     }
 
     /** A report whose only checkpoint is the one Ladybug records for a pipeline session key. */
-    private static Report reportWithSessionKey(String key, String value) {
+    static Report reportWithSessionKey(String key, String value) {
         Checkpoint checkpoint = mock(Checkpoint.class);
         when(checkpoint.getName()).thenReturn("SessionKey " + key);
         when(checkpoint.getMessage()).thenReturn(value);
