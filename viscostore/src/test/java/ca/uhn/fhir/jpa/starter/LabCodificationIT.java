@@ -87,7 +87,7 @@ class LabCodificationIT {
         "http://terminology.hl7.org/CodeSystem/v3-NullFlavor";
 
     // -------------------------------------------------------------------------
-    // FML source — mirrors util/demo/fixtures/codification/InboundLabObservation-to-Observation.map
+    // FML source — mirrors packs/health/util/demo/fixtures/codification/InboundLabObservation-to-Observation.map
     // -------------------------------------------------------------------------
 
     private static final String FML_MAP = """

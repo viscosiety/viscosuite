@@ -1,6 +1,6 @@
 # ViscoRunner
 
-Docker packaging module for ViscoSuite. Assembles both WAR files into a single Tomcat image and provides two ready-to-run Docker Compose configurations.
+Docker packaging module for ViscoSuite. Assembles the ViscoLink WAR, a vertical pack and (optionally) the ViscoStore WAR into Tomcat images, all from one `Dockerfile`, and provides ready-to-run Docker Compose configurations for each variant.
 
 ## Prerequisites
 
@@ -11,6 +11,39 @@ Docker packaging module for ViscoSuite. Assembles both WAR files into a single T
 **To run the schema update script** (`scripts/update-frankconfig-xsd.sh`):
 
 - `mvn` (Maven 3.9+) — the script calls `mvn` directly to download artifacts from Maven Central. Install via [maven.apache.org](https://maven.apache.org/download.cgi) or a package manager (`brew install maven`, `apt-get install maven`).
+
+---
+
+## Images and compose files
+
+One `Dockerfile` builds every image. Two build arguments choose the variant:
+
+| Argument | Values | Meaning |
+|---|---|---|
+| `PACK` | `health` (default), `core` | The vertical pack laid over the ViscoLink WAR: its libraries, console patch, demo configurations and identity. `core` is no pack at all: an empty overlay. |
+| `STORE` | `viscostore` (default), `none` | Whether the ViscoStore WAR, and the `jdbc/viscostore` datasource, are part of the image. |
+
+The Maven build stages what the `Dockerfile` copies: `target/packs/<pack>/` (the unpacked pack overlay, copied to `/opt/frank/webapp-overlay/viscolink/`), `target/demo/<pack>/` (the pack's demo configurations, baked into `/opt/frank/demo-configurations/` and never loaded unless mounted over `/opt/frank/configurations`) and `target/store/<store>/` (the ViscoStore WAR, or nothing). The Tomcat context file is `conf/context-<store>.xml`. At build time the pack's `WEB-INF/pack.properties` (id, display name, version, tagline, link blurb) stamps the landing page.
+
+| Compose file | `PACK` | `STORE` | Stack |
+|---|---|---|---|
+| `docker-compose.yml` | `health` | `viscostore` | The suite: ViscoLink + ViscoStore + PostgreSQL (the `viscorunner` image) |
+| `docker-compose.viscolink.yml` | `health` | `none` | ViscoLink with the health pack, no store (the `viscolink` image) |
+| `docker-compose.core.yml` | `core` | `none` | The core: no pack, no store, no FHIR (`viscolink:latest-core`) |
+
+The other compose files are overlays or single-purpose stacks: `docker-compose.demo.yml` (Mode 1, layered on the suite), `docker-compose.debug.yml` and `docker-compose.viscolink.debug.yml` (JPDA on `5005`), `docker-compose.git.yml` (git-sourced configurations, layered on the demo) and `docker-compose.viscostore.yml` (the standalone ViscoStore image). All three stacks above mount `secrets/credentials.properties` (see Mode 2).
+
+```bash
+docker compose up --build                                  # the suite
+docker compose -f docker-compose.viscolink.yml up --build  # health pack, no store
+docker compose -f docker-compose.core.yml up --build       # the core
+```
+
+The core's demo is a one-adapter echo: mount `../viscolink/demo-configurations` over `/opt/frank/configurations` (or copy `echo/` into your own configuration directory) and `POST /viscolink/api/echo?subjectId=SUBJ-001`; Ladybug and ViscoFlow show the id in the Subject column.
+
+**Databases.** The suite's PostgreSQL runs everything in `postgres/` as init scripts; `init-databases.sql` creates `viscolink`, `viscostore` and `ladybug`. The two store-less stacks create only `viscolink` (through `POSTGRES_DB`) and mount `postgres/init-ladybug.sql` for Ladybug's own database; without a `ladybug` database the context never starts. That file is idempotent (`\gexec` creates the database only when it is missing), so it is harmless in the suite, where both files run.
+
+**Gotcha.** The suite compose names its PostgreSQL container `postgres`. A stopped container with that name left from an earlier run makes `docker compose up` fail on the name conflict; remove it (`docker rm postgres`) first.
 
 ---
 
@@ -119,14 +152,15 @@ docker compose up --build
 
 ### Adding a JNDI datasource
 
-Add a `<Resource>` entry to `conf/context.xml` and restart the container. The base context already provides `jdbc/viscolink` and `jdbc/viscostore`.
+Add a `<Resource>` entry to `conf/context-viscostore.xml` (the suite) or `conf/context-none.xml` (store-less images) and rebuild (`docker compose up --build`), or mount your own file over `/usr/local/tomcat/conf/context.xml` as the demo overlay does. `context-viscostore.xml` provides `jdbc/viscolink`, `jdbc/ladybug` and `jdbc/viscostore`; `context-none.xml` the first two.
 
 ---
 
 ## Directory layout
 
 ```
-conf/                       Base Tomcat context — JNDI datasources for viscolink and viscostore
+conf/                       Tomcat context files context-viscostore.xml and context-none.xml (picked by STORE),
+│                           server.xml, and the /viscolink PreResources overlay definition
 demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
 demo-hapi-overlay/          Spring Boot config overlay for ViscoStore in demo mode
 demo-rabbitmq/              RabbitMQ config and exchange/queue definitions for demo mode
@@ -142,7 +176,8 @@ configurations/             Mount point for user-created F!F configurations
 │                           fhir-store-proxy, loinc-mapping-api, fake-emr
 ../viscolink/demo-configurations/
 │                           The core's neutral echo demo
-postgres/                   PostgreSQL init scripts (database + schema setup)
+postgres/                   PostgreSQL init scripts (database + schema setup; init-ladybug.sql for the store-less stacks)
+src/packs/core/             The core pack's identity (WEB-INF/pack.properties); the health pack's lives in packs/health
 scripts/                    Developer utilities (see below)
 secrets/                    Runtime credentials (gitignored; copy from .example)
 src/scripts/                Build-time scripts baked into the Docker image (entrypoint, Tomcat settings)

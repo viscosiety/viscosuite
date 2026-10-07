@@ -4,8 +4,8 @@
         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
         xsi:noNamespaceSchemaLocation="../FrankConfig.xsd">
     <!-- The core's neutral demo: POST /viscolink/api/echo?subjectId=... echoes the body and records the
-         subject identifier the way every pack's demo does (session key = the pack's sessionKey; on the
-         core that is subjectId, which Ladybug shows as the Subject column and ViscoFlow filters on). -->
+         subject identifier in the session under the key Ladybug's Subject column reads (on the core that
+         is subjectId, which ViscoFlow also filters on). -->
     <Adapter name="Echo" description="Echoes the request body; records the subject identifier">
         <Receiver name="EchoReceiver">
             <ApiListener name="EchoListener" uriPattern="echo" method="POST" allowedParameters="subjectId"/>

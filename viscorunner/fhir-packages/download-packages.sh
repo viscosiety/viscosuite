@@ -1,8 +1,9 @@
 #!/bin/sh
 # Downloads the FHIR NPM packages the nl-core intake validates against.
 # Versions are pinned; both packages are published by Nictiz under CC0-1.0.
-# The .tgz files are gitignored — run this script after cloning (CI and the
-# runner image build run it too).
+# The .tgz files are gitignored — run this script after cloning. Only the demo
+# compose runs it for you (its fhir-packages init service); CI and the image
+# build do not.
 set -eu
 cd "$(dirname "$0")"
 

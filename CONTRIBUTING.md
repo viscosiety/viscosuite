@@ -19,7 +19,7 @@ GitHub through the mirror — your authorship is preserved in the commit history
   they follow explicit conventions
   (see `packs/health/demo-configurations/README.md`).
 - **Add or improve pipes** — healthcare-specific F!F pipes live in
-  `viscolink/src/main/java/com/viscosiety/pipes/`. Generic (non-healthcare)
+  `packs/health/src/main/java/com/viscosiety/pipes/`. Generic (non-healthcare)
   framework improvements belong upstream in the
   [Frank!Framework](https://github.com/frankframework/frankframework) — we are
   happy to help you route them.
