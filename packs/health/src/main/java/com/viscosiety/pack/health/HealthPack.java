@@ -14,24 +14,27 @@
  * limitations under the License.
  */
 
-package com.viscosiety.pack;
+package com.viscosiety.pack.health;
 
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
-import com.viscosiety.components.ViscoLinkModule;
+import com.viscosiety.pack.ConsoleView;
+import com.viscosiety.pack.PackDescriptor;
+import com.viscosiety.pack.SubjectIdentifier;
 
 /**
- * The healthcare pack. It lives inside the viscolink module for now; the values are the ones
- * the Ladybug wiring, ViscoFlow and the console security registrar used to hardcode, so a
- * health image behaves exactly as before.
+ * The healthcare pack. It is registered through this module's own
+ * {@code META-INF/services/com.viscosiety.pack.PackDescriptor}; the values are the ones the Ladybug
+ * wiring, ViscoFlow and the console security registrar used to hardcode, so a health image behaves
+ * exactly as before.
  *
- * <p>{@link #consoleViews()} is empty on purpose in M1: {@code DeploymentSpecifics.properties}
+ * <p>{@link #consoleViews()} is empty on purpose: {@code DeploymentSpecifics.properties}
  * declares only {@code customViews.names=viscoLink}, which belongs to the core; ViscoFlow is a
  * {@code viscolink.views.*} landing-page entry, not a console custom view. The FHIR webservices
- * block is a script injected into the console's {@code index.html}, not a {@code customViews.*}
- * entry, so there is no health-specific view to carry over yet.</p>
+ * block is a script injected into the console's {@code index.html} by this pack's build (Task 3),
+ * not a {@code customViews.*} entry, so there is no health-specific view to carry over yet.</p>
  */
 public final class HealthPack implements PackDescriptor {
 
@@ -50,7 +53,7 @@ public final class HealthPack implements PackDescriptor {
 
     @Override
     public String version() {
-        return ViscoLinkModule.IMPLEMENTATION_VERSION;
+        return PackVersion.get();
     }
 
     @Override

@@ -16,6 +16,7 @@
 
 package com.viscosiety.pack;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -87,8 +88,9 @@ class PackRegistryTest {
     }
 
     @Test
-    void getResolvesTheHealthPackFromTheServicesFile() {
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+    void getResolvesTheCorePackWhenNoPackIsOnTheClassPath() {
+        assertInstanceOf(CorePack.class, PackRegistry.get());
+        assertEquals("core", PackRegistry.get().id());
     }
 
     @Test
@@ -105,7 +107,7 @@ class PackRegistryTest {
         assertInstanceOf(CorePack.class, PackRegistry.get());
 
         PackRegistry.reset();
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+        assertInstanceOf(CorePack.class, PackRegistry.get());
     }
 
     @Test
@@ -115,7 +117,7 @@ class PackRegistryTest {
         assertSame(stub, PackRegistry.get());
 
         PackRegistry.reset();
-        assertInstanceOf(HealthPack.class, PackRegistry.get());
+        assertInstanceOf(CorePack.class, PackRegistry.get());
     }
 
     /** A candidate that is neither of the shipped packs. */

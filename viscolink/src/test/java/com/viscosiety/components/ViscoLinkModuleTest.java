@@ -15,8 +15,11 @@
  */
 package com.viscosiety.components;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
@@ -26,5 +29,12 @@ class ViscoLinkModuleTest {
 	void doesNotRegisterTheRemovedK8sEventsSpringFile() {
 		assertFalse(new ViscoLinkModule().getSpringConfigurationFiles().contains("springK8sEvents.xml"),
 				"lifecycle k8s events are published by the upstream frankframework-kubernetes module now");
+	}
+
+	@Test
+	void registersOnlyTheCoresOwnSpringFiles() {
+		// The healthcare Spring files (springMllp.xml, springFhir.xml) belong to the pack's own Module.
+		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml"),
+				new ViscoLinkModule().getSpringConfigurationFiles());
 	}
 }

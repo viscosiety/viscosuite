@@ -47,7 +47,7 @@ class PackJsonTest {
 
     @Test
     void healthPackHasExactlyTheDocumentedKeysInTheDocumentedOrder() throws Exception {
-        JsonNode json = parse(new HealthPack());
+        JsonNode json = parse(new HealthValuesPack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
                 "frankOwnedPaths", "deidentificationStrategyIds"), keys(json));
         assertEquals(List.of("sessionKey", "metadataName", "metadataLabel", "label", "format"),
@@ -56,10 +56,10 @@ class PackJsonTest {
 
     @Test
     void healthPackValues() throws Exception {
-        JsonNode json = parse(new HealthPack());
+        JsonNode json = parse(new HealthValuesPack());
         assertEquals("health", json.get("id").asText());
         assertEquals("Healthcare", json.get("displayName").asText());
-        assertEquals(new HealthPack().version(), json.get("version").asText());
+        assertEquals(new HealthValuesPack().version(), json.get("version").asText());
 
         JsonNode subject = json.get("subject");
         assertEquals("patientId", subject.get("sessionKey").asText());

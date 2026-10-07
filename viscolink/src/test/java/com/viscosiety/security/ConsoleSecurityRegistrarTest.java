@@ -37,6 +37,7 @@ import org.springframework.core.env.StandardEnvironment;
 import org.springframework.web.context.WebApplicationContext;
 
 import com.viscosiety.pack.CorePack;
+import com.viscosiety.pack.HealthValuesPack;
 import com.viscosiety.pack.PackDescriptor;
 import com.viscosiety.pack.PackRegistryTestSupport;
 
@@ -68,6 +69,8 @@ class ConsoleSecurityRegistrarTest {
 
     @Test
     void fhirPathIsFrankOwned() {
+        // The registrar honours whatever the resolved pack declares: /fhir/ is the health pack's path.
+        PackRegistryTestSupport.override(new HealthValuesPack());
         assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/fhir/r4/facade"));
     }
 
@@ -89,8 +92,9 @@ class ConsoleSecurityRegistrarTest {
     }
 
     @Test
-    void fhirPathIsNotFrankOwnedWithoutThePack() {
-        // /fhir/ is the health pack's path, not a core one: under the core pack it is a tool page again.
+    void fhirIsNotFrankOwnedOnTheCore() {
+        // /fhir/ is the health pack's path, not a core one: under the core pack it is a tool page again,
+        // so it gets the console's tool-page chain.
         PackRegistryTestSupport.override(new CorePack());
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/fhir/x"));
     }

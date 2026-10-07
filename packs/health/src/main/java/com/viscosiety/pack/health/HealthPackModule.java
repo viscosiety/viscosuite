@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.viscosiety.components;
+package com.viscosiety.pack.health;
 
 import java.io.IOException;
 import java.util.List;
@@ -27,15 +27,12 @@ import org.frankframework.components.Module;
 import org.frankframework.components.ModuleInformation;
 
 /**
- * Frank!Framework module descriptor for ViscoLink: registers the core's own Spring files.
+ * The healthcare pack as a Frank!Framework module: brings {@code springMllp.xml} (the MLLP
+ * connection-factory factory, auto-wired into {@code MllpFacade} subclasses) and
+ * {@code springFhir.xml} (the FHIR bridge and servlet registrar). Discovered through
+ * {@code META-INF/services/org.frankframework.components.Module} like {@code ViscoLinkModule}.
  */
-public class ViscoLinkModule implements Module {
-
-    /**
-     * The module's {@code Implementation-Version}. One constant so the manifest below and the
-     * {@link com.viscosiety.pack.PackDescriptor#version() pack descriptors} cannot drift apart.
-     */
-    public static final String IMPLEMENTATION_VERSION = "1.0.0-SNAPSHOT";
+public class HealthPackModule implements Module {
 
     @Override
     @NonNull
@@ -43,19 +40,16 @@ public class ViscoLinkModule implements Module {
         Manifest manifest = new Manifest();
         Attributes attrs = manifest.getMainAttributes();
         attrs.put(Attributes.Name.MANIFEST_VERSION, "1.0");
-        attrs.putValue("Implementation-Title", "ViscoLink");
-        attrs.putValue("Implementation-Version", IMPLEMENTATION_VERSION);
+        attrs.putValue("Implementation-Title", "ViscoLink healthcare pack");
+        attrs.putValue("Implementation-Version", PackVersion.get());
         attrs.putValue("Implementation-Vendor", "Viscosiety");
-        attrs.putValue("groupId", "com.viscosiety");
-        attrs.putValue("artifactId", "viscolink");
+        attrs.putValue("groupId", "com.visco");
+        attrs.putValue("artifactId", "viscolink-pack-health");
         return new ModuleInformation(manifest);
     }
 
     @Override
     public List<String> getSpringConfigurationFiles() {
-        // Kubernetes lifecycle events come from the Frank!Framework's own
-        // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer) —
-        // the viscolink implementation was upstreamed and then removed here.
-        return List.of("springStubbedRun.xml", "springConsoleSecurity.xml");
+        return List.of("springMllp.xml", "springFhir.xml");
     }
 }

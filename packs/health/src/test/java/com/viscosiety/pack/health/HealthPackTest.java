@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.viscosiety.pack;
+package com.viscosiety.pack.health;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -25,7 +25,7 @@ import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
-import com.viscosiety.components.ViscoLinkModule;
+import com.viscosiety.pack.SubjectIdentifier;
 
 class HealthPackTest {
 
@@ -63,11 +63,8 @@ class HealthPackTest {
     }
 
     @Test
-    void versionIsTheViscoLinkModuleVersion() throws Exception {
+    void versionIsThePackJarVersion() {
         assertFalse(pack.version().isBlank());
-        assertEquals(ViscoLinkModule.IMPLEMENTATION_VERSION, pack.version());
-        assertEquals(pack.version(), new ViscoLinkModule().getModuleInformation().getVersion(),
-                "the pack version and the module manifest must come from one source");
-        assertEquals(pack.version(), new CorePack().version());
+        assertEquals(PackVersion.get(), pack.version());
     }
 }

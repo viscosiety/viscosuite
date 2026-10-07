@@ -41,7 +41,7 @@ import org.junit.jupiter.api.TestInstance;
 class FhirValidatorPackageTest {
 
 	private static final Path PACKAGES = Path.of(
-			System.getProperty("fhir.packages.dir", "../viscorunner/fhir-packages"));
+			System.getProperty("fhir.packages.dir", "../../viscorunner/fhir-packages"));
 
 	private FhirValidatorPipe pipe;
 
