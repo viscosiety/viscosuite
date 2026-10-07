@@ -21,12 +21,13 @@ for arg in "$@"; do
     esac
 done
 
-# ── 1. Build and install viscolink + viscostore (unit tests included) ─────────────────────────────
-echo "==> [1/3] Building viscolink and viscostore..."
-./mvnw clean install -pl viscolink,viscostore
+# ── 1. Build and install viscolink + the health pack + viscostore (unit tests included) ──────────
+echo "==> [1/3] Building viscolink, the health pack and viscostore..."
+./mvnw clean install -pl viscolink,packs/health,viscostore
 
 # ── 2. Build viscorunner ──────────────────────────────────────────────────────────────────────────
-# copy-dependencies resolves from .m2 (not the reactor), so step 1 must complete first.
+# copy-dependencies resolves from .m2 (not the reactor), so step 1 must complete first. The build also
+# stages target/packs/, target/demo/ and target/store/, which the one Dockerfile COPYs (PACK and STORE pick the variant).
 # 'verify' runs: package (copies WARs) → integration-test (LabEnrichmentIT) → verify.
 # '--skip-its' skips only integration tests; WARs are still copied for the Docker build.
 echo "==> [2/3] Building viscorunner${SKIP_ITS:+ (integration tests skipped)}..."
