@@ -49,7 +49,7 @@ tbody tr:hover .row-actions, tbody tr.selected .row-actions { opacity: 1; }
   <div id="live-badge"><span class="dot" id="dot"></span><span id="live-txt">Live</span></div>
   <span id="countdown"></span>
   <select id="flow-filter"><option value="">All flows</option></select>
-  <input id="patient-filter" placeholder="Patient ID…" style="width:120px">
+  <input id="patient-filter" style="width:120px">
   <span class="spacer"></span>
   <span id="extension-badge"></span>
   <span id="trace-count"></span>
@@ -62,7 +62,7 @@ tbody tr:hover .row-actions, tbody tr.selected .row-actions { opacity: 1; }
         <thead><tr>
           <th class="td-status"></th>
           <th class="td-name">Flow / Pipeline</th>
-          <th class="td-patient">Patient</th>
+          <th class="td-patient" id="subject-th"></th>
           <th class="td-time">Received At</th>
           <th class="td-dur">ms</th>
           <th class="td-action"></th>

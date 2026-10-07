@@ -1,8 +1,8 @@
 'use strict';
 
-import { BASE, getStorage, getTraces, getTrace, getAdapterFlow, getConfigXml, copyToTest } from './api.js';
+import { BASE, getPack, getStorage, getTraces, getTrace, getAdapterFlow, getConfigXml, copyToTest } from './api.js';
 import { onRoute, navigate, currentRoute } from './router.js';
-import { processCheckpoints } from './checkpoints.js';
+import { processCheckpoints, sessionMetaKeys } from './checkpoints.js';
 import { parseAdapterFlow, extractAdaptersFromReport, annotateForwardsFromConfig } from './forwards.js';
 import {
   esc, shortName, fmtTime, fmtDur, pill, fwdClass,
@@ -27,7 +27,8 @@ let loadingMore  = false;
 let cdTimer      = null;
 let cdLeft       = REFRESH_MS / 1000;
 let flowFilter   = '';
-let patientFilter = '';
+let subjectFilter = '';
+let subject     = null;   // the pack's subject identifier ({ sessionKey, metadataName, label }), set once in init()
 let _rows        = [];
 let _exitStateMap = {};
 let _extensions  = window.__viscoFlowExtensions ?? [];
@@ -96,10 +97,10 @@ async function fetchTraces(reset = false) {
   if (reset) { currentOffset = 0; allTraces = []; lastPageFull = false; }
   try {
     // The list is always server-side filtered (name~Pipeline by default, or the user's
-    // patient/flow filter), so the unfiltered storage count is never a valid denominator.
+    // subject/flow filter), so the unfiltered storage count is never a valid denominator.
     // Pagination is driven purely by whether the last page came back full — see updateSentinel.
     const limit = reset ? PAGE_SIZE_INITIAL : Math.max(currentOffset, PAGE_SIZE_INITIAL);
-    const page = await getTraces({ storage, limit, offset: 0, flowFilter, patientFilter });
+    const page = await getTraces({ storage, limit, offset: 0, flowFilter, subjectFilter, subject });
     allTraces     = page;
     currentOffset = page.length;
     lastPageFull  = page.length >= limit;
@@ -118,7 +119,7 @@ async function loadMoreRows() {
   updateSentinel();
   try {
     const page = await getTraces({
-      storage, limit: PAGE_SIZE_MORE, offset: currentOffset, flowFilter, patientFilter,
+      storage, limit: PAGE_SIZE_MORE, offset: currentOffset, flowFilter, subjectFilter, subject,
     });
     if (page.length > 0) {
       allTraces     = [...allTraces, ...page];
@@ -126,7 +127,7 @@ async function loadMoreRows() {
       lastPageFull   = page.length >= PAGE_SIZE_MORE;
       document.getElementById('load-more-sentinel')?.remove();
       document.getElementById('trace-body')
-        .insertAdjacentHTML('beforeend', page.map(r => renderTraceRow(r, selectedId, _extensions)).join(''));
+        .insertAdjacentHTML('beforeend', page.map(r => renderTraceRow(r, selectedId, subject, _extensions)).join(''));
       updateTraceCount();
     } else {
       lastPageFull = false;
@@ -143,7 +144,7 @@ function rebuildTable() {
     tbody.innerHTML = '<tr><td colspan="6" class="loading">No traces</td></tr>';
     return;
   }
-  tbody.innerHTML = allTraces.map(r => renderTraceRow(r, selectedId, _extensions)).join('');
+  tbody.innerHTML = allTraces.map(r => renderTraceRow(r, selectedId, subject, _extensions)).join('');
   updateSentinel(tbody);
 }
 
@@ -340,7 +341,7 @@ async function loadDetail(id) {
 
 // ── Detail render ─────────────────────────────────────────────────────────────
 function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
-  const { rows, sessionMeta } = processCheckpoints(report.checkpoints ?? []);
+  const { rows, sessionMeta } = processCheckpoints(report.checkpoints ?? [], sessionMetaKeys(subject));
   _rows        = rows;
   _exitStateMap = exitStateMap;
   annotateForwardsFromConfig(rows, fwdMap);
@@ -359,7 +360,7 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
   });
 
   const flow      = meta?.flow || shortName(report.name || '');
-  const patientId = sessionMeta.patientId || meta?.patientId || '—';
+  const subjectId = sessionMeta[subject.sessionKey] || meta?.[subject.metadataName] || '—';
   const cid       = meta?.correlationId || report.correlationId || sessionMeta.cid || '—';
   const received  = sessionMeta.tsReceived || fmtTime(meta?.endTime) || '—';
   const dur       = report.endTime && report.startTime
@@ -390,7 +391,7 @@ function renderDetail(report, meta, fwdMap = {}, exitStateMap = {}) {
   const header = `
     <div class="rh-flow">${esc(flow)}</div>
     <div class="rh-meta">
-      ${metaItem('Patient', patientId)}
+      ${metaItem(subject.label, subjectId)}
       ${metaItem('Correlation ID', cid)}
       ${metaItem('Received', received)}
       ${metaItem('Duration', dur)}
@@ -667,6 +668,18 @@ function showDetail(headerHtml, treeHtml) {
 
 // ── Bootstrap ─────────────────────────────────────────────────────────────────
 async function init() {
+  // The subject's key and label come from the vertical pack, so fetch it once before the first traces call.
+  // Without it there is no key to list or filter by, so say so rather than guess one.
+  try {
+    subject = (await getPack()).subject;
+  } catch {
+    document.getElementById('trace-body').innerHTML =
+      `<tr><td colspan="6" class="loading">Could not load the pack descriptor</td></tr>`;
+    return;
+  }
+  document.getElementById('subject-th').textContent = subject.label;
+  document.getElementById('patient-filter').placeholder = `${subject.label} ID…`;
+
   await discoverStorage();
   await fetchTraces(true);
   startRefresh();
@@ -674,12 +687,12 @@ async function init() {
   document.getElementById('flow-filter').addEventListener('change', e => {
     flowFilter = e.target.value; fetchTraces(true);
   });
-  const patInput = document.getElementById('patient-filter');
-  patInput.addEventListener('keydown', e => {
-    if (e.key === 'Enter') { patientFilter = patInput.value.trim(); fetchTraces(true); }
+  const subjectInput = document.getElementById('patient-filter');
+  subjectInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { subjectFilter = subjectInput.value.trim(); fetchTraces(true); }
   });
-  patInput.addEventListener('blur', () => {
-    patientFilter = patInput.value.trim(); fetchTraces(true);
+  subjectInput.addEventListener('blur', () => {
+    subjectFilter = subjectInput.value.trim(); fetchTraces(true);
   });
   document.getElementById('table-wrap').addEventListener('scroll', () => {
     const el = document.getElementById('table-wrap');

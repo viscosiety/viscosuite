@@ -105,10 +105,10 @@ export function isSyntheticCid(cid) {
   return /^(stubbed-run-|ladybug)/i.test(cid || '');
 }
 
-export function renderTraceRow(row, selectedId, extensions = []) {
+export function renderTraceRow(row, selectedId, subject, extensions = []) {
   const id   = row.storageId;
   const flow = row.flow || shortName(row.name || '');
-  const pat  = row.patientId || '';
+  const subj = row[subject.metadataName] || '';
   const synthetic = isSyntheticCid(row.correlationId);
   const cls  = [id === selectedId ? 'selected' : '', synthetic ? 'row-synthetic' : '']
     .filter(Boolean).join(' ');
@@ -126,7 +126,7 @@ export function renderTraceRow(row, selectedId, extensions = []) {
       ${row.flow ? `<span class="pipe-name-small">${esc(shortName(row.name || ''))}</span>` : ''}
       ${row.correlationId ? `<span class="row-cid" title="${esc(row.correlationId)}">${esc(row.correlationId)}</span>` : ''}
     </td>
-    <td class="td-patient"><span class="patient-id" title="${esc(pat)}">${esc(pat)}</span></td>
+    <td class="td-patient"><span class="patient-id" title="${esc(subj)}">${esc(subj)}</span></td>
     <td class="td-time">${esc(fmtTime(row.endTime))}</td>
     <td class="td-dur">${esc(fmtDur(row.duration))}</td>
     <td class="td-action"><div class="row-actions"><button id="rerun-${id}" class="action-btn rerun-btn" title="Replay trace" onclick="event.stopPropagation();rerunTrace('${id}')">↺</button><button id="copy-test-${id}" class="action-btn" title="Copy to Ladybug test" onclick="event.stopPropagation();copyTraceToTest('${id}')">T</button>${extBtns}</div></td>

@@ -17,6 +17,9 @@
 package com.viscosiety.flow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.viscosiety.pack.PackJson;
+import com.viscosiety.pack.PackRegistry;
+import com.viscosiety.pack.SubjectIdentifier;
 
 import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
@@ -49,7 +52,8 @@ import java.util.Map;
  * in-process {@link RequestDispatcher#forward}. No network round-trip.
  *
  * Mapped at {@code /flow-api/*} — outside F!F's {@code /api/*} ownership —
- * so requests are not intercepted by {@code ApiListenerServlet}.
+ * so requests are not intercepted by {@code ApiListenerServlet}. The one route not forwarded is
+ * {@code GET /flow-api/pack}, which answers the vertical pack's descriptor for the page itself.
  *
  * Future mutation endpoints (replay, delete) will be added here as POST/DELETE
  * handlers once the Ladybug mutation API is wired up.
@@ -172,8 +176,16 @@ public class FlowController extends HttpServlet {
         if (path == null) path = "/";
         String qs = req.getQueryString() != null ? req.getQueryString() : "";
 
+        if ("/pack".equals(path)) {
+            // The descriptor ViscoFlow's page needs before its first traces call (subject key and label).
+            resp.setContentType("application/json");
+            resp.setCharacterEncoding("UTF-8");
+            resp.getWriter().write(PackJson.of(PackRegistry.get()));
+            return;
+        }
+
         if ("/traces".equals(path)
-                && !param(qs, "patientFilter", "").isEmpty()
+                && !subjectFilter(qs).isEmpty()
                 && !param(qs, "flowFilter", "").isEmpty()) {
             handleCombinedTraces(req, resp, qs);
             return;
@@ -203,11 +215,12 @@ public class FlowController extends HttpServlet {
     private void handleCombinedTraces(HttpServletRequest req, HttpServletResponse resp, String qs)
             throws IOException {
         String storage       = param(qs, "storage",       "DatabaseDebugStorage");
-        String patientFilter = param(qs, "patientFilter", "");
+        String subjectFilter = subjectFilter(qs);
         String flowFilter    = param(qs, "flowFilter",    "");
         int    limit         = parseIntParam(qs, "limit",  50);
         int    offset        = parseIntParam(qs, "offset",  0);
         List<String> metadataNames = paramValues(qs, "metadataNames");
+        SubjectIdentifier subject = PackRegistry.get().subject();
 
         int need = offset + limit;
         List<Map<String, Object>> matching = new ArrayList<>();
@@ -215,7 +228,7 @@ public class FlowController extends HttpServlet {
         boolean exhausted = false;
 
         while (matching.size() < need && !exhausted) {
-            String url = buildLadybugMetadataUrl(req, storage, "patientId", patientFilter,
+            String url = buildLadybugMetadataUrl(req, storage, subject.metadataName(), subjectFilter,
                     metadataNames, COMBINED_BATCH, ladybugOffset);
             List<Map<String, Object>> page = fetchJsonList(url, req.getHeader("Authorization"));
             if (page.isEmpty()) { exhausted = true; break; }
@@ -249,8 +262,9 @@ public class FlowController extends HttpServlet {
         return sb.toString();
     }
 
+    /** Package-private so a test can observe the Ladybug URL the controller builds without an HTTP round trip. */
     @SuppressWarnings("unchecked")
-    private List<Map<String, Object>> fetchJsonList(String urlStr, String authHeader) throws IOException {
+    List<Map<String, Object>> fetchJsonList(String urlStr, String authHeader) throws IOException {
         HttpURLConnection conn = (HttpURLConnection) new URL(urlStr).openConnection();
         conn.setRequestMethod("GET");
         // Re-use the caller's credentials so this localhost loopback passes auth on secured stages.
@@ -260,6 +274,16 @@ public class FlowController extends HttpServlet {
         try (var is = conn.getInputStream()) {
             return MAPPER.readValue(is, List.class);
         }
+    }
+
+    /**
+     * The subject filter value: {@code subjectFilter}, or {@code patientFilter} when {@code subjectFilter} is
+     * absent. The alias is the parameter name a ViscoFlow page loaded before the pack descriptor existed still
+     * sends; it stays for one release and then goes.
+     */
+    private static String subjectFilter(String qs) {
+        String filter = param(qs, "subjectFilter", null);
+        return filter != null ? filter : param(qs, "patientFilter", "");
     }
 
     private static int parseIntParam(String qs, String name, int def) {
