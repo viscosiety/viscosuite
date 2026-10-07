@@ -35,6 +35,12 @@ import org.frankframework.components.ModuleInformation;
  */
 public class ViscoLinkModule implements Module {
 
+    /**
+     * The module's {@code Implementation-Version}. One constant so the manifest below and the
+     * {@link com.viscosiety.pack.PackDescriptor#version() pack descriptors} cannot drift apart.
+     */
+    public static final String IMPLEMENTATION_VERSION = "1.0.0-SNAPSHOT";
+
     @Override
     @NonNull
     public ModuleInformation getModuleInformation() throws IOException {
@@ -42,7 +48,7 @@ public class ViscoLinkModule implements Module {
         Attributes attrs = manifest.getMainAttributes();
         attrs.put(Attributes.Name.MANIFEST_VERSION, "1.0");
         attrs.putValue("Implementation-Title", "ViscoLink");
-        attrs.putValue("Implementation-Version", "1.0.0-SNAPSHOT");
+        attrs.putValue("Implementation-Version", IMPLEMENTATION_VERSION);
         attrs.putValue("Implementation-Vendor", "Viscosiety");
         attrs.putValue("groupId", "com.viscosiety");
         attrs.putValue("artifactId", "viscolink");
