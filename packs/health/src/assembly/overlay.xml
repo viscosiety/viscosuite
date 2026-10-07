@@ -5,17 +5,21 @@
 	<id>overlay</id>
 	<formats><format>zip</format></formats>
 	<includeBaseDirectory>false</includeBaseDirectory>
-	<dependencySets>
-		<dependencySet>
+	<files>
+		<!-- The pack's own jar. -->
+		<file>
+			<source>${project.build.directory}/${project.build.finalName}.jar</source>
 			<outputDirectory>WEB-INF/lib</outputDirectory>
-			<useProjectArtifact>true</useProjectArtifact>
-			<!-- runtime = compile + runtime transitives, minus everything marked provided:
-			     exactly the jars the core WAR lacks. -->
-			<scope>runtime</scope>
-			<useTransitiveFiltering>false</useTransitiveFiltering>
-		</dependencySet>
-	</dependencySets>
+		</file>
+	</files>
 	<fileSets>
+		<fileSet>
+			<!-- The runtime closure minus everything marked provided: exactly the jars the core WAR lacks.
+			     Staged by maven-dependency-plugin:copy-dependencies (stage-overlay-libs), not by an assembly
+			     dependencySet (which would re-resolve and ignore the provided declarations). -->
+			<directory>${project.build.directory}/overlay-libs</directory>
+			<outputDirectory>WEB-INF/lib</outputDirectory>
+		</fileSet>
 		<fileSet>
 			<directory>${project.build.directory}/console-patched</directory>
 			<outputDirectory>WEB-INF/classes</outputDirectory>

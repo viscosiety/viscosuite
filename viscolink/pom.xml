@@ -101,6 +101,34 @@
 				<artifactId>ladybug-frontend-servlet</artifactId>
 				<version>${ladybug.version}</version>
 			</dependency>
+			<!--
+				D8 class-path pins: the health WAR before the pack split mediated these through HAPI;
+				keep until a deliberate dependency review. With HAPI in the health pack (not in this WAR)
+				the core resolves them to the versions in the trailing comments, and WAR + overlay would
+				no longer be the libraries the health image always ran with (viscorunner
+				HealthClasspathIT against golden/health-webapp-libs.txt is the oracle). The pack declares
+				the same artifacts provided, so the WAR is where they are served from.
+			-->
+			<dependency>
+				<groupId>com.github.ben-manes.caffeine</groupId>
+				<artifactId>caffeine</artifactId>
+				<version>3.1.8</version><!-- would be 3.2.3 (infinispan-core) -->
+			</dependency>
+			<dependency>
+				<groupId>com.google.code.gson</groupId>
+				<artifactId>gson</artifactId>
+				<version>2.12.0</version><!-- would be 2.8.9 (protobuf-java-util via ladybug-common) -->
+			</dependency>
+			<dependency>
+				<groupId>com.google.errorprone</groupId>
+				<artifactId>error_prone_annotations</artifactId>
+				<version>2.36.0</version><!-- would be 2.18.0 (protobuf-java-util via ladybug-common) -->
+			</dependency>
+			<dependency>
+				<groupId>io.opentelemetry</groupId>
+				<artifactId>opentelemetry-api</artifactId>
+				<version>1.44.1</version><!-- would be 1.62.0 (ladybug-common); opentelemetry-context follows the api, and opentelemetry-common is gone with 1.62.0 -->
+			</dependency>
 		</dependencies>
 	</dependencyManagement>
 

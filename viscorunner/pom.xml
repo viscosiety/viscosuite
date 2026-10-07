@@ -34,6 +34,23 @@
 			<version>${project.version}</version>
 			<type>war</type>
 		</dependency>
+		<!-- The health pack's overlay zip (WEB-INF/lib + WEB-INF/classes + WEB-INF/pack.properties),
+		     unpacked to target/packs/health/ by unpack-health-overlay. -->
+		<dependency>
+			<groupId>com.visco</groupId>
+			<artifactId>viscolink-pack-health</artifactId>
+			<version>${project.version}</version>
+			<type>zip</type>
+			<classifier>overlay</classifier>
+			<!-- The overlay is a bag of files to unpack, not a library: without this the pack's runtime
+			     transitives (HAPI, ~190 MB) would be shaded into the viscorunner jar on /opt/frank/lib. -->
+			<exclusions>
+				<exclusion>
+					<groupId>*</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
 
 		<!-- JDBC drivers placed in /opt/frank/drivers — loaded by Tomcat's common.loader, shared between both WARs -->
 		<dependency>
@@ -281,6 +298,78 @@
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
 					</execution>
+					<!-- The health pack's overlay (WEB-INF/lib + classes + pack.properties) → target/packs/health/ -->
+					<execution>
+						<id>unpack-health-overlay</id>
+						<phase>package</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<artifactItems>
+								<artifactItem>
+									<groupId>com.visco</groupId>
+									<artifactId>viscolink-pack-health</artifactId>
+									<version>${project.version}</version>
+									<type>zip</type>
+									<classifier>overlay</classifier>
+									<outputDirectory>${project.build.directory}/packs/health</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+
+			<!-- Everything the one Dockerfile COPYs besides the WARs, the drivers and the unpacked health
+			     overlay: the core pack's identity, the demo configurations per pack, the store variants.
+			     Declared AFTER maven-dependency-plugin: same-phase executions run in declaration order and
+			     the store copy needs target/viscostore.war from copy-wars. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<!-- dependency:unpack and the copies below only add files: a pack overlay that lost a jar
+					     (a new provided declaration) would keep the stale one in an incremental build. Start
+					     from nothing. -->
+					<execution>
+						<id>reset-staging</id>
+						<phase>prepare-package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<delete dir="${project.build.directory}/packs"/>
+								<delete dir="${project.build.directory}/demo"/>
+								<delete dir="${project.build.directory}/store"/>
+							</target>
+						</configuration>
+					</execution>
+					<execution>
+						<id>stage-packs-demos-stores</id>
+						<phase>package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<!-- core: no libs, its own identity -->
+								<mkdir dir="${project.build.directory}/packs/core/WEB-INF/lib"/>
+								<copy file="${project.basedir}/src/packs/core/WEB-INF/pack.properties"
+								      todir="${project.build.directory}/packs/core/WEB-INF" overwrite="true">
+									<filterset><filter token="PACK_VERSION" value="${project.version}"/></filterset>
+								</copy>
+								<!-- demo configurations per pack -->
+								<copy todir="${project.build.directory}/demo/health" overwrite="true">
+									<fileset dir="${project.basedir}/../packs/health/demo-configurations"/>
+								</copy>
+								<copy todir="${project.build.directory}/demo/core" overwrite="true">
+									<fileset dir="${project.basedir}/../viscolink/demo-configurations"/>
+								</copy>
+								<!-- store: the WAR or nothing (COPY cannot be conditional) -->
+								<mkdir dir="${project.build.directory}/store/none"/>
+								<copy file="${project.build.directory}/viscostore.war"
+								      tofile="${project.build.directory}/store/viscostore/viscostore.war" overwrite="true"/>
+							</target>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 
@@ -305,9 +394,10 @@
 							<shadedArtifactAttached>false</shadedArtifactAttached>
 							<artifactSet>
 								<excludes>
-									<!-- WARs and JDBC drivers are placed elsewhere; Catalina is provided. -->
+									<!-- WARs, the pack overlay and JDBC drivers are placed elsewhere; Catalina is provided. -->
 									<exclude>com.visco:viscolink</exclude>
 									<exclude>com.visco:viscostore</exclude>
+									<exclude>com.visco:viscolink-pack-health</exclude>
 									<exclude>org.postgresql:postgresql</exclude>
 									<exclude>com.h2database:h2</exclude>
 									<exclude>org.apache.tomcat:*</exclude>

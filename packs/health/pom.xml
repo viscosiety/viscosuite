@@ -100,6 +100,15 @@
 			<version>${project.version}</version>
 			<classifier>classes</classifier>
 			<scope>provided</scope>
+			<exclusions>
+				<!-- Maven resolves netty, reached only through the core's protonj2-client, with scope runtime
+				     instead of provided, which would put nine netty jars the WAR already ships into the
+				     overlay. The pack never uses netty; it is the core's business. -->
+				<exclusion>
+					<groupId>io.netty</groupId>
+					<artifactId>*</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 		<!-- Frank!Framework: provided by the WAR. Add further frankframework-* artifacts here with
 		     scope provided until the moved code compiles (Task 2); never with scope compile. -->
@@ -206,6 +215,181 @@
 			<version>2.5.1</version>
 		</dependency>
 
+		<!-- ══ The core WAR's libraries, kept out of the overlay (D8) ══════════════════════════════════
+		     The overlay is exactly the libraries the core WAR lacks: WAR + overlay must equal the libraries
+		     the one WAR shipped before the split (viscorunner HealthClasspathIT against
+		     golden/health-webapp-libs.txt, frozen). A direct provided declaration drops the artifact AND its
+		     subtree from the overlay (stage-overlay-libs copies Maven's runtime closure), so the parent of a
+		     group below carries its children. Versions are the WAR's: from the BOM where it manages the
+		     artifact, written out where it does not (keep those in step with the WAR, the IT says when not). -->
+
+		<!-- In both the WAR and, as HAPI transitives, the overlay. -->
+		<dependency>
+			<groupId>com.fasterxml.jackson.core</groupId>
+			<artifactId>jackson-databind</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.fasterxml.jackson.datatype</groupId>
+			<artifactId>jackson-datatype-jsr310</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.protobuf</groupId>
+			<artifactId>protobuf-java</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.nimbusds</groupId>
+			<artifactId>nimbus-jose-jwt</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-codec</groupId>
+			<artifactId>commons-codec</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>commons-io</groupId>
+			<artifactId>commons-io</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>jakarta.annotation</groupId>
+			<artifactId>jakarta.annotation-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-collections4</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-lang3</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-text</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpclient</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.httpcomponents</groupId>
+			<artifactId>httpcore</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.santuario</groupId>
+			<artifactId>xmlsec</artifactId>
+			<version>4.0.4</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.eclipse.angus</groupId>
+			<artifactId>angus-mail</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.glassfish</groupId>
+			<artifactId>jakarta.json</artifactId>
+			<version>2.0.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.slf4j</groupId>
+			<artifactId>slf4j-api</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-messaging</artifactId>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- HAPI wants another version than the WAR carries (the golden has the WAR's): the WAR's copy runs,
+		     as it always did. -->
+		<dependency>
+			<groupId>net.sf.saxon</groupId>
+			<artifactId>Saxon-HE</artifactId>
+			<version>10.9</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark</artifactId>
+			<version>0.30.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.commonmark</groupId>
+			<artifactId>commonmark-ext-gfm-tables</artifactId>
+			<version>0.30.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.apache.commons</groupId>
+			<artifactId>commons-csv</artifactId>
+			<version>1.14.1</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.ibm.icu</groupId>
+			<artifactId>icu4j</artifactId>
+			<version>78.3</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.javassist</groupId>
+			<artifactId>javassist</artifactId>
+			<version>3.33.0-GA</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- The WAR pins these to HAPI's versions (viscolink/pom.xml, "D8 class-path pins"), so they are
+		     the WAR's now. -->
+		<dependency>
+			<groupId>com.github.ben-manes.caffeine</groupId>
+			<artifactId>caffeine</artifactId>
+			<version>3.1.8</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>2.12.0</version>
+			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>io.opentelemetry</groupId>
+			<artifactId>opentelemetry-api</artifactId>
+			<version>1.44.1</version>
+			<scope>provided</scope>
+		</dependency>
+
+		<!-- guava is the WAR's (above) and its subtree went with it, but the WAR carries only guava's
+		     failureaccess: these two children are in the golden, so the overlay does. -->
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>listenablefuture</artifactId>
+			<version>9999.0-empty-to-avoid-conflict-with-guava</version>
+		</dependency>
+		<dependency>
+			<groupId>com.google.j2objc</groupId>
+			<artifactId>j2objc-annotations</artifactId>
+			<version>3.1</version>
+		</dependency>
+
 		<!-- Test -->
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
@@ -293,6 +477,23 @@
 							</artifactItems>
 						</configuration>
 					</execution>
+					<!-- The overlay's WEB-INF/lib: Maven's own runtime closure of this pom (compile + runtime,
+					     provided excluded), staged for the assembly. The assembly plugin's dependencySet is
+					     NOT used for the libraries: it re-resolves the direct non-provided dependencies on its
+					     own, so a direct <scope>provided</scope> declaration never removed a transitive of
+					     HAPI from the zip (measured: 115 jars before and after 25 declarations). This copy
+					     uses the resolved graph, where a direct provided declaration does win, and where the
+					     provided core (viscolink:classes) takes part in version mediation, so the libraries
+					     the pack shares with the WAR resolve to the WAR's versions. -->
+					<execution>
+						<id>stage-overlay-libs</id>
+						<phase>prepare-package</phase>
+						<goals><goal>copy-dependencies</goal></goals>
+						<configuration>
+							<includeScope>runtime</includeScope>
+							<outputDirectory>${project.build.directory}/overlay-libs</outputDirectory>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html. Phase
@@ -303,6 +504,18 @@
 				<artifactId>maven-antrun-plugin</artifactId>
 				<version>3.1.0</version>
 				<executions>
+					<!-- copy-dependencies only adds files: without this, a jar that a new provided declaration
+					     dropped would stay in an incremental build's overlay. -->
+					<execution>
+						<id>reset-overlay-libs</id>
+						<phase>generate-resources</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<delete dir="${project.build.directory}/overlay-libs"/>
+							</target>
+						</configuration>
+					</execution>
 					<execution>
 						<id>patch-console-index</id>
 						<phase>process-resources</phase>
@@ -322,8 +535,8 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!-- The overlay zip: WEB-INF/lib = this jar + runtime dependencies; WEB-INF/classes and
-			     WEB-INF/pack.properties come from the assembly descriptor. -->
+			<!-- The overlay zip: WEB-INF/lib = this jar + target/overlay-libs (stage-overlay-libs);
+			     WEB-INF/classes and WEB-INF/pack.properties come from the assembly descriptor. -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-assembly-plugin</artifactId>
