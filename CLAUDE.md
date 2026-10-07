@@ -86,6 +86,15 @@ A `<packaging>pom</packaging>` module that assembles the deployable image. It:
 | `/opt/frank/resources/` | Frank!Framework shared resources |
 | `/opt/frank/testtool/` | Larva test scenarios |
 
+### Packs (the pack descriptor and the subject identifier)
+The healthcare specifics are meant to become a pack (design: `docs/design/2026-10-07-vertical-packs-design.md`). Milestone 1 shipped the descriptor inside `viscolink`; the health values still live in `com.viscosiety.pack.HealthPack`, the module split is M2.
+
+- **SPI**: `com.viscosiety.pack.PackDescriptor`, discovered through `META-INF/services/com.viscosiety.pack.PackDescriptor` (today `HealthPack`).
+- **Registry rule**: always read the pack through `PackRegistry.get()`. No pack on the class path gives `CorePack` (subject `subjectId`), exactly one gives that one, two throw `IllegalStateException` naming the ids, and a pack whose `frankOwnedPaths()` are malformed throws too. All of that fails at console-security start (`ConsoleSecurityRegistrar.afterPropertiesSet`), not on the first request; the result is cached per JVM.
+- **Endpoints**: `GET /viscolink/api-service/pack` (bearer JWT only, `PackServlet`; settings `servlet.pack.authenticator` and `servlet.pack.securityRoles`, fail-closed 401 without the roles) and `GET /viscolink/flow-api/pack` (ViscoFlow, console session). Same JSON (`PackJson`); nothing about the pack is public and no secret belongs in a descriptor.
+- **The subject identifier is `patientId` for health. Never hardcode it again; read `PackRegistry.get().subject()`.** Ladybug: `SubjectMetadataFieldExtractor` plus the SpEL entries in `springIbisTestToolVisco.xml`. ViscoFlow: `FlowController.subjectFilter` (`patientFilter` stays as an alias for one release) and the JS, which reads the descriptor at load. `SubjectIdentifier` has two labels: `metadataLabel` (Ladybug's column title, "PatientId") and `displayLabel` ("Patient"; the JSON key is `label`).
+- **`consoleViews()` and `propertyDefaults()` are informational until M2**: nothing applies them. How M2 should (properties in the pack jar, no core hook; the FHIR UI is a pom-injected script, not a `customViews` entry) is the "M1 spike result" in section 10 of the design document.
+
 ## Configuration Files
 
 | File | Purpose |

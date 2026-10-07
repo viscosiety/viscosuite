@@ -3,7 +3,8 @@
 **Status:** Proposed (2026-10-07). Umbrella design for viscoSuite, with the
 touch points in viscoForge and viscoFoundry described at the interface level
 only. Implementation lands in milestones (§9); this line names the shipped
-classes as they land.
+classes as they land. M1 shipped: `com.viscosiety.pack.*`, `PackServlet`,
+`SubjectMetadataFieldExtractor`; health values still in-module (M2 moves them).
 
 ## 1. Problem
 
@@ -29,7 +30,7 @@ Nothing else in the runtime is identifier-shaped.
 
 | Module | Healthcare-specific | Market-neutral |
 |---|---|---|
-| `viscolink` | `com.viscosiety.fhir.*` (facade servlets, providers, operation registry, metadata builder), `com.viscosiety.mllp.*`, pipes `FhirFormatPipe`, `FhirValidatorPipe`, `Hl7v2ToXmlPipe`, `XmlToHl7v2Pipe`; `springFhir.xml`, `springMllp.xml`; the `/fhir/` rule in `ConsoleSecurityRegistrar`; the `patientId` extractor + column in `springIbisTestToolVisco.xml`; FHIR keys in `DeploymentSpecifics.properties`; the HAPI dependencies in the pom; the console tab `console/fhir-webservices.js`; ViscoFlow's "Patient" column, filter and detail line (`flow/js/*`, `FlowController.patientFilter`) | Frank!Framework, console + OIDC (`ConsoleSecurityRegistrar`, `ApiSessionAuthListener`), ViscoFlow itself, Ladybug wiring, `GitClassLoader`, `api-service` servlets, `springStubbedRun.xml`, `ViscoLinkModule` |
+| `viscolink` | `com.viscosiety.fhir.*` (facade servlets, providers, operation registry, metadata builder), `com.viscosiety.mllp.*`, pipes `FhirFormatPipe`, `FhirValidatorPipe`, `Hl7v2ToXmlPipe`, `XmlToHl7v2Pipe`; `springFhir.xml`, `springMllp.xml`; the `/fhir/` rule in `ConsoleSecurityRegistrar`; the `patientId` extractor + column in `springIbisTestToolVisco.xml`; FHIR keys in `DeploymentSpecifics.properties`; the HAPI dependencies in the pom; the console script `console/fhir-webservices.js` (the FHIR block on the Webservices page); ViscoFlow's "Patient" column, filter and detail line (`flow/js/*`, `FlowController.subjectFilter`, which kept `patientFilter` as an alias for one release) | Frank!Framework, console + OIDC (`ConsoleSecurityRegistrar`, `ApiSessionAuthListener`), ViscoFlow itself, Ladybug wiring, `GitClassLoader`, `api-service` servlets, `springStubbedRun.xml`, `ViscoLinkModule` |
 | `viscostore` | the whole module (HAPI FHIR JPA server) | — |
 | `util/hl7util` | the whole module | — |
 | `viscorunner` | `demo-configurations/*` (fake-emr, fhir-*, hl7v2-to-fhir, demo-traffic), the viscostore WAR in the combined image, `init-databases.sql` | Tomcat setup, `catalinaAdditional.properties`, the overlay directory, the ROOT landing page, probes |
@@ -114,20 +115,29 @@ public interface PackDescriptor {
     List<String> deidentificationStrategyIds(); // names only; implementations live in viscoForge (§6)
 }
 
-public record SubjectIdentifier(String sessionKey, String label, String metadataName,
-                                Optional<Pattern> format) {}
+public record SubjectIdentifier(String sessionKey, String metadataName, String metadataLabel,
+                                String displayLabel, Optional<Pattern> format) {}
 ```
 
+- **Two labels, not one.** `metadataLabel` is the title Ladybug gives the
+  metadata column (`PatientId` with the health pack); `displayLabel` is the word
+  ViscoFlow puts in its column header, its filter placeholder and its detail line
+  (`Patient`). A single `label` would have changed one of the two on-screen texts,
+  against D8. In the descriptor's JSON the display label is the key `label`.
 - **Spring files, pipes, listeners, senders**: through the pack's own F!F
   `Module` (D1). The descriptor does not duplicate that.
 - **`ConsoleSecurityRegistrar.isFrankOwnedPath`** becomes
   `core paths ∪ pack.frankOwnedPaths()`.
-- **Console views**: the pack's `consoleViews()` are appended to
-  `customViews.names` at startup (the mechanism the `viscoLink` view uses
-  today); the pack's `console/*.js` ride on its classpath.
-- **Property defaults**: the core applies `propertyDefaults()` below
-  `DeploymentSpecifics.properties` in the AppConstants chain, so a tenant's
-  `StageSpecifics`/env still win.
+- **Console views**: a pack adds views through properties in its own jar
+  (`customViews.<name>.*` plus a list the core's `customViews.names` includes),
+  not by Java appending to `customViews.names` at startup; `consoleViews()`
+  mirrors them for consumers. The pack's `console/*.js` ride on its classpath,
+  but getting a `<script>` tag into the console's `index.html` is an open step
+  for M2 (see the M1 spike result in §10).
+- **Property defaults**: a pack ships them as the `DeploymentSpecifics.properties`
+  of its jar; the Frank!Framework merges every copy on the class path, so a
+  tenant's `StageSpecifics`/env still win. `propertyDefaults()` is informational
+  in M1 and nothing applies it (§10).
 - **No pack**: a built-in `CorePack` descriptor (`id = "core"`, subject
   `subjectId`/"Subject", no views, no extra paths) keeps every consumer total.
 
@@ -137,33 +147,57 @@ Today `springIbisTestToolVisco.xml` hardcodes a `SessionKeyMetadataFieldExtracto
 for `patientId` and lists `patientId` in `metadataNames`. The core replaces
 the two literals with beans built from `PackDescriptor.subject()`:
 
-- extractor `name = metadataName`, `label = label`, `sessionKey = sessionKey`;
-- `metadataNames` gets `metadataName` in the position `patientId` has now.
+- extractor `name = metadataName`, `label = metadataLabel`, `sessionKey = sessionKey`
+  (the class `SubjectMetadataFieldExtractor`, which reads the registry in its
+  constructor);
+- `metadataNames` gets `metadataName` in the position `patientId` has now (a SpEL
+  expression, `#{T(com.viscosiety.pack.PackRegistry).get().subject().metadataName()}`,
+  in the default and the Shareable column lists).
 
 ViscoFlow (`flow/js/*`, `FlowController`) reads `subject` from the descriptor
-endpoint (§4.4): the column header, the filter chip, the detail line and the
-Ladybug `filterHeader` all use `metadataName`/`label`. The query parameter
-becomes `subjectFilter`; `patientFilter` stays as an alias for one release.
+endpoint (§4.4): the column header, the filter placeholder and the detail line
+use `displayLabel`; the metadata column and the Ladybug `filterHeader` use
+`metadataName`. The query parameter becomes `subjectFilter`; `patientFilter`
+stays as an alias for one release.
 `SESSION_META_KEYS` is built from the descriptor plus the core keys.
 
-The health pack declares `patientId` / "Patient" / `patientId`, so the Ladybug
+The health pack declares `patientId` as session key and metadata name,
+`PatientId` as metadata label and `Patient` as display label, so the Ladybug
 column, the stored metadata and every existing configuration's
 `PutInSessionPipe` keep working with no change. The public pack declares
 `bsn` / "BSN" / `bsn` with a format (eleven-proof) the UIs may use to mark an
 invalid value.
 
-### 4.4 The descriptor endpoint
+### 4.4 The descriptor endpoints
 
-`GET /viscolink/api-service/pack` → the descriptor as JSON, on the same
-console-authenticated chain as the other `api-service` servlets (bearer or
-console session), because the UIs that need it are behind that login anyway:
+Two endpoints serve the same JSON (`PackJson`); both sit on an authenticated
+chain, so nothing about the pack is public and no secret belongs in it:
+
+- `GET /viscolink/api-service/pack` — bearer JWT only (`PackServlet`, built on
+  `AbstractBearerServiceServlet` like `ConfigRefServlet`), for the portal and
+  agents. The servlet's name is `pack`, so its settings are `servlet.pack.*`: a
+  deployment that wants bearer auth on it sets `servlet.pack.authenticator` and
+  `servlet.pack.securityRoles` (viscoFoundry's manifest renderer will in M4; this
+  is the only place the names are documented). Without `servlet.pack.securityRoles`
+  the servlet fails closed with a 401.
+- `GET /viscolink/flow-api/pack` — inside ViscoFlow's console session
+  (`FlowController`), for ViscoFlow's own JS, which reads it once at load. No
+  `servlet.*` setting is involved.
+
+What a health image answers (`consoleViews` is empty because the FHIR UI is not a
+`customViews` entry, see §10; the display label is the key `label`; `format` is the
+pattern's source or `null`; `version` is the jar's, here a snapshot build):
 
 ```json
-{ "id": "health", "displayName": "Healthcare", "version": "1.4.0",
-  "subject": { "sessionKey": "patientId", "label": "Patient", "metadataName": "patientId" },
-  "consoleViews": [ { "name": "FHIR webservices", "url": "…" } ],
+{ "id": "health", "displayName": "Healthcare", "version": "1.0.0-SNAPSHOT",
+  "subject": { "sessionKey": "patientId", "metadataName": "patientId",
+               "metadataLabel": "PatientId", "label": "Patient", "format": null },
+  "consoleViews": [],
+  "frankOwnedPaths": [ "/fhir/" ],
   "deidentificationStrategyIds": [ "fhir-patient", "hl7v2" ] }
 ```
+
+`propertyDefaults` is deliberately not in the JSON: it is for the core, not for UIs.
 
 `BuildInfo` of a casting and the ROOT landing page print the pack id and
 version next to the F!F version, so an operator can tell what an image is.
@@ -331,5 +365,109 @@ they mean now.
 - Whether the Frank!Console's `customViews` mechanism can take views from a
   jar on the overlay class path at startup, or needs the properties written
   into `DeploymentSpecifics` at image build time — to verify in M1's plan.
+  Answered by the M1 spike, below.
+
+### M1 spike result
+
+**Verdict.** Neither needs a Java hook in the core. Property defaults ride on the
+`DeploymentSpecifics.properties` of the pack's own jar. Extra console views ride
+on properties too, plus a one-line indirection in the core's file. A console
+*script* (what the FHIR UI is) is the one thing that needs a step in M2. This was
+read with `javap` in the Frank!Framework version `viscolink/pom.xml` pins
+(`10.3.0-20260924.042323`) and then run: the real `AppConstants` against small
+test jars, and an embedded Tomcat with an overlay shaped like the runner's. No
+application was started.
+
+**The property chain** (`org.frankframework.util.AppConstants` and `PropertyLoader`,
+in `frankframework-commons`). `PropertyLoader.load` calls
+`ClassLoader.getResources(name)`: every copy on the class path, not the first.
+It reverses the list and loads each, so the copy earliest on the class path is
+loaded last and wins a clash on the same key. `AppConstants` loads
+`AppConstants.properties` and then the files named by `ADDITIONAL.PROPERTIES.FILE`
+(set in the `frankframework-core` jar): `DeploymentSpecifics`, `BuildInfo`,
+`ServerSpecifics_*`, `SideSpecifics_*`, `StageSpecifics_<stage>`, `Test`, later
+wins, each through the same all-copies path. A read asks the environment and the
+system properties before any file. The global instance and the per-configuration
+instances both do this, so a pack's keys reach configurations too.
+
+- A jar's `DeploymentSpecifics.properties` is therefore merged next to the WAR's
+  (`viscolink/src/main/resources/DeploymentSpecifics.properties`, which ships in
+  `WEB-INF/lib/viscolink-*.jar` because the pom sets `archiveClasses`): just
+  another copy.
+- Run against the real classes, two jars with one file each: both loaded; a key in
+  one visible globally and per configuration; a key in both resolved to the jar
+  first on the class path; `-D` beats both.
+- The overlay is a `PreResources` set. In embedded Tomcat 11.0.18 (the image runs
+  11.0.14, and the image itself was not run) a webapp loader with the same overlay
+  lists the overlay jar *before* the WAR's `WEB-INF/lib` jars, so on a clash a
+  pack's value beats the core's. That order is Tomcat's, not a contract: a pack's
+  file must only *add* keys the core does not define.
+
+**How the console consumes `customViews`.** The console frontend asks
+`GET /iaf/api/environmentvariables` once, when the console page loads
+(`console.controllers.EnvironmentVariables`, then the bus endpoint of the same name in
+`frankframework-core`). The answer is the keys of the live global `AppConstants`
+with resolved values. The sidebar component then reads `customViews.names`
+(comma-separated) and, per name, `customViews.<name>.{name,url,target}`; a name
+without `name` or `url` is skipped. So it is read per console page load from the
+live properties, not once at JVM start.
+
+- Per-view keys from a pack's jar merge fine, they are distinct keys.
+  `customViews.names` is one value: two files that define it do not concatenate,
+  one wins (run, both orders).
+- What works with no Java: the core's file says
+  `customViews.names=viscoLink,${pack.customViews.names:-}` (the `${key:-default}`
+  syntax of `StringResolver`) and a pack's jar sets `pack.customViews.names` and
+  its `customViews.<name>.*`. Run: with the pack the console list is
+  `viscoLink,fhir`; without one it is `viscoLink,`, and the empty name is skipped
+  by the frontend (it needs name and url).
+
+**Startup hooks.** `org.frankframework.components.Module` has two default methods,
+`getModuleInformation()` and `getSpringConfigurationFiles()`: no property hook.
+`ComponentLoader` finds modules with `ServiceLoader.load(Module.class)` (all of
+them) when `IbisApplicationContext` builds the Spring context, which is after the
+global `AppConstants` exist and `SPRING.CONFIG.LOCATIONS` was read from them; it
+then registers each module's version with `AppConstants.setGlobalProperty`. That
+static method reaches every existing and future instance (run), so a Java hook is
+possible, but it would run after the early readers: a worse place for defaults
+than the files. `AppConstants` is its own `Properties` subclass and does not read
+Spring's `Environment`, so there is no `PropertySource` seam either.
+
+**First found versus all.** All copies: the properties files above and the
+`ServiceLoader` services. First found only: a Spring file named by
+`getSpringConfigurationFiles()` (`ClassLoader.getResource`) and everything under
+`console/` that `ConsoleFrontend` serves (`ClassUtils.getResourceURL`, also
+`getResource`).
+
+**What the FHIR UI really is.** Not a `customViews` entry and not a tab:
+`viscolink/pom.xml` extracts the console's `index.html` from the frontend jar,
+adds `<script src="fhir-webservices.js">` before `</body>` and stages the result as
+`WEB-INF/classes/console/index.html`. The script (`console/fhir-webservices.js`, a
+resource of the viscolink jar) injects an "Available FHIR Facades" block into the
+console's Webservices page and a footer line. A pack's `console/*.js` is served as
+it stands (first found on the class path); the `<script>` tag is the problem,
+because `index.html` is one file that never merges, and the pom patch is fixed
+when viscolink is built, before any pack jar is known.
+
+**Recommendation for M2.**
+
+- `propertyDefaults`: no hook. The pack's defaults are the
+  `DeploymentSpecifics.properties` of its jar (the FHIR keys of viscolink's file
+  move with the health pack). Drop `propertyDefaults()` from the SPI, or keep it as
+  a mirror that documents what the file sets; applying a Java map would need the
+  hook above. Tenants' `StageSpecifics`, environment and system properties still win.
+- `consoleViews`: the indirection above in viscolink's `DeploymentSpecifics.properties`
+  and the pack's `pack.customViews.names` plus `customViews.<name>.*`.
+  `consoleViews()` becomes the mirror of those keys for consumers.
+- A console script such as the FHIR block, either (a) a build-time step in
+  `viscorunner`'s staging that patches `WEB-INF/classes/console/index.html` once
+  the pack jar is staged, or (b) one core-owned loader script, added to
+  `index.html` at viscolink's build as today, which reads the descriptor from
+  the console-session endpoint and appends `<script>` tags for the scripts the
+  descriptor lists (a `consoleScripts` field, new in M2). (b) keeps a pack jar
+  drop-in and the pom patch unchanged; it needs a live check in the console.
+
+Remaining open question:
+
 - Whether `BuildInfo` should carry the pack id (castings) or the ROOT page
   alone is enough — decide in M2 with the viscoFoundry casting flow in view.
