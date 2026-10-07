@@ -10,6 +10,7 @@ document carries a status line naming the implementing class once it landed.
 | [K8s lifecycle event publisher](2026-08-06-k8s-lifecycle-event-publisher-design.md) | Publishing configuration lifecycle events as Kubernetes Events — since upstreamed into the Frank!Framework |
 | [Context failure events](2026-08-06-viscorunner-context-failure-events-design.md) | Emitting a Kubernetes Event when a WAR context fails to start in the shared Tomcat |
 | [Bearer-authenticated config reload](2026-08-08-console-bearer-reload-endpoint-design.md) | A stateless-JWT service endpoint for configuration reloads, independent of the console's browser login |
+| [Vertical packs](2026-10-07-vertical-packs-design.md) | A market-neutral core with the healthcare specifics (FHIR, MLLP, HL7v2, the patient identifier, ViscoStore) as a pack, so the same runtime serves other markets; the pack descriptor and the subject-identifier concept the siblings consume |
 
 New documents follow the same shape: dated filename, a status line kept
 current, problem before solution, and the rejected alternatives with reasons —

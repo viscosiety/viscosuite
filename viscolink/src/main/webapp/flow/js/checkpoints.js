@@ -1,13 +1,18 @@
 'use strict';
 
-export const SESSION_META_KEYS = new Set(['cid', 'mid', 'patientId', 'tsReceived']);
+const CORE_SESSION_META_KEYS = ['cid', 'mid', 'tsReceived'];
 
-export function processCheckpoints(checkpoints) {
+/** The session keys whose values the detail header shows: the core's own plus the pack's subject key. */
+export function sessionMetaKeys(subject) {
+  return new Set([...CORE_SESSION_META_KEYS, subject.sessionKey]);
+}
+
+export function processCheckpoints(checkpoints, metaKeys) {
   const sessionMeta = {};
   for (const cp of checkpoints) {
     if (cp.type === 4) {
       const bare = cp.name.replace(/^SessionKey /, '');
-      if (SESSION_META_KEYS.has(bare)) sessionMeta[bare] = cp.message;
+      if (metaKeys.has(bare)) sessionMeta[bare] = cp.message;
     }
   }
 
