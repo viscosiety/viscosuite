@@ -551,10 +551,12 @@ public final class HealthValuesPack implements PackDescriptor {
     @Override public List<ConsoleView> consoleViews() { return List.of(); }
     @Override public List<String> frankOwnedPaths() { return List.of("/fhir/"); }
     @Override public List<String> deidentificationStrategyIds() { return List.of("fhir-patient", "hl7v2"); }
+    /** Until Task 3 removes it from the SPI. */
+    @Override public Map<String, String> propertyDefaults() { return Map.of(); }
 }
 ```
 
-(Keep `propertyDefaults()` returning `Map.of()` until Task 3 removes it from the SPI.) Then:
+(Add `import java.util.Map;`; Task 3 deletes the override and the import with the SPI method.) Then:
 - `FlowControllerPackTest`, `LadybugWiringTest`, `SubjectMetadataFieldExtractorTest`, `PackJsonTest`: replace `new HealthPack()` / the `HealthPack` import with `new HealthValuesPack()`; every literal (`patientId`, `PatientId`, `Patient`, `/fhir/`, `fhir-patient`, `hl7v2`) stays — those are the D8 pins.
 - `PackRegistryTest`: `getResolvesTheHealthPackFromTheServicesFile` → `getResolvesTheCorePackWhenNoPackIsOnTheClassPath` asserting `assertInstanceOf(CorePack.class, PackRegistry.get())` and `"core"`; the two `assertInstanceOf(HealthPack.class, ...)` after `reset()` become `CorePack`; the `"/fhir/"` stub paths may stay (they are just strings).
 - `ConsoleSecurityRegistrarTest.fhirPathIsFrankOwned` → install `new HealthValuesPack()` via `PackRegistryTestSupport.override` first (the test then proves the registrar honours a pack's path, which is the point); add a sibling `fhirIsNotFrankOwnedOnTheCore` with `CorePack` expecting the console chain.
@@ -641,18 +643,29 @@ import org.junit.jupiter.api.Test;
 
 class HealthDefaultsTest {
 
-    private static Properties load(String resource) throws Exception {
-        try (InputStream in = HealthDefaultsTest.class.getResourceAsStream(resource)) {
-            Properties p = new Properties();
-            p.load(in);
-            return p;
+    /**
+     * The pack's test class path holds TWO files named DeploymentSpecifics.properties: the pack's own
+     * (target/classes, a file: URL) and the core's (inside viscolink-…-classes.jar, a jar: URL).
+     * getResourceAsStream would return the pack's; enumerate both and tell them apart by protocol.
+     */
+    private static Properties load(boolean pack) throws Exception {
+        Enumeration<URL> all = HealthDefaultsTest.class.getClassLoader().getResources("DeploymentSpecifics.properties");
+        Properties found = null;
+        while (all.hasMoreElements()) {
+            URL url = all.nextElement();
+            boolean isPack = "file".equals(url.getProtocol());
+            if (isPack != pack) continue;
+            assertTrue(found == null, "more than one " + (pack ? "pack" : "core") + " copy: " + url);
+            found = new Properties();
+            try (InputStream in = url.openStream()) { found.load(in); }
         }
+        assertTrue(found != null, "no " + (pack ? "pack" : "core") + " DeploymentSpecifics.properties on the class path");
+        return found;
     }
 
     @Test
     void thePackDefaultsAreTodaysHealthKeysWithTodaysValues() throws Exception {
-        // Find the pack's copy explicitly: the core's classes jar also has a DeploymentSpecifics.properties.
-        Properties p = load("/pack-DeploymentSpecifics.properties");
+        Properties p = load(true);
         assertEquals(Set.of("mllp.inbound.sendingApplication", "mllp.inbound.sendingFacility",
                 "fhir.target.version", "viscostore.fhir.base.url", "mr.system.base"), p.stringPropertyNames());
         assertEquals("r4", p.getProperty("fhir.target.version"));
@@ -660,8 +673,8 @@ class HealthDefaultsTest {
 
     @Test
     void thePackAddsOnlyKeysTheCoreDoesNotDefine() throws Exception {
-        Properties pack = load("/pack-DeploymentSpecifics.properties");
-        Properties core = load("/DeploymentSpecifics.properties");   // the core's, from viscolink:classes (provided)
+        Properties pack = load(true);
+        Properties core = load(false);   // the core's, from viscolink:classes (provided)
         for (String key : pack.stringPropertyNames()) {
             assertTrue(core.getProperty(key) == null, "the core already defines " + key + "; a pack may only add keys");
         }
@@ -669,7 +682,7 @@ class HealthDefaultsTest {
 }
 ```
 
-Because the pack's test class path holds BOTH files under the same name (the pack's `target/classes` and the core's classes jar), the test reads the pack's copy through a second, test-only name: add to the pack pom's `<resources>` a `testResources` entry? Simpler and robust: the pack's `src/main/resources/DeploymentSpecifics.properties` is the real file, and `src/test/resources/pack-DeploymentSpecifics.properties` is NOT a copy but a symlink-free equivalent produced by the build: add a `maven-resources-plugin` execution (`copy-resources`, phase `process-test-resources`) that copies `src/main/resources/DeploymentSpecifics.properties` to `target/test-classes/pack-DeploymentSpecifics.properties`. State in the report that this is why the test reads a different name.
+(Imports: `java.net.URL`, `java.util.Enumeration`.) If surefire ever runs the pack's classes from a jar instead of `target/classes`, tell the copies apart by the URL path containing `viscolink-pack-health` instead of by protocol — say so in a comment.
 
 Copy the exact lines 13–28 of today's `viscolink/src/main/resources/DeploymentSpecifics.properties` (the `mllp.inbound.*`, `fhir.target.version`, `viscostore.fhir.base.url`, `mr.system.base` keys with their comments) into `packs/health/src/main/resources/DeploymentSpecifics.properties` with a header:
 
