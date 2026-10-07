@@ -16,11 +16,25 @@
 
 package com.viscosiety.security;
 
+import java.util.List;
+
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
+import com.viscosiety.pack.CorePack;
+import com.viscosiety.pack.PackDescriptor;
+import com.viscosiety.pack.PackRegistryTestSupport;
+
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 class ConsoleSecurityRegistrarTest {
+
+    @AfterEach
+    void resetPack() {
+        PackRegistryTestSupport.reset();
+    }
 
     @Test
     void iafPathIsFrankOwned() {
@@ -52,5 +66,32 @@ class ConsoleSecurityRegistrarTest {
     @Test
     void rootPathIsNotFrankOwned() {
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/"));
+    }
+
+    @Test
+    void fhirPathIsNotFrankOwnedWithoutThePack() {
+        // /fhir/ is the health pack's path, not a core one: under the core pack it is a tool page again.
+        PackRegistryTestSupport.override(new CorePack());
+        assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/fhir/x"));
+    }
+
+    @Test
+    void corePrefixesStayFrankOwnedWithoutThePack() {
+        PackRegistryTestSupport.override(new CorePack());
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/iaf/x"));
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/api/x"));
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/api-service/x"));
+    }
+
+    @Test
+    void aPacksOwnPathIsFrankOwned() {
+        PackDescriptor pack = mock(PackDescriptor.class);
+        when(pack.frankOwnedPaths()).thenReturn(List.of("/vendor/", "/other/"));
+        PackRegistryTestSupport.override(pack);
+
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/vendor/x"));
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/other/y"));
+        assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/fhir/x"));
+        assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/tools/some-tool"));
     }
 }

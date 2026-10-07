@@ -55,6 +55,28 @@ class PackRegistryTest {
     }
 
     @Test
+    void aPackPathWithoutTheTrailingSlashFailsResolutionNamingPackAndPath() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> PackRegistry.resolve(List.of(new StubPack("public", List.of("/fhir/", "/vendor")))));
+        assertTrue(e.getMessage().contains("public"), e.getMessage());
+        assertTrue(e.getMessage().contains("/vendor"), e.getMessage());
+    }
+
+    @Test
+    void aPackPathWithoutTheLeadingSlashFailsResolutionNamingPackAndPath() {
+        IllegalStateException e = assertThrows(IllegalStateException.class,
+                () -> PackRegistry.resolve(List.of(new StubPack("public", List.of("vendor/")))));
+        assertTrue(e.getMessage().contains("public"), e.getMessage());
+        assertTrue(e.getMessage().contains("vendor/"), e.getMessage());
+    }
+
+    @Test
+    void wellFormedPackPathsResolve() {
+        PackDescriptor pack = new StubPack("public", List.of("/fhir/", "/vendor/api/"));
+        assertSame(pack, PackRegistry.resolve(List.of(pack)));
+    }
+
+    @Test
     void getResolvesTheHealthPackFromTheServicesFile() {
         assertInstanceOf(HealthPack.class, PackRegistry.get());
     }
@@ -77,9 +99,15 @@ class PackRegistryTest {
     /** A candidate that is neither of the shipped packs. */
     static final class StubPack implements PackDescriptor {
         private final String id;
+        private final List<String> frankOwnedPaths;
 
         StubPack(String id) {
+            this(id, List.of());
+        }
+
+        StubPack(String id, List<String> frankOwnedPaths) {
             this.id = id;
+            this.frankOwnedPaths = frankOwnedPaths;
         }
 
         @Override public String id() { return id; }
@@ -89,7 +117,7 @@ class PackRegistryTest {
             return new SubjectIdentifier("s", "s", "S", "S", Optional.empty());
         }
         @Override public List<ConsoleView> consoleViews() { return List.of(); }
-        @Override public List<String> frankOwnedPaths() { return List.of(); }
+        @Override public List<String> frankOwnedPaths() { return frankOwnedPaths; }
         @Override public Map<String, String> propertyDefaults() { return Map.of(); }
         @Override public List<String> deidentificationStrategyIds() { return List.of(); }
     }

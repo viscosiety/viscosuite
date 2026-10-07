@@ -48,6 +48,8 @@ import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.util.matcher.AnyRequestMatcher;
 import org.springframework.web.context.WebApplicationContext;
 
+import com.viscosiety.pack.PackRegistry;
+
 /**
  * Secures the ViscoLink tool pages (everything the WAR serves that is not owned by F!F or the FHIR
  * facade) using F!F's <b>own</b> console authentication — so the tools authenticate exactly like the
@@ -81,6 +83,8 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
     private static final String CONSOLE_AUTH_PREFIX = "application.security.console.authentication.";
     /** Public liveness endpoint — must stay reachable without authentication. */
     static final String PUBLIC_HEALTH_PATH = "/tools/health";
+    /** Owned by the platform in every image; a pack's prefixes come on top (see {@link #isFrankOwnedPath}). */
+    private static final List<String> CORE_FRANK_OWNED_PREFIXES = List.of("/iaf/", "/api/", "/api-service/");
 
     private ApplicationContext applicationContext;
 
@@ -137,15 +141,27 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
     }
 
     /**
-     * Path (within the context) is owned by F!F, the FHIR facade, or another endpoint that secures
-     * itself independently — never touched by this filter. {@code /api-service/} is the
-     * Bearer-only servlet family ({@link org.frankframework.visco.security.ConfigRefServlet}):
-     * it enforces its own JWT-based auth and must never also be gated by this class's
-     * session-based tool-page check.
+     * Path (within the context) is owned by F!F or another endpoint that secures itself
+     * independently — never touched by this filter. The core prefixes are {@code /iaf/} (the
+     * console), {@code /api/} (F!F's API listeners) and {@code /api-service/}, the Bearer-only
+     * servlet family ({@link org.frankframework.visco.security.ConfigRefServlet}): it enforces its
+     * own JWT-based auth and must never also be gated by this class's session-based tool-page check.
+     * The vertical pack adds its own prefixes ({@code /fhir/}, the FHIR facade, for the health pack).
      */
     static boolean isFrankOwnedPath(String path) {
-        return path.startsWith("/iaf/") || path.startsWith("/api/") || path.startsWith("/fhir/")
-                || path.startsWith("/api-service/");
+        for (String prefix : CORE_FRANK_OWNED_PREFIXES) {
+            if (path.startsWith(prefix)) {
+                return true;
+            }
+        }
+        // Read per request, not at class load: the registry caches the descriptor, and a test may
+        // replace it. Well-formedness of the pack's prefixes is checked when the registry resolves.
+        for (String prefix : PackRegistry.get().frankOwnedPaths()) {
+            if (path.startsWith(prefix)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private static ServletContext findServletContext(ApplicationContext ctx) {

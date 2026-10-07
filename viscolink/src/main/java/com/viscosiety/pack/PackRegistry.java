@@ -39,7 +39,9 @@ public final class PackRegistry {
             return new CorePack();
         }
         if (candidates.size() == 1) {
-            return candidates.iterator().next();
+            PackDescriptor only = candidates.iterator().next();
+            requireWellFormedFrankOwnedPaths(only);
+            return only;
         }
         List<String> ids = new ArrayList<>();
         for (PackDescriptor candidate : candidates) {
@@ -47,6 +49,19 @@ public final class PackRegistry {
         }
         throw new IllegalStateException("At most one vertical pack may be on the class path, but found "
                 + ids.size() + ": " + String.join(", ", ids));
+    }
+
+    /**
+     * The console matches these as prefixes of the request path, so a path without the leading or
+     * trailing slash would silently match the wrong requests (or none): fail at start instead.
+     */
+    private static void requireWellFormedFrankOwnedPaths(PackDescriptor pack) {
+        for (String path : pack.frankOwnedPaths()) {
+            if (!path.startsWith("/") || !path.endsWith("/")) {
+                throw new IllegalStateException("Vertical pack [" + pack.id() + "] declares the Frank!Framework-owned path ["
+                        + path + "], which must start and end with a slash");
+            }
+        }
     }
 
     /** The descriptor every consumer reads; resolved once per JVM and cached. */
