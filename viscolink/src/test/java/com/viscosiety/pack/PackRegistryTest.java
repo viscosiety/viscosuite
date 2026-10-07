@@ -63,6 +63,16 @@ class PackRegistryTest {
     }
 
     @Test
+    void aPackPathThatIsOnlySlashesFailsResolutionBecauseItWouldClaimEveryRequest() {
+        for (String path : List.of("/", "//")) {
+            IllegalStateException e = assertThrows(IllegalStateException.class,
+                    () -> PackRegistry.resolve(List.of(new StubPack("public", List.of("/fhir/", path)))), path);
+            assertTrue(e.getMessage().contains("public"), e.getMessage());
+            assertTrue(e.getMessage().contains("every request"), e.getMessage());
+        }
+    }
+
+    @Test
     void aPackPathWithoutTheLeadingSlashFailsResolutionNamingPackAndPath() {
         IllegalStateException e = assertThrows(IllegalStateException.class,
                 () -> PackRegistry.resolve(List.of(new StubPack("public", List.of("vendor/")))));

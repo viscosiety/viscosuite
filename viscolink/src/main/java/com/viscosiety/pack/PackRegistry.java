@@ -53,13 +53,19 @@ public final class PackRegistry {
 
     /**
      * The console matches these as prefixes of the request path, so a path without the leading or
-     * trailing slash would silently match the wrong requests (or none): fail at start instead.
+     * trailing slash would silently match the wrong requests (or none), and a path of only slashes
+     * would match (nearly) every request and switch the tool-page authentication off: fail at start
+     * instead.
      */
     private static void requireWellFormedFrankOwnedPaths(PackDescriptor pack) {
         for (String path : pack.frankOwnedPaths()) {
             if (!path.startsWith("/") || !path.endsWith("/")) {
                 throw new IllegalStateException("Vertical pack [" + pack.id() + "] declares the Frank!Framework-owned path ["
                         + path + "], which must start and end with a slash");
+            }
+            if (path.chars().allMatch(c -> c == '/')) {
+                throw new IllegalStateException("Vertical pack [" + pack.id() + "] declares the Frank!Framework-owned path ["
+                        + path + "], which would hand every request to the Frank!Framework chain");
             }
         }
     }
