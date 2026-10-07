@@ -189,6 +189,8 @@ integration-test:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
+    # Empty directories may not survive the artifact zip; COPY of a missing source would fail every STORE=none build.
+    - mkdir -p viscorunner/target/store/none viscorunner/target/packs/core/WEB-INF/lib
     - docker build --platform "linux/$ARCH"
         --build-arg "PACK=$PACK" --build-arg "STORE=$STORE"
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
