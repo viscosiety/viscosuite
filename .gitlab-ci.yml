@@ -1,7 +1,7 @@
 # ViscoSuite CI/CD pipeline
 #
 # Stages:
-#   test     — unit + integration tests (all branches and MRs)
+#   test     — unit + integration tests, plus viscorunner's two fast class-path ITs (all branches and MRs)
 #   package  — full Maven build, produces WARs for the Docker image (main only)
 #   docker   — builds platform-specific images in parallel (main only)
 #   manifest — combines amd64 + arm64 images into a single multi-arch manifest (main only)
@@ -71,6 +71,13 @@ variables:
 # Stage: test
 # Unit and integration tests for viscolink, the health pack and viscostore.
 # Runs on every push and every merge request.
+#
+# Then viscorunner's two fast class-path ITs (HealthClasspathIT, the D8 oracle with its frozen
+# golden, and PackOverlayLayoutIT) so a Frank!Framework / ladybug / HAPI bump or a pack pom
+# change is caught on the merge request, not after the merge (the slow launcher ITs stay in
+# integration-test, main only). viscorunner's copy-dependencies and unpack resolve from .m2/,
+# not the reactor, and `verify` above does not install: hence the install first (see CLAUDE.md).
+# `verify -pl viscorunner` also runs viscorunner's unit tests (Dockerfile contract, event publisher).
 # ---------------------------------------------------------------------------
 test:
   stage: test
@@ -86,6 +93,8 @@ test:
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscolink,packs/health,viscostore
+    - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
+    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
@@ -129,6 +138,11 @@ package:
       # Shaded viscorunner jar (fabric8 + relocated Jackson/SnakeYAML) for ContextFailureEventPublisher,
       # placed on Tomcat's common.loader at /opt/frank/lib by the Dockerfile.
       - viscorunner/target/viscorunner-*.jar
+    # target/store/viscostore/viscostore.war is a second copy of target/viscostore.war (about
+    # 350 MB, already an artifact above): shipping both would add that to every pipeline and to
+    # each of the eight docker jobs that download it. The docker jobs recreate it (.docker-build).
+    exclude:
+      - viscorunner/target/store/viscostore/viscostore.war
     expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -191,6 +205,8 @@ integration-test:
   script:
     # Empty directories may not survive the artifact zip; COPY of a missing source would fail every STORE=none build.
     - mkdir -p viscorunner/target/store/none viscorunner/target/packs/core/WEB-INF/lib
+    # The store copy is not an artifact (package excludes it, it is a duplicate of target/viscostore.war): recreate it.
+    - if [ "$STORE" != none ]; then mkdir -p viscorunner/target/store/viscostore && cp viscorunner/target/viscostore.war viscorunner/target/store/viscostore/viscostore.war; fi
     - docker build --platform "linux/$ARCH"
         --build-arg "PACK=$PACK" --build-arg "STORE=$STORE"
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
