@@ -51,8 +51,8 @@ import org.springframework.web.context.WebApplicationContext;
 import com.viscosiety.pack.PackRegistry;
 
 /**
- * Secures the ViscoLink tool pages (everything the WAR serves that is not owned by F!F or the FHIR
- * facade) using F!F's <b>own</b> console authentication — so the tools authenticate exactly like the
+ * Secures the ViscoLink tool pages (everything the WAR serves that is not owned by F!F or the
+ * vertical pack) using F!F's <b>own</b> console authentication — so the tools authenticate exactly like the
  * Frank!Console does: a browser Basic prompt when the console is configured {@code IN_MEMORY}, an
  * OIDC redirect when it is {@code OAUTH2}, and open access when it is {@code NONE} (e.g. the LOC
  * stage). It replaces the former hand-rolled {@code BasicAuthFilter}.
@@ -95,6 +95,11 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
 
     @Override
     public void afterPropertiesSet() {
+        // Resolve the vertical pack now, outside every catch below: a malformed or duplicate pack must
+        // abort the context start, not surface on the first non-core request (the per-request read in
+        // isFrankOwnedPath only hits the cache).
+        PackRegistry.get();
+
         ServletContext servletContext = findServletContext(applicationContext);
         ApplicationContext parentCtx = applicationContext.getParent();
         if (servletContext == null || parentCtx == null) {
@@ -191,7 +196,7 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
             HttpServletRequest req = (HttpServletRequest) request;
             String path = req.getRequestURI().substring(req.getContextPath().length());
 
-            // F!F/FHIR own their own security; the health probe is public — never gate these.
+            // F!F and the vertical pack own their own security; the health probe is public — never gate these.
             if (isFrankOwnedPath(path) || PUBLIC_HEALTH_PATH.equals(path)) {
                 chain.doFilter(request, response);
                 return;

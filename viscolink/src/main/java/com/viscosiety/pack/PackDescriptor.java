@@ -43,7 +43,12 @@ public interface PackDescriptor {
     /** Extra Frank!Console views the pack contributes. Informational in M1, applied in M2. */
     List<ConsoleView> consoleViews();
 
-    /** Path prefixes handed to the Frank!Framework's own security chain (e.g. {@code "/fhir/"}). */
+    /**
+     * Path prefixes handed to the Frank!Framework's own security chain (e.g. {@code "/fhir/"}). Each
+     * must start and end with {@code /} and not consist only of slashes, and is matched with
+     * {@code startsWith} against the context-relative request path; the registry rejects anything
+     * else when it resolves the pack.
+     */
     List<String> frankOwnedPaths();
 
     /** DeploymentSpecifics-level defaults the pack needs. Informational in M1, applied in M2. */

@@ -20,6 +20,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationContext;
 
 import com.viscosiety.pack.CorePack;
 import com.viscosiety.pack.PackDescriptor;
@@ -93,5 +94,30 @@ class ConsoleSecurityRegistrarTest {
         assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/other/y"));
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/fhir/x"));
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/tools/some-tool"));
+    }
+
+    @Test
+    void aMalformedPackFailsTheRegistrarAtStart() {
+        // Resolution (and with it the pack's path validation) must happen when the context starts, not
+        // on the first tool-page request. The context has no ServletContext, so without the eager
+        // resolve afterPropertiesSet would only log a warning and return.
+        PackDescriptor pack = mock(PackDescriptor.class);
+        when(pack.id()).thenReturn("vendor-pack");
+        when(pack.frankOwnedPaths()).thenReturn(List.of("vendor/"));
+        PackRegistryTestSupport.overrideCandidates(List.of(pack));
+        ConsoleSecurityRegistrar registrar = new ConsoleSecurityRegistrar();
+        registrar.setApplicationContext(mock(ApplicationContext.class));
+
+        IllegalStateException e = assertThrows(IllegalStateException.class, registrar::afterPropertiesSet);
+        assertTrue(e.getMessage().contains("vendor-pack"), e.getMessage());
+        assertTrue(e.getMessage().contains("vendor/"), e.getMessage());
+    }
+
+    @Test
+    void aWellFormedPackLetsTheRegistrarStart() {
+        ConsoleSecurityRegistrar registrar = new ConsoleSecurityRegistrar();
+        registrar.setApplicationContext(mock(ApplicationContext.class));
+
+        assertDoesNotThrow(registrar::afterPropertiesSet);
     }
 }

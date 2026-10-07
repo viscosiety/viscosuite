@@ -23,12 +23,15 @@ import java.util.ServiceLoader;
 
 /**
  * Resolves the one {@link PackDescriptor} of this JVM: none on the class path means
- * {@link CorePack}, one means that one, two or more is a configuration error that fails fast
- * at first use (which is context start).
+ * {@link CorePack}, one means that one, two or more is a configuration error, as is a pack whose
+ * paths are malformed. Both fail fast at first use; the console security registrar makes that first
+ * use when the Spring context starts.
  */
 public final class PackRegistry {
 
     private static volatile PackDescriptor cached;
+    /** Tests only: what discovery "finds" instead of the services files, until {@link #reset()}. */
+    private static volatile List<PackDescriptor> candidatesOverride;
 
     private PackRegistry() {
     }
@@ -77,7 +80,8 @@ public final class PackRegistry {
             synchronized (PackRegistry.class) {
                 pack = cached;
                 if (pack == null) {
-                    pack = resolve(discover());
+                    List<PackDescriptor> found = candidatesOverride;
+                    pack = resolve(found != null ? found : discover());
                     cached = pack;
                 }
             }
@@ -100,10 +104,23 @@ public final class PackRegistry {
         }
     }
 
+    /**
+     * Tests only: make the next {@link #get()} resolve these candidates (validation included) as if
+     * they were found on the class path, until {@link #reset()}. {@link #override} cannot do that: it
+     * installs a descriptor without resolving it, so a malformed pack never fails.
+     */
+    static void overrideCandidates(Collection<? extends PackDescriptor> candidates) {
+        synchronized (PackRegistry.class) {
+            candidatesOverride = List.copyOf(candidates);
+            cached = null;
+        }
+    }
+
     /** Tests only: forget the cached or overridden descriptor so the next {@link #get()} resolves again. */
     static void reset() {
         synchronized (PackRegistry.class) {
             cached = null;
+            candidatesOverride = null;
         }
     }
 }

@@ -16,10 +16,13 @@
 
 package com.viscosiety.pack;
 
+import java.util.Collection;
+
 /**
- * Lets tests in other packages swap the registry's descriptor. {@link PackRegistry#override} and
- * {@link PackRegistry#reset} are package-private on purpose (a production caller must not be able to
- * replace the descriptor), so this class lives in the same package, in the test tree only.
+ * Lets tests in other packages swap the registry's descriptor. {@link PackRegistry#override},
+ * {@link PackRegistry#overrideCandidates} and {@link PackRegistry#reset} are package-private on
+ * purpose (a production caller must not be able to replace the descriptor), so this class lives in
+ * the same package, in the test tree only.
  */
 public final class PackRegistryTestSupport {
 
@@ -28,6 +31,11 @@ public final class PackRegistryTestSupport {
 
     public static void override(PackDescriptor pack) {
         PackRegistry.override(pack);
+    }
+
+    /** The next {@code PackRegistry.get()} resolves these as the class path's candidates, validation included. */
+    public static void overrideCandidates(Collection<? extends PackDescriptor> candidates) {
+        PackRegistry.overrideCandidates(candidates);
     }
 
     public static void reset() {

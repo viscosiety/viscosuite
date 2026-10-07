@@ -97,6 +97,18 @@ class PackRegistryTest {
     }
 
     @Test
+    void overrideCandidatesAreResolvedAndValidatedByGetUntilReset() {
+        PackRegistryTestSupport.overrideCandidates(List.of(new StubPack("public", List.of("vendor"))));
+        assertThrows(IllegalStateException.class, PackRegistry::get);
+
+        PackRegistryTestSupport.overrideCandidates(List.of());
+        assertInstanceOf(CorePack.class, PackRegistry.get());
+
+        PackRegistry.reset();
+        assertInstanceOf(HealthPack.class, PackRegistry.get());
+    }
+
+    @Test
     void overrideReplacesTheCachedPackAndResetRestoresResolution() {
         PackDescriptor stub = new StubPack("public");
         PackRegistry.override(stub);
