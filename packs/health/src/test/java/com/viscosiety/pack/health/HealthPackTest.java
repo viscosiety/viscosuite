@@ -21,7 +21,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 
 import org.junit.jupiter.api.Test;
 
@@ -58,8 +57,8 @@ class HealthPackTest {
     }
 
     @Test
-    void propertyDefaultsAreEmptyInM1() {
-        assertEquals(Map.of(), pack.propertyDefaults());
+    void theFhirConsoleBlockIsAScriptNotAConsoleView() {
+        assertTrue(pack.consoleViews().isEmpty());
     }
 
     @Test

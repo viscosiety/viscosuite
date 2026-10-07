@@ -42,7 +42,7 @@ class HealthPackDiscoveryTest {
         List<Module> modules = ServiceLoader.load(Module.class).stream().map(ServiceLoader.Provider::get).toList();
         Module pack = modules.stream().filter(HealthPackModule.class::isInstance).findFirst().orElseThrow();
         assertEquals(List.of("springMllp.xml", "springFhir.xml"), pack.getSpringConfigurationFiles());
-        assertTrue(pack.getModuleInformation().getVersion().startsWith("1.0.0"), "version from the pack jar");
+        assertEquals(PackVersion.get(), pack.getModuleInformation().getVersion());
     }
 
     @Test

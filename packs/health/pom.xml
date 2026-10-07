@@ -265,6 +265,63 @@
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
+			<!-- The FHIR block of the Frank!Console. The console's index.html is one file that never merges
+			     across jars, so the pack's build extracts the framework's page, adds the script tag and
+			     stages it as target/console-patched/console/index.html; the overlay assembly lays it into
+			     WEB-INF/classes, where it shadows the page inside frankframework-console-frontend.jar.
+			     The script itself (console/fhir-webservices.js) is a resource of this jar. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<executions>
+					<execution>
+						<id>unpack-console-index</id>
+						<phase>generate-resources</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<!-- overWriteSnapshots forces re-extraction from the current SNAPSHOT JAR on every
+							     build so the patched index.html always matches the bundled JS asset hash. -->
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-console-frontend</artifactId>
+									<version>${frankframework.version}</version>
+									<includes>console/index.html</includes>
+									<outputDirectory>${project.build.directory}/console-original</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
+			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html. Phase
+			     process-resources (not prepare-package): the staged page must exist when the tests run
+			     and when the assembly packs it. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-antrun-plugin</artifactId>
+				<version>3.1.0</version>
+				<executions>
+					<execution>
+						<id>patch-console-index</id>
+						<phase>process-resources</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.directory}/console-patched/console"/>
+								<copy file="${project.build.directory}/console-original/console/index.html"
+								      tofile="${project.build.directory}/console-patched/console/index.html"
+								      overwrite="true"/>
+								<replace file="${project.build.directory}/console-patched/console/index.html">
+									<replacetoken><![CDATA[</body>]]></replacetoken>
+									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
+								</replace>
+							</target>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<!-- The overlay zip: WEB-INF/lib = this jar + runtime dependencies; WEB-INF/classes and
 			     WEB-INF/pack.properties come from the assembly descriptor. -->
 			<plugin>

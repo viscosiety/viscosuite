@@ -23,7 +23,6 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.jupiter.api.AfterEach;
@@ -142,7 +141,6 @@ class PackRegistryTest {
         }
         @Override public List<ConsoleView> consoleViews() { return List.of(); }
         @Override public List<String> frankOwnedPaths() { return frankOwnedPaths; }
-        @Override public Map<String, String> propertyDefaults() { return Map.of(); }
         @Override public List<String> deidentificationStrategyIds() { return List.of(); }
     }
 }

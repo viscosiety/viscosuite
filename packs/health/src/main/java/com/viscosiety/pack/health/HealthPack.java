@@ -17,7 +17,6 @@
 package com.viscosiety.pack.health;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 import com.viscosiety.pack.ConsoleView;
@@ -32,9 +31,9 @@ import com.viscosiety.pack.SubjectIdentifier;
  *
  * <p>{@link #consoleViews()} is empty on purpose: {@code DeploymentSpecifics.properties}
  * declares only {@code customViews.names=viscoLink}, which belongs to the core; ViscoFlow is a
- * {@code viscolink.views.*} landing-page entry, not a console custom view. The FHIR webservices
- * block is a script injected into the console's {@code index.html} by this pack's build (Task 3),
- * not a {@code customViews.*} entry, so there is no health-specific view to carry over yet.</p>
+ * {@code viscolink.views.*} landing-page entry, not a console custom view. The FHIR console block
+ * is a script this pack's build injects into the console page served from the overlay, not a
+ * {@code customViews.*} entry, so there is no health-specific view to carry over.</p>
  */
 public final class HealthPack implements PackDescriptor {
 
@@ -70,11 +69,6 @@ public final class HealthPack implements PackDescriptor {
     public List<String> frankOwnedPaths() {
         // The FHIR facade servlets answer on /fhir/ and authenticate themselves.
         return List.of("/fhir/");
-    }
-
-    @Override
-    public Map<String, String> propertyDefaults() {
-        return Map.of();
     }
 
     @Override

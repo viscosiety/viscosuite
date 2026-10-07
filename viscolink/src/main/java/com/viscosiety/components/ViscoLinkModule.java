@@ -32,8 +32,8 @@ import org.frankframework.components.ModuleInformation;
 public class ViscoLinkModule implements Module {
 
     /**
-     * The module's {@code Implementation-Version}. One constant so the manifest below and the
-     * {@link com.viscosiety.pack.PackDescriptor#version() pack descriptors} cannot drift apart.
+     * The module's {@code Implementation-Version}. One constant so the manifest below and
+     * {@link com.viscosiety.pack.CorePack#version()}, the only reader, cannot drift apart.
      */
     public static final String IMPLEMENTATION_VERSION = "1.0.0-SNAPSHOT";
 

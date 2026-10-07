@@ -26,7 +26,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /**
  * Renders a {@link PackDescriptor} as the JSON the descriptor endpoints serve. The keys come out
  * in a fixed order and the arrays are never omitted, so clients can rely on the shape.
- * {@code propertyDefaults} is deliberately not part of it: it is for the core, not for UIs.
  */
 public final class PackJson {
 

@@ -17,7 +17,6 @@
 package com.viscosiety.pack;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -36,6 +35,4 @@ public final class HealthValuesPack implements PackDescriptor {
     @Override public List<ConsoleView> consoleViews() { return List.of(); }
     @Override public List<String> frankOwnedPaths() { return List.of("/fhir/"); }
     @Override public List<String> deidentificationStrategyIds() { return List.of("fhir-patient", "hl7v2"); }
-    /** Until Task 3 removes it from the SPI. */
-    @Override public Map<String, String> propertyDefaults() { return Map.of(); }
 }

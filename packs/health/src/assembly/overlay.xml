@@ -19,7 +19,7 @@
 		<fileSet>
 			<directory>${project.build.directory}/console-patched</directory>
 			<outputDirectory>WEB-INF/classes</outputDirectory>
-			<!-- Task 3 fills this directory; until then the fileSet is empty and that is fine. -->
+			<!-- console/index.html, staged by the pom's patch-console-index execution at process-resources. -->
 		</fileSet>
 		<fileSet>
 			<directory>src/main/overlay</directory>
