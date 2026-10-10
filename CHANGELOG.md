@@ -79,6 +79,18 @@ minor version).
   `patientid` column.
 - `customViews.names` in the core's `DeploymentSpecifics.properties` appends the pack's views through
   `pack.customViews.names`.
+- HAPI FHIR bumped to `8.12.1` in ViscoStore (from `8.6.0`; Spring Boot 3.5.15, FHIR core 6.9.12) and
+  in the health pack (from `8.8.1`). ViscoStore is re-synced with hapi-fhir-jpaserver-starter
+  `image/v8.12.0-2`: clinical-reasoning 4.13.0, Spring AI 1.1.8 (was a milestone), Spring Security
+  6.5.11, and the starter's CVE pins (logback, embedded Tomcat, PostgreSQL driver). An existing
+  ViscoStore database upgrades in place on start (Hibernate adds the new tables and columns; checked
+  against a Postgres database written by the 8.6.0 image). Behaviour changes that come with it: CORS no
+  longer allows credentials by default (`hapi.fhir.cors.allow_Credentials` defaults to `false`; set it
+  to `true` with explicit origins if a browser client needs it), the actuator's liveness group no
+  longer includes readiness, and `inline_resource_storage_below_size` is now
+  `binary_storage_minimum_binary_size` (the old setting has done nothing since HAPI 7). The health
+  pack's class path loses FHIR core's RDF libraries (Jena, Titanium, libthrift) and gains OkHttp 5,
+  Okio and the Kotlin standard library.
 
 ### Removed
 - `viscorunner/Dockerfile.viscolink`, replaced by `Dockerfile` with `STORE=none`.
