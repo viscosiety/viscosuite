@@ -18,7 +18,7 @@
 		     (ladybug.version is read by the dependencyManagement block copied below.) -->
 		<frankframework.version>10.3.0-20260924.042323</frankframework.version>
 		<ladybug.version>4.1-20260903.105841</ladybug.version>
-		<hapi.version>8.8.1</hapi.version>
+		<hapi.version>8.12.1</hapi.version>
 		<junit.version>5.14.1</junit.version>
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
@@ -298,6 +298,14 @@
 		<dependency>
 			<groupId>org.eclipse.angus</groupId>
 			<artifactId>angus-mail</artifactId>
+			<scope>provided</scope>
+		</dependency>
+		<!-- A HAPI transitive since HAPI 8.12 (FHIR core); carries JavaEWAH. Version = viscolink/pom.xml's
+		     (the GitClassLoader dependency), keep in step. -->
+		<dependency>
+			<groupId>org.eclipse.jgit</groupId>
+			<artifactId>org.eclipse.jgit</artifactId>
+			<version>7.1.0.202411261347-r</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>

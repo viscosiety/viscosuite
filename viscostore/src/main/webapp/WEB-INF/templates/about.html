@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
-<head th:include="~{tmpl-head :: head}">
+<head th:replace="~{tmpl-head :: head}">
     <title>About This Server</title>
 </head>
 
@@ -15,6 +15,7 @@
             <div class="col-sm-9 col-sm-offset-3 col-md-9 col-md-offset-3 main">
 
                 <div th:replace="~{tmpl-banner :: banner}"></div>
+
                 <div class="panel panel-default">
                     <div class="panel-heading">
                         <h3 class="panel-title">ViscoStore</h3>
