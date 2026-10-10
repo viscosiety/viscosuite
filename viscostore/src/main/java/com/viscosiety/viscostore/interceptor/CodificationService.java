@@ -159,9 +159,7 @@ public class CodificationService {
         injectDataProvenance(codified, theMapCanonical);
 
         // 7. Persist the codified resource
-        @SuppressWarnings("unchecked")
-        IFhirResourceDao<DomainResource> codifiedDao =
-                (IFhirResourceDao<DomainResource>) myDaoRegistry.getResourceDao(targetType);
+        IFhirResourceDao<DomainResource> codifiedDao = myDaoRegistry.getResourceDao(targetType);
 
         if (!theIsRevision) {
             // Conditional create: idempotent on retry.
