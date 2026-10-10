@@ -1,29 +1,41 @@
 # ViscoSuite
 
-**Open-source healthcare integration, powered by the [Frank!Framework](https://frankframework.org).**
+**Open-source integration platform, healthcare first — powered by the [Frank!Framework](https://frankframework.org).**
 
-HL7v2, FHIR and everything in between: ViscoSuite receives, validates, transforms and routes
-healthcare messages through declarative, git-native pipelines, and stores the results in a
-standard FHIR repository — with every record traceable back to its raw source.
+ViscoSuite receives, validates, transforms and routes messages through declarative,
+git-native pipelines. Its first market is healthcare: the Healthcare pack adds HL7v2 and FHIR,
+and a standard FHIR repository stores the results — with every record traceable back to its
+raw source. Underneath sits a market-neutral core that is also published as an image of its own.
 
-[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/viscosiety/viscosuite/blob/main/LICENSE)
 [![Powered by Frank!Framework](https://img.shields.io/badge/powered%20by-Frank!Framework-1a7f76.svg)](https://frankframework.org)
 
-- **ViscoLink** — the Frank!Framework integration layer: HL7v2 (MLLP and HTTP), FHIR
-  (R4/R5/DSTU3), REST, and database-backed integrations. Extend by dropping F!F XML
-  configurations into a mounted directory — no rebuild required.
-- **ViscoStore** — a HAPI FHIR JPA Server as the canonical FHIR repository: standard FHIR
-  REST API, browser tester UI, Swagger docs, and an MCP endpoint for AI/LLM integration.
+- **ViscoLink** — the Frank!Framework integration layer, market-neutral: REST and
+  database-backed integrations (and whatever else the Frank!Framework provides), the console
+  with OIDC login, ViscoFlow and Ladybug. Extend by dropping F!F XML configurations into a
+  mounted directory — no rebuild required. A **pack** adds the components of one market on top;
+  the Healthcare pack brings HL7v2 (MLLP and HTTP) and FHIR (R4/R5/DSTU3).
+- **ViscoStore** — a HAPI FHIR JPA Server as the FHIR repository (FHIR R4): standard FHIR REST
+  API, browser tester UI, Swagger docs, an MCP endpoint for AI/LLM integration, and the
+  codification step of the two-zone model. Part of the Healthcare suite; optional.
 - **ViscoRunner** — Docker packaging (one image recipe, several variants) and a demo mode
-  that shows the whole suite working in five minutes.
+  that shows the whole suite working in minutes.
 
-## Quick start — five minutes to live traffic
+## Quick start — live traffic in minutes
+
+Prerequisite: Docker ≥ 24 with Compose V2.
 
 ```bash
 git clone https://github.com/viscosiety/viscosuite.git
 cd viscosuite/viscorunner
-docker compose -f docker-compose.yml -f docker-compose.demo.yml up --build
+docker compose -f docker-compose.yml -f docker-compose.demo.yml up
 ```
+
+The first start downloads the published images (the ViscoSuite image is about 1 GB) and,
+through a small helper container, the Nictiz validation packages the demo uses, so it needs
+internet access and takes a few minutes. Do not add `--build` on a fresh clone: that builds
+the images from source and needs the Maven build first (see
+[Building from source](#building-from-source)).
 
 Open **http://localhost:8180**. The demo overlay starts a traffic generator that streams
 HL7v2 ADT messages, FHIR transaction bundles and R4 nl-core patients through real
@@ -32,47 +44,70 @@ error-store parking and retries happen live:
 
 - **`/viscolink/flow/`** — follow any message's journey step by step (per-pipe input,
   output and routing decisions)
-- **`/viscostore/tester/`** — browse the FHIR repository
+- **`/viscostore/tester/`** — browse the FHIR repository (ViscoStore asks for its login: enter
+  the demo login that `viscorunner/docker-compose.demo.yml` sets under the lock icon in the
+  tester's top bar)
 - **`/viscolink/iaf/`** — the full Frank!Console for the expert view
 
-To start blank instead (your own configurations, no demo traffic), see
-[`viscorunner/README.md`](viscorunner/README.md).
+The `fake-emr` demo adapter reads from a sample database hosted by Viscosiety, so that part of
+the demo needs internet access as well; the rest of the demo does not depend on it.
+
+**These compose files are for local development.** The Frank!Console runs without sign-in
+(stage `LOC`), PostgreSQL is published on the host, and ViscoStore, PostgreSQL and the demo's
+RabbitMQ use simple default logins written in the compose files. Do not expose these stacks
+beyond your machine; for anything else, set your own credentials and stage.
+
+To start blank instead (your own configurations, no demo traffic), create the credentials
+file the stack mounts (`cp secrets/credentials.properties.example secrets/credentials.properties`
+in `viscorunner/`), run `docker compose up` without the demo overlay, and put each of your
+configurations in its own folder under `viscorunner/configurations/`. Details are in
+[`viscorunner/README.md`](https://github.com/viscosiety/viscosuite/blob/main/viscorunner/README.md).
 
 ## Architecture
 
 ```
 viscosuite/
-├── viscolink/               Frank!Framework integration middleware
-├── viscostore/              HAPI FHIR JPA Server (persistent FHIR storage + MCP)
-├── packs/health/            healthcare pack: pipes, defaults, working reference configurations (see below)
+├── viscolink/               the market-neutral core: Frank!Framework integration middleware
+├── viscostore/              HAPI FHIR JPA Server (persistent FHIR R4 storage + MCP)
+├── packs/health/            the Healthcare pack: HL7v2/FHIR components, defaults, working reference configurations (see below)
 └── viscorunner/             Docker packaging and configuration hub
     ├── configurations/               empty scaffold — mount your own integrations here
-    ├── docker-compose.yml            base service definitions (health pack + ViscoStore)
-    ├── docker-compose.viscolink.yml  health pack without ViscoStore
-    ├── docker-compose.core.yml       the core without a pack (see Images)
+    ├── docker-compose.yml            base service definitions (Healthcare pack + ViscoStore)
+    ├── docker-compose.viscolink.yml  Healthcare pack without ViscoStore
+    ├── docker-compose.core.yml       the market-neutral core, no pack components (see Images)
     └── docker-compose.demo.yml       demo overlay (demo configurations + traffic generator)
 ```
 
 **ViscoLink owns the integration concern.** It receives messages from source systems,
-validates and transforms them through F!F pipelines, and writes results to ViscoStore via
-the FHIR REST API. It holds no persistent state of its own — every pipeline execution is
-stateless and every outcome ends up in ViscoStore. Source systems talk to ViscoLink;
-ViscoLink talks to ViscoStore.
+validates and transforms them through F!F pipelines, and delivers the results to their
+targets — in the Healthcare suite, to ViscoStore through the FHIR REST API. It is not the
+system of record, and every pipeline execution is stateless. It does keep operational data in
+its own database: the message store and error store of guaranteed-delivery flows (messages
+waiting for delivery or parked after a failure) and the Ladybug traces, both of which contain
+message content. Source systems talk to ViscoLink; ViscoLink talks to its targets.
 
-**ViscoStore owns the persistence concern.** It is a standard HAPI FHIR JPA Server with no
-integration logic. Consumers that only need to query stored data — a clinical dashboard, an
-AI assistant, a reporting tool — go directly to ViscoStore without passing through
-ViscoLink. ViscoStore can be replaced by any FHIR-compliant server; ViscoLink can route to
-multiple targets; neither side carries the concerns of the other.
+**ViscoStore owns the persistence concern.** It is a standard HAPI FHIR JPA Server (FHIR R4)
+with one Viscosiety addition: the codification step of the two-zone model (below) — an
+interceptor that runs a FHIR StructureMap (FML) on inbound-zone records and writes the
+codified record linked to its source, plus `$convert` to trigger that on demand and
+`$compile` to turn FML text into a stored StructureMap. Consumers that only need to query
+stored data — a clinical dashboard, an AI assistant, a reporting tool — go directly to
+ViscoStore without passing through ViscoLink. For plain storage ViscoStore can be replaced by
+any FHIR-compliant server (a replacement does not bring the codification step with it), and
+ViscoLink can route to multiple targets.
 
 **The two-zone model keeps source data honest.** Incoming records are stored in the
 **inbound zone** first — tagged, provenance-tracked, and 1-to-1 traceable to the source
 system, with no interpretation applied. Semantic mapping to coded, profile-conformant
 resources happens as a separate step into the **codified zone**, permanently linked to its
-inbound source. When the source corrects a record, the correction propagates; when an
-auditor asks "where did this value come from", the answer is one reference away. The
-profiles, extensions and conventions live in the
-[ViscoLink IG](https://ig.viscosiety.com).
+inbound source. When the source corrects a record, the codified record is derived again; when
+an auditor asks "where did this value come from", the answer is one reference away.
+What is built: inbound-zone tagging in the `nl-core-intake` flow, and FML-driven codification
+in ViscoStore (FHIR R4 only). The demo traffic shows only the inbound step; the codification
+is demonstrated by `packs/health/util/demo/codify-lab.sh`. The profiles and extensions of
+the model are identified by canonical URLs of the ViscoLink Implementation Guide (IG). The IG
+is not part of this repository, and it is not yet available at its canonical address
+(`https://ig.viscosiety.com`); until it is, the URLs work as identifiers only.
 
 ## Why Frank!Framework
 
@@ -85,10 +120,11 @@ full build cycle for every change. Frank!Framework avoids both.
 gets code review, branching, CI, and rollback for free. The configuration *is* the source
 of truth — diffable, reviewable in a pull request, and deployable by volume mount.
 
-**Stateless and DevOps-friendly.** F!F pipelines are stateless — each message flows through
-independently. Containers can be replaced, scaled horizontally, or rolled back without
-session drain. Platforms that embed session state, channel locks, or in-process queues make
-zero-downtime deployments fragile; F!F avoids this entirely.
+**Stateless and DevOps-friendly.** F!F pipeline executions are stateless — each message flows
+through independently, and the queues of guaranteed-delivery flows live in the database, not
+in the process. Containers can be replaced, restarted or rolled back without draining
+sessions. Platforms that embed session state, channel locks, or in-process queues make
+zero-downtime deployments fragile.
 
 **Declarative transformations, LLM-friendly.** Pipelines transform data through XSLT and
 equivalent declarative mapping documents, not imperative scripts. A transformation is a
@@ -104,19 +140,32 @@ no proprietary engine anywhere in the stack.
 
 ## What ViscoSuite adds
 
-Frank!Framework provides the pipeline engine, tooling, and runtime. ViscoSuite extends it
-with healthcare-specific components.
+Frank!Framework provides the pipeline engine, tooling, and runtime. ViscoSuite adds the
+following.
 
-**Custom pipes**
+**ViscoFlow** (part of ViscoLink, in every image)
+
+F!F records every pipeline execution as a structured trace — input and output at every
+pipe, session key values, the forward taken, and duration. ViscoFlow is a purpose-built
+frontend on top of this: it surfaces those traces with the context of the message (subject
+ID — "Patient" in the Healthcare pack, "Subject" in Core — correlation ID, flow name, exit
+state) and makes them navigable without the developer-oriented Ladybug interface. Filtering
+by subject or flow, inspecting a message's transformation step by step, and auditing routing
+decisions are first-class operations.
+
+**The Healthcare pack** (`packs/health`) lays the components below over ViscoLink. They are
+part of the Healthcare images; the Core image does not contain them.
+
+*Custom pipes*
 
 | Pipe | Description |
 |---|---|
-| `Hl7v2ToXmlPipe` | Converts pipe-delimited HL7v2 to HL7v2 XML Encoding Syntax using HAPI HL7v2; supports version enforcement and message validation (per-message override via a `validateMessage` parameter) |
+| `Hl7v2ToXmlPipe` | Converts pipe-delimited HL7v2 to HL7v2 XML Encoding Syntax using HAPI HL7v2. `hl7Version` pins the HAPI model version (a message that declares another version is converted to the pinned one, not rejected — a known limitation), and message validation can be switched per message through a `validateMessage` parameter |
 | `XmlToHl7v2Pipe` | Inverse: converts HL7v2 XML back to pipe-delimited format for MLLP transmission or ACK generation |
 | `FhirValidatorPipe` | Validates FHIR resources (XML or JSON) against R4, R5, or DSTU3 using the HAPI FHIR instance validator; refuses invalid input on a `failure` forward with an `OperationOutcome`. Loads FHIR NPM packages (`validationPackages`) for profile-level validation — e.g. against Nictiz nl-core |
 | `FhirFormatPipe` | FHIR-aware format conversion between `application/fhir+xml` and `application/fhir+json` — structurally correct (single-element arrays stay arrays), with the target mimetype configurable per deployment, per session key, or per message via `<Param>` |
 
-**Custom listener and sender**
+*Custom listener and sender*
 
 | Component | Description |
 |---|---|
@@ -124,20 +173,11 @@ with healthcare-specific components.
 | `MllpSender` | TCP client sender that maintains persistent connections to remote MLLP endpoints and reads ACK responses |
 | `FhirListener` | Registers FHIR operation endpoints (read, search, bundle-transaction, proxy) with ViscoLink's FHIR facade servlet |
 
-**ViscoFlow**
-
-F!F records every pipeline execution as a structured trace — input and output at every
-pipe, session key values, the forward taken, and duration. ViscoFlow is a purpose-built
-frontend on top of this: it surfaces those traces with healthcare context (patient ID,
-correlation ID, flow name, exit state) and makes them navigable without the
-developer-oriented Ladybug interface. Filtering by patient or flow, inspecting a message's
-transformation step by step, and auditing routing decisions are first-class operations.
-
 ## Reference implementations
 
-The demo overlay ships working F!F configurations — use them as starting points, study them
-as patterns, or run them as-is. They follow explicit
-[configuration conventions](packs/health/demo-configurations/README.md).
+The demo overlay ships working F!F configurations (they live with the Healthcare pack) — use
+them as starting points, study them as patterns, or run them as-is. They follow explicit
+[configuration conventions](https://github.com/viscosiety/viscosuite/blob/main/packs/health/demo-configurations/README.md).
 
 | Configuration | What it shows |
 |---|---|
@@ -147,16 +187,17 @@ as patterns, or run them as-is. They follow explicit
 | `nl-core-intake` | **FHIR R4 / nl-core (Dutch) reference flow**: validate R4 synchronously (422 + OperationOutcome on refusal), tag into the inbound zone, deliver with guaranteed retry |
 | `fhir-to-fhir` | FHIR R4 / DSTU3 / R5 facade endpoints routing through ViscoLink into ViscoStore |
 | `fhir-store-proxy` | Transparent reverse proxy to ViscoStore with credential injection |
-| `loinc-mapping-api` | LOINC lookup from CSV, returning enriched FHIR Observations |
-| `fake-emr` | PostgreSQL-backed fake EMR emitting FHIR Bundles — database-sourced FHIR |
-| `demo-traffic` | The demo heartbeat: scheduled generator streaming valid and deliberately failing messages through all of the above |
+| `loinc-mapping-api` | CRUD API for a LOINC mapping table in ViscoLink's database (seeded from a CSV); the `fhir-to-fhir` lab-enrichment facade uses it to add LOINC codings to uncoded Observations |
+| `fake-emr` | PostgreSQL-backed fake EMR emitting FHIR Bundles — database-sourced FHIR (its sample database is hosted by Viscosiety) |
+| `demo-traffic` | The demo heartbeat: scheduled generator streaming valid and deliberately failing messages through the HL7v2 intakes (`hl7v2-to-fhir`, `hl7v2-to-xml`), `fhir-delivery` and `nl-core-intake` |
 
-**A note on FHIR versions:** ViscoStore runs FHIR R5 and the ViscoLink IG derives from the
-HL7 Europe core profiles (the EHDS foundation). The pipes speak R4, R5 and DSTU3, and the
-`nl-core-intake` flow is the R4 reference for the Dutch nl-core install base — including
-**package-backed profile validation**: point `FhirValidatorPipe` at the Nictiz nl-core
-packages (`viscorunner/fhir-packages/`, CC0) and resources are validated against the
-profiles they claim, not just base R4. The demo overlay runs with this enabled.
+**A note on FHIR versions:** ViscoStore runs FHIR R4, and so does its codification step. The
+pipes and the facade endpoints speak R4, R5 and DSTU3, and the `nl-core-intake` flow is the
+R4 reference for the Dutch nl-core install base — including **package-backed profile
+validation**: point `FhirValidatorPipe` at the Nictiz nl-core packages (CC0; the pinned
+versions are pre-releases, and the demo downloads them into `viscorunner/fhir-packages/` on
+first start) and resources are validated against the profiles they claim, not just base R4.
+The demo overlay runs with this enabled.
 
 ## Key endpoints
 
@@ -166,22 +207,35 @@ profiles they claim, not just base R4. The demo overlay runs with this enabled.
 | `/viscolink/` | ViscoLink app launcher (tools + Frank!Console) |
 | `/viscolink/flow/` | ViscoFlow — live message flow viewer and trace debugger |
 | `/viscolink/iaf/` | Frank!Console / Ladybug flow debugger |
+| `GET /viscolink/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`) and its subject identifier; bearer-token callers only |
 | `/viscostore/fhir` | FHIR REST API (HAPI JPA Server) |
 | `/viscostore/tester/` | Interactive FHIR Tester UI |
 | `/viscostore/fhir/swagger-ui/` | Swagger API docs |
 | `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
 
-Ports: `8180` HTTP · `2575` MLLP (HL7v2 over TCP) · `5432` PostgreSQL · `5005` JPDA debugger.
+ViscoStore protects its FHIR API, Swagger UI and MCP endpoint with HTTP Basic authentication.
+Only `/viscostore/fhir/metadata`, the health probe and the tester page itself are open. The
+compose files ship a default login for local use; change it before exposing the store beyond
+your machine.
+
+Ports (local compose): `8180` HTTP · `2575` MLLP (HL7v2 over TCP, Healthcare images only) ·
+`5432` PostgreSQL · `5005` JPDA debugger (debug overlays only) · `5672`/`15672` RabbitMQ
+(demo only). These are local-development settings.
 
 ## MCP integration
 
 ViscoStore exposes FHIR resources as [MCP](https://modelcontextprotocol.io) tools via
-Spring AI, enabling AI assistants to query and write FHIR data:
+Spring AI, enabling AI assistants to query and write FHIR data. The endpoint needs the same
+HTTP Basic login as the rest of the FHIR API — use the login configured in your compose
+file, and let your MCP client send it (the header syntax differs per client):
 
 ```json
 {
   "mcpServers": {
-    "viscosuite": { "url": "http://localhost:8180/viscostore/mcp/messages" }
+    "viscosuite": {
+      "url": "http://localhost:8180/viscostore/mcp/messages",
+      "headers": { "Authorization": "Basic <base64 of username:password>" }
+    }
   }
 }
 ```
@@ -202,38 +256,61 @@ wrapper (`./mvnw`) downloads the correct Maven automatically.
 ./mvnw verify -pl viscorunner       # class-path and launcher integration tests (after the install)
 ```
 
+After the build, `docker compose up --build` in `viscorunner/` builds the images from your
+build output instead of using the published ones.
+
 Remote debugging (JPDA on `5005`) and smoke tests are described in
-[`viscorunner/README.md`](viscorunner/README.md) and
-`viscostore/src/test/smoketest/`.
+[`viscorunner/README.md`](https://github.com/viscosiety/viscosuite/blob/main/viscorunner/README.md)
+and `viscostore/src/test/smoketest/`.
 
 ## Images
 
-One recipe, `viscorunner/Dockerfile`, builds every runner image from two build arguments:
-`PACK` (`health`, the default, or `core`) chooses the vertical pack laid over the ViscoLink
-core, and `STORE` (`viscostore`, the default, or `none`) whether the ViscoStore FHIR server
-is part of the image. CI publishes multi-arch images (amd64 and arm64); the `image:` lines of
-the compose files in `viscorunner/` give the registry path.
+One recipe, `viscorunner/Dockerfile`, builds every runner image from two build arguments.
+`PACK` (`health`, the default, or `core`) chooses the pack laid over the ViscoLink core, and
+`STORE` (`viscostore`, the default, or `none`) whether the ViscoStore FHIR server is part of
+the image.
+
+A **pack** is the market-specific layer put over the market-neutral ViscoLink core: its
+components, defaults, demo configurations and the word for the main subject of a message.
+An image carries exactly one. Today there are two: **Healthcare** (id `health`: HL7v2, MLLP and
+FHIR components, subject "Patient") and **Core** (id `core`: the market-neutral platform
+without those components, subject "Subject" — the image without a vertical pack). Further packs, for example for the public sector, are planned
+but not built.
+
+CI publishes multi-arch images (amd64 and arm64) to Viscosiety's public container registry,
+`registry.git.viscosiety.com/public-applications/viscosuite/<image>`, which allows anonymous
+pulls. Three combinations of pack and store are published, plus the standalone store:
 
 | Image | Contents | Tags |
 |---|---|---|
-| `viscorunner` | health pack + ViscoStore | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
-| `viscolink` | health pack, no store | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
-| `viscolink` | the core: no pack, no store | `<sha>-core`, `latest-core` |
+| `viscorunner` | Healthcare pack + ViscoStore (the full suite) | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | Healthcare pack, no store (ViscoLink only) | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | Core: no pack components, no store | `<sha>-core`, `latest-core` |
 | `viscostore` | the standalone FHIR server | `<sha>`, `latest` |
 
-`<sha>` is the commit; there are no version tags. The unsuffixed tags keep their long-standing
-meaning (the healthcare images) and `-health` is the explicit spelling. `-core` is the
-market-neutral integration platform: Frank!Framework, the console with OIDC, ViscoFlow and
-Ladybug, with no FHIR servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject
-identifier is a neutral "Subject" instead of "Patient", the pack descriptor endpoint reports
-`core`, and its demo is a one-adapter echo (`viscolink/demo-configurations/echo/`). Try it with
-`docker compose -f docker-compose.core.yml up --build` in `viscorunner/`.
+The image name `viscorunner` means the suite (ViscoLink plus ViscoStore), not the packaging in
+general. Other combinations, such as Core with ViscoStore, are not published.
+
+`<sha>` is the commit; there are no release-number tags, so an image cannot be pinned to a
+release such as v0.20.0, only to a commit. The unsuffixed tags keep their long-standing meaning
+(the healthcare images) and `-health` is the explicit spelling. `-core` is the market-neutral
+integration platform: Frank!Framework, the console with OIDC, ViscoFlow and Ladybug, with no FHIR
+servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject identifier is a neutral
+"Subject" instead of "Patient", the pack descriptor endpoint (`GET /viscolink/api-service/pack`)
+reports `core`, and its demo is a one-adapter echo (`viscolink/demo-configurations/echo/`; copy it into
+`viscorunner/configurations/` to load it). Try the core from `viscorunner/`: `cp secrets/credentials.properties.example secrets/credentials.properties`,
+then `docker compose -f docker-compose.core.yml up`. All images contain third-party components
+that keep their own licences (see License).
 
 ## Versioning and compatibility
 
-ViscoSuite follows semantic versioning. Each release documents the Frank!Framework version
-it builds on; **v1.0.0 lands together with Frank!Framework 10.3 GA**. Until then, 0.9.x
-releases are feature-complete previews of the 1.0 line.
+ViscoSuite follows semantic versioning (pre-1.0: breaking changes bump the minor version).
+The latest release is **v0.20.0** (2026-09-25); **v1.0.0 lands together with Frank!Framework
+10.3 GA**. Until then the builds run on a Frank!Framework 10.3 pre-release (nightly) build, and
+each release documents the version it builds on in the
+[changelog](https://github.com/viscosiety/viscosuite/blob/main/CHANGELOG.md). The pack
+structure and the `-core` and `-health` images described here are on `main` and in the
+`latest*` images; they are not part of v0.20.0 and arrive with the next release.
 
 ## Community
 
@@ -242,19 +319,21 @@ requests live here. Day-to-day development happens on our GitLab and is mirrored
 every push, so what you see is always current. Merged PRs are integrated on GitLab by a
 maintainer and flow back with authorship preserved.
 
-- Found a bug or have an integration question? [Open an issue](../../issues) — templates
+- Found a bug or have an integration question?
+  [Open an issue](https://github.com/viscosiety/viscosuite/issues) — templates
   included, and **never include real patient data**.
-- Want to contribute? Read [CONTRIBUTING.md](CONTRIBUTING.md).
-- Security reports go to [SECURITY.md](SECURITY.md) — not to the issue tracker.
+- Want to contribute? Read [CONTRIBUTING.md](https://github.com/viscosiety/viscosuite/blob/main/CONTRIBUTING.md).
+- Security reports go to [SECURITY.md](https://github.com/viscosiety/viscosuite/blob/main/SECURITY.md) — not to the issue tracker.
 
 ## Open source and commercial — the boundary
 
-Everything in this repository — ViscoLink, ViscoStore, ViscoRunner, the reference
-configurations and the ViscoLink IG — is and stays **Apache-2.0**. Viscosiety, the company
-behind ViscoSuite, additionally offers **ViscoForge**: a commercial operator console for
-organisations that *run* flows rather than build them (message triage, journey timelines,
-audited retry/resolve with hash-chained audit logging, deployment manifests). The suite is
-fully usable without it, forever.
+Everything in this repository — ViscoLink, ViscoStore, ViscoRunner, the Healthcare pack and the
+reference configurations — is and stays **Apache-2.0**. (The ViscoLink IG is not part of
+this repository.) Viscosiety, the company behind ViscoSuite, additionally offers **ViscoForge**: a
+commercial, proprietary overlay on top of ViscoLink — an operator console for organisations
+that *run* flows rather than build them (message triage, journey timelines, audited
+retry/resolve with hash-chained audit logging, deployment manifests). ViscoForge is not part
+of this repository; the suite is fully usable without it, forever, and does not depend on it.
 
 ## Support & services
 
@@ -269,6 +348,11 @@ Contact: [viscosiety.com](https://viscosiety.com).
 
 ## License
 
-[Apache License 2.0](LICENSE) — © 2026 Viscosiety B.V. See [NOTICE](NOTICE).
+[Apache License 2.0](https://github.com/viscosiety/viscosuite/blob/main/LICENSE) — © 2026 Viscosiety B.V. See
+[NOTICE](https://github.com/viscosiety/viscosuite/blob/main/NOTICE).
 ViscoSuite is powered by the [Frank!Framework](https://frankframework.org), an open-source
-integration framework by WeAreFrank!, and by [HAPI FHIR](https://hapifhir.io).
+integration framework by WeAreFrank!, and by [HAPI FHIR](https://hapifhir.io). Third-party
+components keep their own licences: Frank!Framework and HAPI FHIR are Apache-2.0; HAPI HL7v2
+(used by the Healthcare pack) is dual-licensed under the MPL 1.1 and the GPL and used under
+the MPL; the LOINC® mapping in the demo contains content from [LOINC](https://loinc.org), used
+under the LOINC licence.
