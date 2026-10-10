@@ -79,14 +79,20 @@ public class CodificationConfig {
      * never attempts to parse the raw FML body as a FHIR resource.
      *
      * The URL pattern is relative to the WAR context root (/viscostore), matching
-     * the HAPI FHIR servlet path /fhir/*. The HIGHEST_PRECEDENCE order ensures the
-     * filter runs before any other filters in the chain.
+     * the HAPI FHIR servlet path /fhir/*.
+     *
+     * The filter MUST run after Spring Security's filter chain (order -100): it answers
+     * the request itself and writes with SystemRequestDetails, so the security chain is
+     * the only login check it gets. LOWEST_PRECEDENCE puts it last among the filters;
+     * every filter still runs before the RestfulServer servlet, so HAPI never sees the
+     * FML body. (It used to be HIGHEST_PRECEDENCE, which let anonymous callers create
+     * and overwrite StructureMaps; FmlCompileSecurityIT guards the order.)
      */
     @Bean
     public FilterRegistrationBean<FmlCompileFilter> fmlCompileFilterRegistration() {
         FilterRegistrationBean<FmlCompileFilter> registration = new FilterRegistrationBean<>(myFmlCompileFilter);
         registration.addUrlPatterns("/fhir/StructureMap/$compile");
-        registration.setOrder(Ordered.HIGHEST_PRECEDENCE);
+        registration.setOrder(Ordered.LOWEST_PRECEDENCE);
         registration.setName("fmlCompileFilter");
         return registration;
     }
