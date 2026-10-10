@@ -4,6 +4,16 @@ Copyright 2026 Viscosiety B.V.
 This product is powered by the Frank!Framework (https://frankframework.org),
 Copyright WeAreFrank!, licensed under the Apache License 2.0.
 
-This product includes HAPI FHIR (https://hapifhir.io) and HAPI HL7v2,
-Copyright Smile CDR Inc. and University Health Network, licensed under the
-Apache License 2.0.
+This product includes HAPI FHIR (https://hapifhir.io),
+Copyright Smile CDR Inc., licensed under the Apache License 2.0.
+
+The Healthcare pack includes HAPI HL7v2 (https://hapifhir.github.io/hapi-hl7v2/),
+Copyright University Health Network and contributors. HAPI HL7v2 is dual-licensed
+under the Mozilla Public License 1.1 and the GNU General Public License; ViscoSuite
+uses it under the terms of the Mozilla Public License 1.1.
+
+The demo configurations contain a LOINC mapping that includes content from LOINC
+(https://loinc.org). LOINC is copyright Regenstrief Institute, Inc. and the Logical
+Observation Identifiers Names and Codes (LOINC) Committee and is available at no
+cost under the license at https://loinc.org/license. LOINC(R) is a registered
+United States trademark of Regenstrief Institute, Inc.

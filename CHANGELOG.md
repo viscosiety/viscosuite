@@ -8,6 +8,67 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- Vertical packs: a pack SPI in the core (`com.viscosiety.pack`, discovered through
+  `META-INF/services/com.viscosiety.pack.PackDescriptor`) with `CorePack` as the default, a
+  descriptor served at `GET /viscolink/api-service/pack` (bearer JWT only, settings
+  `servlet.pack.authenticator` and `servlet.pack.securityRoles`) and at
+  `GET /viscolink/flow-api/pack` (ViscoFlow, console session), and the subject identifier
+  (`patientId` for health) read from the descriptor instead of hardcoded.
+- `packs/health` (`viscolink-pack-health`): the healthcare specifics as a pack, laid over the core
+  WAR as a webapp overlay (FHIR facade servlets, MLLP, the HL7v2/FHIR pipes, their defaults, the
+  `patientid` Ladybug column, the demo configurations and the `hl7util`/`fhirutil`/`demo` tools).
+- Image tags `:<sha>-health` and `:latest-health` (the same manifest as the unsuffixed tags),
+  and `viscolink:<sha>-core` / `:latest-core`, the core without a pack or ViscoStore.
+- `viscorunner/docker-compose.core.yml` runs the core image; `viscorunner/postgres/init-ladybug.sql`
+  creates Ladybug's database for the stacks without ViscoStore.
+
+### Changed
+- One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`
+  (`viscostore` | `none`) builds every runner image; CI builds the matrix from it.
+- The `viscolink` image now carries `server.xml` and the viscorunner jar, like the combined image.
+- Tomcat's `conf/context-viscosuite.xml` and `conf/context-viscolink.xml` are now
+  `conf/context-viscostore.xml` and `conf/context-none.xml`; `STORE` picks the file.
+- The demo configurations moved to `packs/health/demo-configurations`; the core ships a one-adapter
+  `echo` demo in `viscolink/demo-configurations`.
+- The `util/*` tools moved to `packs/health/util/`.
+- Ladybug records the subject identifier in a `subjectid` column; the health pack adds its own
+  `patientid` column.
+- `customViews.names` in the core's `DeploymentSpecifics.properties` appends the pack's views through
+  `pack.customViews.names`.
+- HAPI FHIR bumped to `8.12.1` in ViscoStore (from `8.6.0`; Spring Boot 3.5.15, FHIR core 6.9.12) and
+  in the health pack (from `8.8.1`). ViscoStore is re-synced with hapi-fhir-jpaserver-starter
+  `image/v8.12.0-2`: clinical-reasoning 4.13.0, Spring AI 1.1.8 (was a milestone), Spring Security
+  6.5.11, and the starter's CVE pins (logback, embedded Tomcat, PostgreSQL driver). An existing
+  ViscoStore database upgrades in place on start (Hibernate adds the new tables and columns; checked
+  against a Postgres database written by the 8.6.0 image). Behaviour changes that come with it: CORS no
+  longer allows credentials by default (`hapi.fhir.cors.allow_Credentials` defaults to `false`; set it
+  to `true` with explicit origins if a browser client needs it), the actuator's liveness group no
+  longer includes readiness, and `inline_resource_storage_below_size` is now
+  `binary_storage_minimum_binary_size` (the old setting has done nothing since HAPI 7). The health
+  pack's class path loses FHIR core's RDF libraries (Jena, Titanium, libthrift) and gains OkHttp 5,
+  Okio and the Kotlin standard library.
+
+### Removed
+- `viscorunner/Dockerfile.viscolink`, replaced by `Dockerfile` with `STORE=none`.
+- `PackDescriptor.propertyDefaults()`: a pack's own `DeploymentSpecifics.properties` supplies its defaults.
+- The FHIR facade servlets, MLLP and the HAPI libraries from the core WAR; the health pack carries them.
+
+### Security
+- ViscoStore's `POST /fhir/StructureMap/$compile` now requires the same HTTP Basic
+  login as the rest of the FHIR API. `FmlCompileFilter` was registered ahead of
+  Spring Security's filter chain, so it never got the login check; it now runs
+  after it. `FmlCompileSecurityIT` covers the endpoint and fails when a filter
+  that is not on its allow-list is mapped ahead of the security chain. Clients
+  that already send credentials (the demo loader does) see no change.
+
+## [0.20.0] — 2026-09-25
+
+Headless Larva test runs, combined OIDC and Basic API access, and a stateful OAuth2 console
+login. Built on Frank!Framework nightly `10.3.0-20260924.042323`. This release predates the
+vertical-pack split (the `packs/health` module, the `-core` and `-health` image tags and
+`viscorunner/docker-compose.core.yml`), which is on `main` and listed under [Unreleased].
+
+### Added
 - `LarvaRunServlet` (bearer-gated `/api-service/larva/runs`) runs Frank!Framework Larva
   scenarios for a configuration and serves JSON results headlessly. `POST {configuration,
   execute?, timeoutMs?}` returns 202 with a runId; `GET …/runs/{runId}` serves per-scenario
@@ -47,55 +108,16 @@ minor version).
   `Origin`/`Referer` fallback) so the session cookie cannot be replayed cross-site;
   only active when the console authenticates with OAUTH2; opt out with
   `viscolink.api.sessionAuth=false`.
-- Vertical packs: a pack SPI in the core (`com.viscosiety.pack`, discovered through
-  `META-INF/services/com.viscosiety.pack.PackDescriptor`) with `CorePack` as the default, a
-  descriptor served at `GET /viscolink/api-service/pack` (bearer JWT only, settings
-  `servlet.pack.authenticator` and `servlet.pack.securityRoles`) and at
-  `GET /viscolink/flow-api/pack` (ViscoFlow, console session), and the subject identifier
-  (`patientId` for health) read from the descriptor instead of hardcoded.
-- `packs/health` (`viscolink-pack-health`): the healthcare specifics as a pack, laid over the core
-  WAR as a webapp overlay (FHIR facade servlets, MLLP, the HL7v2/FHIR pipes, their defaults, the
-  `patientid` Ladybug column, the demo configurations and the `hl7util`/`fhirutil`/`demo` tools).
-- Image tags `:<sha>-health` and `:latest-health` (the same manifest as the unsuffixed tags),
-  and `viscolink:<sha>-core` / `:latest-core`, the core without a pack or ViscoStore.
-- `viscorunner/docker-compose.core.yml` runs the core image; `viscorunner/postgres/init-ladybug.sql`
-  creates Ladybug's database for the stacks without ViscoStore.
 
 ### Changed
-- Frank!Framework bumped to nightly `10.3.0-20260924.042323` (frankframework
-  master `1dcb19c2`). The `OAuth2Authenticator` override still matches the
-  upstream file (unchanged since `e3803c17`); only its tracking note moved.
+- Frank!Framework bumped from `10.3.0-20260902.042323` to nightly `10.3.0-20260924.042323`
+  (frankframework master `1dcb19c2`; an intermediate bump to `10.3.0-20260910.042327` preceded
+  it). The `OAuth2Authenticator` override still matches the upstream file (unchanged since
+  `e3803c17`); only its tracking note moved.
   No Java bump: the framework's artifacts are still compiled for JDK 21 —
   JDK 25 is only needed to build the framework itself (Frank!Doc, Javadoc).
-- One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`
-  (`viscostore` | `none`) builds every runner image; CI builds the matrix from it.
-- The `viscolink` image now carries `server.xml` and the viscorunner jar, like the combined image.
-- Tomcat's `conf/context-viscosuite.xml` and `conf/context-viscolink.xml` are now
-  `conf/context-viscostore.xml` and `conf/context-none.xml`; `STORE` picks the file.
-- The demo configurations moved to `packs/health/demo-configurations`; the core ships a one-adapter
-  `echo` demo in `viscolink/demo-configurations`.
-- The `util/*` tools moved to `packs/health/util/`.
-- Ladybug records the subject identifier in a `subjectid` column; the health pack adds its own
-  `patientid` column.
-- `customViews.names` in the core's `DeploymentSpecifics.properties` appends the pack's views through
-  `pack.customViews.names`.
-- HAPI FHIR bumped to `8.12.1` in ViscoStore (from `8.6.0`; Spring Boot 3.5.15, FHIR core 6.9.12) and
-  in the health pack (from `8.8.1`). ViscoStore is re-synced with hapi-fhir-jpaserver-starter
-  `image/v8.12.0-2`: clinical-reasoning 4.13.0, Spring AI 1.1.8 (was a milestone), Spring Security
-  6.5.11, and the starter's CVE pins (logback, embedded Tomcat, PostgreSQL driver). An existing
-  ViscoStore database upgrades in place on start (Hibernate adds the new tables and columns; checked
-  against a Postgres database written by the 8.6.0 image). Behaviour changes that come with it: CORS no
-  longer allows credentials by default (`hapi.fhir.cors.allow_Credentials` defaults to `false`; set it
-  to `true` with explicit origins if a browser client needs it), the actuator's liveness group no
-  longer includes readiness, and `inline_resource_storage_below_size` is now
-  `binary_storage_minimum_binary_size` (the old setting has done nothing since HAPI 7). The health
-  pack's class path loses FHIR core's RDF libraries (Jena, Titanium, libthrift) and gains OkHttp 5,
-  Okio and the Kotlin standard library.
-
-### Removed
-- `viscorunner/Dockerfile.viscolink`, replaced by `Dockerfile` with `STORE=none`.
-- `PackDescriptor.propertyDefaults()`: a pack's own `DeploymentSpecifics.properties` supplies its defaults.
-- The FHIR facade servlets, MLLP and the HAPI libraries from the core WAR; the health pack carries them.
+- The parent pom now declares the Apache License 2.0 (`<licenses>`), so the published artifact
+  metadata carries the licence.
 
 ### Fixed
 - The `OAuth2Authenticator` override no longer drops bearer authentication.
@@ -129,14 +151,6 @@ minor version).
   found ..."; `LarvaRunner` now forwards `LarvaTool`'s ERROR/WARNING messages
   produced while loading scenarios as run-level messages, and the "no scenarios
   found" message itself now hints at an unresolved include as a cause.
-
-### Security
-- ViscoStore's `POST /fhir/StructureMap/$compile` now requires the same HTTP Basic
-  login as the rest of the FHIR API. `FmlCompileFilter` was registered ahead of
-  Spring Security's filter chain, so it never got the login check; it now runs
-  after it. `FmlCompileSecurityIT` covers the endpoint and fails when a filter
-  that is not on its allow-list is mapped ahead of the security chain. Clients
-  that already send credentials (the demo loader does) see no change.
 
 ## [0.10.0] — 2026-09-04
 
