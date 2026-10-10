@@ -1,11 +1,12 @@
 # ViscoSuite
 
-**Open-source integration platform, healthcare first — powered by the [Frank!Framework](https://frankframework.org).**
+**Open-source integration platform: a market-neutral core, with packs for markets such as healthcare — powered by the [Frank!Framework](https://frankframework.org).**
 
 ViscoSuite receives, validates, transforms and routes messages through declarative,
-git-native pipelines. Its first market is healthcare: the Healthcare pack adds HL7v2 and FHIR,
-and a standard FHIR repository stores the results — with every record traceable back to its
-raw source. Underneath sits a market-neutral core that is also published as an image of its own.
+git-native pipelines. At its base is a market-neutral core, also published as an image of its
+own. A pack adds what one market needs on top of that core. The first pack is Healthcare: it adds
+HL7v2 and FHIR, and a standard FHIR repository stores the results — with every record traceable
+back to its raw source.
 
 [![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](https://github.com/viscosiety/viscosuite/blob/main/LICENSE)
 [![Powered by Frank!Framework](https://img.shields.io/badge/powered%20by-Frank!Framework-1a7f76.svg)](https://frankframework.org)
@@ -133,10 +134,10 @@ description, validate it against a FHIR profile or HL7v2 schema, and explain wha
 Script-based middleware embeds logic as JavaScript or Groovy with implicit side effects —
 producible, but not reliably verifiable against a structural contract.
 
-**Open source, proven in the Dutch public sector — applied to healthcare.** F!F has a
-strong track record in Dutch government and corporate integration. ViscoSuite is the
-healthcare-first implementation on that foundation: fully open source, top to bottom, with
-no proprietary engine anywhere in the stack.
+**Open source, proven in the Dutch public sector.** F!F has a strong track record in Dutch
+government and corporate integration. ViscoSuite builds on that foundation: a market-neutral
+core with a pack per market, Healthcare being the first — fully open source, top to bottom,
+with no proprietary engine anywhere in the stack.
 
 ## What ViscoSuite adds
 
