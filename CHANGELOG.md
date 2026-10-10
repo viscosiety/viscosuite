@@ -118,6 +118,14 @@ minor version).
   produced while loading scenarios as run-level messages, and the "no scenarios
   found" message itself now hints at an unresolved include as a cause.
 
+### Security
+- ViscoStore's `POST /fhir/StructureMap/$compile` now requires the same HTTP Basic
+  login as the rest of the FHIR API. `FmlCompileFilter` was registered ahead of
+  Spring Security's filter chain, so it never got the login check; it now runs
+  after it. `FmlCompileSecurityIT` covers the endpoint and fails when a filter
+  that is not on its allow-list is mapped ahead of the security chain. Clients
+  that already send credentials (the demo loader does) see no change.
+
 ## [0.10.0] — 2026-09-04
 
 Native bearer authentication. The Frank!Framework's `OAuth2Authenticator`

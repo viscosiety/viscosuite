@@ -68,7 +68,8 @@ import java.util.List;
  *
  * Registration: CodificationConfig registers this filter with a FilterRegistrationBean
  * scoped to exactly /fhir/StructureMap/$compile so that it does not intercept
- * any other HAPI requests.
+ * any other HAPI requests, and orders it after Spring Security's filter chain:
+ * this filter does no login check of its own.
  */
 @Component
 @Conditional(OnR4Condition.class)
