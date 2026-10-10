@@ -41,8 +41,8 @@ minor version).
   6.5.11, and the starter's CVE pins (logback, embedded Tomcat, PostgreSQL driver). An existing
   ViscoStore database upgrades in place on start (Hibernate adds the new tables and columns; checked
   against a Postgres database written by the 8.6.0 image). Behaviour changes that come with it: CORS no
-  longer allows credentials by default (`hapi.fhir.cors.allow_Credentials` defaults to `false`; set it
-  to `true` with explicit origins if a browser client needs it), the actuator's liveness group no
+  longer allows credentials by default (`hapi.fhir.cors.allow_Credentials` defaults to `false`; CORS
+  itself is now off, see Security), the actuator's liveness group no
   longer includes readiness, and `inline_resource_storage_below_size` is now
   `binary_storage_minimum_binary_size` (the old setting has done nothing since HAPI 7). The health
   pack's class path loses FHIR core's RDF libraries (Jena, Titanium, libthrift) and gains OkHttp 5,
@@ -67,6 +67,16 @@ minor version).
   after it. `FmlCompileSecurityIT` covers the endpoint and fails when a filter
   that is not on its allow-list is mapped ahead of the security chain. Clients
   that already send credentials (the demo loader does) see no change.
+- ViscoStore's CORS is off by default. It used to answer every origin, and with
+  `allow_Credentials: true` (application.yaml up to the HAPI 8.12.1 bump) a web
+  page on any site could read the store through a browser that held a ViscoStore
+  login. Nothing calls the store from another origin (ViscoLink calls it
+  server-to-server; the tester and the Swagger UI are same-origin), so the
+  `hapi.fhir.cors` block is now commented out; to let a browser app call it,
+  list that app's origins there. `allow_Credentials: true` with the origin `"*"`
+  (also the default when no origin is listed) now stops the store at startup
+  (`CorsSettingsGuard`). Covered by `CorsSecurityIT`, `CorsOptInIT` and
+  `CorsSettingsGuardTest`.
 
 ## [0.20.0] — 2026-09-25
 

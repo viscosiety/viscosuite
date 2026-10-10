@@ -393,32 +393,36 @@ hapi:
     # -------------------------------------------------------------------------------
     # K. CORS
     # -------------------------------------------------------------------------------
-    cors:
-      # allow_Credentials: false
-      allowed_origin:
-        - "*"
-      # If you enable allow_Credentials=true, use explicit origins instead of "*".
-      # Optional overrides. If omitted, built-in defaults are used.
-      # allowed_headers:
-      #   - Origin
-      #   - Accept
-      #   - Content-Type
-      #   - Authorization
-      #   - Cache-Control
-      #   - If-Match
-      #   - If-None-Match
-      # exposed_headers:
-      #   - Location
-      #   - Content-Location
-      #   - ETag
-      # allowed_methods:
-      #   - GET
-      #   - POST
-      #   - PUT
-      #   - DELETE
-      #   - OPTIONS
-      #   - PATCH
-      #   - HEAD
+    # Off: ViscoStore is called server-to-server (ViscoLink) and from its own origin (the tester,
+    # the Swagger UI), none of which needs CORS. To let a browser app on another origin call it,
+    # uncomment the block and list that app's origins. allow_Credentials: true needs explicit
+    # origins; with "*" (also the default when no origin is listed) the store refuses to start
+    # (com.viscosiety.viscostore.config.CorsSettingsGuard).
+    # cors:
+    #   allow_Credentials: false
+    #   allowed_origin:
+    #     - "https://app.example.org"
+    #   # Optional overrides. If omitted, built-in defaults are used.
+    #   allowed_headers:
+    #     - Origin
+    #     - Accept
+    #     - Content-Type
+    #     - Authorization
+    #     - Cache-Control
+    #     - If-Match
+    #     - If-None-Match
+    #   exposed_headers:
+    #     - Location
+    #     - Content-Location
+    #     - ETag
+    #   allowed_methods:
+    #     - GET
+    #     - POST
+    #     - PUT
+    #     - DELETE
+    #     - OPTIONS
+    #     - PATCH
+    #     - HEAD
 
     # -------------------------------------------------------------------------------
     # L. Search Orchestration
