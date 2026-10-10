@@ -23,6 +23,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
+import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -63,6 +66,17 @@ class DockerfileContractTest {
         return read(relative).lines()
             .filter(line -> !line.stripLeading().startsWith("--"))
             .collect(Collectors.joining("\n"));
+    }
+
+    /** The {@code <Resource name="...">} names a Tomcat context file declares, XML comments dropped. */
+    private static Set<String> contextResourceNames(String relative) throws IOException {
+        String xml = read(relative).replaceAll("(?s)<!--.*?-->", "");
+        Matcher resource = Pattern.compile("<Resource\\s+name=\"([^\"]+)\"").matcher(xml);
+        Set<String> names = new TreeSet<>();
+        while (resource.find()) {
+            names.add(resource.group(1));
+        }
+        return names;
     }
 
     // ---- the Dockerfile ----
@@ -143,6 +157,25 @@ class DockerfileContractTest {
         assertFalse(Files.exists(MODULE.resolve("conf/context-viscolink.xml")), "renamed to context-none.xml");
         assertTrue(read("conf/context-viscostore.xml").contains("jdbc/viscostore"), "the suite context carries jdbc/viscostore");
         assertFalse(read("conf/context-none.xml").contains("jdbc/viscostore"), "the store-less context does not");
+    }
+
+    @Test
+    void everyTomcatContextDeclaresTheLadybugDatasource() throws IOException {
+        // Every compose stack sets ladybug.jdbc.datasource=jdbc/ladybug; a context without it fails the
+        // deploy of /viscolink (bean ladybugDataSource: unable to find resource [jdbc/ladybug]).
+        for (String file : List.of("conf/context-viscostore.xml", "conf/context-none.xml", "demo-conf/context.xml")) {
+            assertTrue(contextResourceNames(file).contains("jdbc/ladybug"), file + " declares jdbc/ladybug");
+        }
+    }
+
+    @Test
+    void theDemoContextDeclaresEveryDatasourceOfTheSuiteContextItReplaces() throws IOException {
+        // docker-compose.demo.yml mounts demo-conf/context.xml over the suite image's conf/context.xml.
+        Set<String> suite = contextResourceNames("conf/context-viscostore.xml");
+        Set<String> demo = contextResourceNames("demo-conf/context.xml");
+        assertTrue(demo.containsAll(suite), "demo-conf/context.xml declares " + demo + ", the suite context " + suite);
+        assertTrue(read("docker-compose.demo.yml").contains("./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro"),
+            "the demo compose still replaces the context (otherwise this test guards nothing)");
     }
 
     @Test

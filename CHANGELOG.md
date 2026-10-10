@@ -53,6 +53,13 @@ minor version).
 - `PackDescriptor.propertyDefaults()`: a pack's own `DeploymentSpecifics.properties` supplies its defaults.
 - The FHIR facade servlets, MLLP and the HAPI libraries from the core WAR; the health pack carries them.
 
+### Fixed
+- The demo stack (`docker-compose.yml` + `docker-compose.demo.yml`) deploys `/viscolink` again.
+  `viscorunner/demo-conf/context.xml` replaces the image's Tomcat context but lacked the
+  `jdbc/ladybug` datasource that 0.9.0 added to `conf/context-*.xml`, so the deploy failed with
+  `unable to find resource [jdbc/ladybug]`. `DockerfileContractTest` now checks that every context
+  declares `jdbc/ladybug` and that the demo context declares every datasource of the context it replaces.
+
 ### Security
 - ViscoStore's `POST /fhir/StructureMap/$compile` now requires the same HTTP Basic
   login as the rest of the FHIR API. `FmlCompileFilter` was registered ahead of

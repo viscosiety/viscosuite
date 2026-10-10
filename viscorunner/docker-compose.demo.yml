@@ -12,7 +12,8 @@
 #     are read from the filesystem rather than the WAR classpath.
 #   - Provides credentials and a JNDI datasource for the fake-emr integration.
 #   - Mounts demo-conf/context.xml, which extends the base context.xml with the
-#     jdbc/fake-emr JNDI datasource.
+#     jdbc/fake-emr JNDI datasource. It REPLACES the image's conf/context-viscostore.xml,
+#     so it must repeat every datasource that file declares (DockerfileContractTest).
 
 services:
   # Fetches the Nictiz validation packages into ./fhir-packages before the runner
