@@ -81,6 +81,9 @@ Key endpoints:
 - Tester UI: `/viscostore/tester/`
 - Swagger UI: `/viscostore/fhir/swagger-ui/index.html`
 - MCP (Model Context Protocol) Streamable HTTP: `/viscostore/mcp/messages`
+- Health (public, for probes): `/viscostore/tester/actuator/health` (`/viscostore/actuator/health` redirects there)
+
+`spring.mvc.servlet.path=/tester` puts everything the DispatcherServlet serves under `/tester`: the tester UI, the actuator and HAPI's subscription websocket (`/tester/websocket`). `SecurityConfig` keeps the tester UI and health public and requires the login for the rest of `/tester/actuator/**` and the websocket (first matching rule wins; `TesterPathSecurityIT`). A new DispatcherServlet endpoint is public until a rule says otherwise.
 
 Main configuration file: `src/main/resources/application.yaml`
 
