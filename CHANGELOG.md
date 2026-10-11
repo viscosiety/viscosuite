@@ -77,6 +77,14 @@ minor version).
   (also the default when no origin is listed) now stops the store at startup
   (`CorsSettingsGuard`). Covered by `CorsSecurityIT`, `CorsOptInIT` and
   `CorsSettingsGuardTest`.
+- ViscoStore's subscription websocket (`/viscostore/tester/websocket`) and its actuator
+  endpoints other than health now require the store's login. The DispatcherServlet is
+  mapped at `/tester`, so both live under `/tester/**`, which `SecurityConfig` left open for
+  the tester UI: the websocket accepted anonymous connections, and exposing more actuator
+  endpoints (as application.yaml's comment offers) would have published metrics and
+  Prometheus data without a login. Health (`/tester/actuator/health`, also reached through
+  the `/actuator/health` redirect) and the tester UI stay public. The old `/actuator/health`
+  rule never matched and is gone. Covered by `TesterPathSecurityIT`.
 
 ## [0.20.0] — 2026-09-25
 

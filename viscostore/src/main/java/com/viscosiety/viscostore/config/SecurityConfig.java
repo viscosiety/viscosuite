@@ -39,8 +39,15 @@ import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
  * <p>Public paths (no credentials required):
  * <ul>
  *   <li>{@code /fhir/metadata} — FHIR capability statement</li>
- *   <li>{@code /actuator/health} — liveness/readiness probes</li>
+ *   <li>{@code /tester/actuator/health} (and its liveness/readiness groups) — probes; the
+ *       TesterRedirectFilter sends {@code /actuator/health} there</li>
+ *   <li>{@code /tester/**} — the tester UI, which asks for the store's login itself</li>
  * </ul>
+ *
+ * <p>{@code spring.mvc.servlet.path=/tester} puts everything the DispatcherServlet serves under
+ * {@code /tester}: the tester UI, but also the actuator and HAPI's subscription websocket
+ * ({@code /tester/websocket}). Those two must not inherit the tester UI's permitAll, so they are
+ * matched first.
  */
 @Profile("!test")
 @Configuration
@@ -53,8 +60,15 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers(
                     new AntPathRequestMatcher("/fhir/metadata"),
-                    new AntPathRequestMatcher("/actuator/health"),
-                    new AntPathRequestMatcher("/tester/**"))
+                    new AntPathRequestMatcher("/tester/actuator/health"),
+                    new AntPathRequestMatcher("/tester/actuator/health/**"))
+                .permitAll()
+                // First match wins: these sit under /tester but are not the tester UI
+                .requestMatchers(
+                    new AntPathRequestMatcher("/tester/actuator/**"),
+                    new AntPathRequestMatcher("/tester/websocket/**"))
+                .authenticated()
+                .requestMatchers(new AntPathRequestMatcher("/tester/**"))
                 .permitAll()
                 .anyRequest().authenticated()
             )
