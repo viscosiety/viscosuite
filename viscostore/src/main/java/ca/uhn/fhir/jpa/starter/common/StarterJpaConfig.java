@@ -112,7 +112,13 @@ public class StarterJpaConfig {
 
 	private static final Logger ourLog = LoggerFactory.getLogger(StarterJpaConfig.class);
 
+	// ViscoSuite: only when Hibernate Search is on (it is off unless set, see entityManagerFactory
+	// below). HAPI's terminology code takes "this bean exists" for "Hibernate Search is on": with the
+	// bean but without Hibernate Search, ValueSet/$expand answered 500 "HSEARCH800001: Hibernate Search
+	// was not initialized" instead of expanding from the database. Every consumer of the bean accepts
+	// its absence (@Nullable / required = false). TerminologyExpansionIT.
 	@Bean
+	@ConditionalOnProperty(name = "spring.jpa.properties.hibernate.search.enabled", havingValue = "true")
 	public IFulltextSearchSvc fullTextSearchSvc() {
 		return new FulltextSearchSvcImpl();
 	}

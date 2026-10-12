@@ -54,6 +54,16 @@ minor version).
 - The FHIR facade servlets, MLLP and the HAPI libraries from the core WAR; the health pack carries them.
 
 ### Fixed
+- ViscoStore's `ValueSet/$expand` works without Hibernate Search (the default) instead of
+  answering 500 "HSEARCH800001: Hibernate Search was not initialized". The starter registered
+  HAPI's full-text search service unconditionally while leaving Hibernate Search off, and HAPI's
+  terminology code takes that service for "Hibernate Search is on"; it is now registered only
+  with `spring.jpa.properties.hibernate.search.enabled=true`, so HAPI expands from the database
+  (whole CodeSystems, listed concepts, `is-a` and `property = value` filters). A text filter
+  (`$expand?filter=`) is refused with 400 while Hibernate Search is off, because HAPI would
+  ignore it and answer every code (`ExpandTextFilterGuard`). Known HAPI limit: its database
+  `is-a` leaves out the concept itself; list it explicitly. Covered by `TerminologyExpansionIT`
+  and `TerminologyExpansionWithHibernateSearchIT`.
 - The demo stack (`docker-compose.yml` + `docker-compose.demo.yml`) deploys `/viscolink` again.
   `viscorunner/demo-conf/context.xml` replaces the image's Tomcat context but lacked the
   `jdbc/ladybug` datasource that 0.9.0 added to `conf/context-*.xml`, so the deploy failed with
