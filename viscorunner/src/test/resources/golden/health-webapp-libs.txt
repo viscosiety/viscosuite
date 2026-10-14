@@ -212,6 +212,7 @@ ladybug-common-4.1-20260903.105841.jar
 ladybug-frontend-4.1-20260903.105841.jar
 ladybug-frontend-servlet-4.1-20260903.105841.jar
 lang-tag-1.7.jar
+lemma-engine-0.10.0.jar
 liquibase-core-4.33.0.jar
 listenablefuture-9999.0-empty-to-avoid-conflict-with-guava.jar
 log4j-api-2.26.1.jar
