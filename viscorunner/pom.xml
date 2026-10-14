@@ -318,6 +318,28 @@
 							</artifactItems>
 						</configuration>
 					</execution>
+					<!-- Lemma's JNI library for the two Linux architectures the images are built for →
+					     target/native/<rust-triple>/liblemma_jni.so. The Dockerfile copies the one for
+					     its own architecture to /opt/frank/native/. Version = viscolink/pom.xml's
+					     lemma-engine; change both together. -->
+					<execution>
+						<id>unpack-lemma-natives</id>
+						<phase>package</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<overWriteReleases>true</overWriteReleases>
+							<artifactItems>
+								<artifactItem>
+									<groupId>com.lemmabase</groupId>
+									<artifactId>lemma-engine</artifactId>
+									<version>0.10.0</version>
+									<type>jar</type>
+									<includes>native/x86_64-unknown-linux-gnu/liblemma_jni.so,native/aarch64-unknown-linux-gnu/liblemma_jni.so</includes>
+									<outputDirectory>${project.build.directory}</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
 				</executions>
 			</plugin>
 

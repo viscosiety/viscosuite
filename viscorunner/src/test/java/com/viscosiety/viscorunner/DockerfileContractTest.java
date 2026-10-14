@@ -119,6 +119,21 @@ class DockerfileContractTest {
     }
 
     @Test
+    void theLemmaNativeIsPrebuiltForTheBuildArchitecture() throws IOException {
+        List<String> lines = dockerfileInstructions();
+        assertTrue(hasLine(lines, "COPY --chown=tomcat target/native/ /tmp/lemma-native/"),
+            "both Linux natives are staged by the pom");
+        assertTrue(lines.stream().anyMatch(l -> l.startsWith("RUN ") && l.contains("uname -m")
+                && l.contains("x86_64-unknown-linux-gnu") && l.contains("aarch64-unknown-linux-gnu")
+                && l.contains("/opt/frank/native/liblemma_jni.so")),
+            "the RUN step picks the native for the build machine's architecture and fails on any other");
+        assertTrue(hasLine(lines, "ENV LEMMA_JNI_LIBRARY=/opt/frank/native/liblemma_jni.so"),
+            "the binding loads the prebuilt library instead of extracting one at run time");
+        assertTrue(lines.stream().noneMatch(l -> l.contains("/opt/viscoforge")),
+            "never image content under /opt/viscoforge (a volume on the platform)");
+    }
+
+    @Test
     void theRuntimeDirectoriesTheOverlayAndTheJarNeedExist() throws IOException {
         String dockerfile = read("Dockerfile");
         for (String dir : List.of("/opt/frank/lib", "/opt/frank/webapp-overlay/viscolink", "/opt/frank/demo-configurations")) {

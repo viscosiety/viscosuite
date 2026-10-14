@@ -109,6 +109,7 @@ A `<packaging>jar</packaging>` module (it shades the Kubernetes event-publisher 
 | `/opt/frank/demo-configurations/` | The pack's demo set, baked into the image; never loaded unless mounted over `/opt/frank/configurations` |
 | `/opt/frank/webapp-overlay/viscolink/` | The pack overlay (`PreResources` of `/viscolink`): `WEB-INF/lib`, `WEB-INF/classes`, `WEB-INF/pack.properties` |
 | `/opt/frank/drivers/` | JDBC drivers (shared via `common.loader`) |
+| `/opt/frank/native/liblemma_jni.so` | Lemma's JNI library for the image's architecture (`LEMMA_JNI_LIBRARY` points at it) |
 | `/opt/frank/secrets/credentials.properties` | Credentials file (mount from secret) |
 | `/opt/frank/resources/` | Frank!Framework shared resources |
 | `/opt/frank/testtool/` | Larva test scenarios |
