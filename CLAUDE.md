@@ -59,6 +59,7 @@ An integration middleware layer based on Frank!Framework (version pinned by `fra
 
 - **Frank!Console / Ladybug debugger**: `/viscolink/iaf/` (auth disabled in LOC stage)
 - **No healthcare code**: the FHIR facade servlets, MLLP and the HL7v2/FHIR pipes live in the health pack (see "Packs" below), not in this WAR.
+- **Business rules**: `com.viscosiety.pipes.LemmaPipe` (core, every image) evaluates a Lemma rules file from the configuration through `com.lemmabase:lemma-engine` (JNI; pinned, upgrade together with viscoFoundry's `@lemmabase/lemma-engine`). `com.viscosiety.pipes` is shared with the health pack's four pipes; viscoFoundry's Healthcare → Core check lists those four by name, so a new core pipe there is fine but a new HEALTH pipe must be added to viscoFoundry's `HEALTH_PACK_PIPES`.
 - **Configurations** are not part of the WAR: they are loaded from `/opt/frank/configurations/` at runtime (outside the image, so they can be updated without rebuilding), or from git. Reference configurations live with the pack that owns them: `packs/health/demo-configurations/` for health, `viscolink/demo-configurations/echo/` (one neutral adapter) for the core.
 
 **Maven note:** `frankframework-parent` is imported as a BOM (not used as `<parent>`) because the upstream bundle cannot be used as a Maven parent in external projects. The health pack's pom imports it the same way.

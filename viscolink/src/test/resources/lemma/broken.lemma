@@ -1,0 +1,4 @@
+spec broken
+
+rule r: # an inline comment does not parse
+  1

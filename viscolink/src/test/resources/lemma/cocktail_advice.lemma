@@ -1,0 +1,23 @@
+spec cocktail_advice
+"""
+Which cocktail ingredient fits the weather.
+"""
+
+data temperature: measure
+  -> unit celsius: 1
+  -> help "What is the current temperature?"
+
+data weather_group: text
+  -> help "Which weather group does OpenWeather report?"
+
+rule is_hot:
+  temperature >= 25 celsius
+
+rule ingredient:
+  veto "No ingredient below 25 degrees in this test spec"
+  unless is_hot then "Vodka"
+  unless is_hot and weather_group is "Clouds" then "Tequila"
+
+rule drink_profile:
+  "balanced-classic"
+  unless is_hot then "refreshing-citrus"

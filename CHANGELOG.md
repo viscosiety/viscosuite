@@ -8,6 +8,12 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- `com.viscosiety.pipes.LemmaPipe` (core): evaluates business rules written in
+  [Lemma](https://lemma.run) from a rules file in the configuration. Each `<Param>` is a `data`
+  input of the spec; the result comes back as XML (or JSON) and, with `resultSessionKeyPrefix`,
+  per rule in the session. A rule without an answer (a Lemma veto) takes the `veto` forward;
+  missing data and a spec that does not load fail. Offline only: LemmaBase imports are refused.
+  Uses `com.lemmabase:lemma-engine` 0.10.0 (JNI).
 - Vertical packs: a pack SPI in the core (`com.viscosiety.pack`, discovered through
   `META-INF/services/com.viscosiety.pack.PackDescriptor`) with `CorePack` as the default, a
   descriptor served at `GET /viscolink/api-service/pack` (bearer JWT only, settings
