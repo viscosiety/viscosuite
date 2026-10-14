@@ -66,6 +66,9 @@ public final class PackJson {
         ArrayNode features = root.putArray("features");
         CoreFeatures.ALL.forEach(features::add);
 
+        ObjectNode engines = root.putObject("engines");
+        CoreEngines.versions().forEach(engines::put);
+
         try {
             return JSON.writeValueAsString(root);
         } catch (JsonProcessingException e) {
