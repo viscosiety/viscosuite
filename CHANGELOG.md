@@ -27,6 +27,8 @@ minor version).
   and `viscolink:<sha>-core` / `:latest-core`, the core without a pack or ViscoStore.
 - `viscorunner/docker-compose.core.yml` runs the core image; `viscorunner/postgres/init-ladybug.sql`
   creates Ladybug's database for the stacks without ViscoStore.
+- The pack descriptor (`/api-service/pack`, `/flow-api/pack`) ends with `features`, the core's
+  capabilities by name (`["lemma"]` from this release), so clients can tell what a runner image carries.
 
 ### Changed
 - One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`

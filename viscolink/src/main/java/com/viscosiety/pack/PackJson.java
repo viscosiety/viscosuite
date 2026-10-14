@@ -63,6 +63,9 @@ public final class PackJson {
         ArrayNode strategies = root.putArray("deidentificationStrategyIds");
         pack.deidentificationStrategyIds().forEach(strategies::add);
 
+        ArrayNode features = root.putArray("features");
+        CoreFeatures.ALL.forEach(features::add);
+
         try {
             return JSON.writeValueAsString(root);
         } catch (JsonProcessingException e) {
