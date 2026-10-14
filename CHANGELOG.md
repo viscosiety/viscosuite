@@ -8,6 +8,13 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- The runner images carry Lemma's native library at /opt/frank/native/ (LEMMA_JNI_LIBRARY), built for the image's architecture.
+- `com.viscosiety.pipes.LemmaPipe` (core): evaluates business rules written in
+  [Lemma](https://lemma.run) from a rules file in the configuration. Each `<Param>` is a `data`
+  input of the spec; the result comes back as XML (or JSON) and, with `resultSessionKeyPrefix`,
+  per rule in the session. A rule without an answer (a Lemma veto) takes the `veto` forward;
+  missing data and a spec that does not load fail. Offline only: LemmaBase imports are refused.
+  Uses `com.lemmabase:lemma-engine` 0.10.0 (JNI).
 - Vertical packs: a pack SPI in the core (`com.viscosiety.pack`, discovered through
   `META-INF/services/com.viscosiety.pack.PackDescriptor`) with `CorePack` as the default, a
   descriptor served at `GET /viscolink/api-service/pack` (bearer JWT only, settings
@@ -21,6 +28,8 @@ minor version).
   and `viscolink:<sha>-core` / `:latest-core`, the core without a pack or ViscoStore.
 - `viscorunner/docker-compose.core.yml` runs the core image; `viscorunner/postgres/init-ladybug.sql`
   creates Ladybug's database for the stacks without ViscoStore.
+- The pack descriptor (`/api-service/pack`, `/flow-api/pack`) ends with `features`, the core's
+  capabilities by name (`["lemma"]` from this release), so clients can tell what a runner image carries.
 
 ### Changed
 - One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`

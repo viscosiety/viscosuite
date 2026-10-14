@@ -1,0 +1,6 @@
+spec with_registry
+
+uses iso: @iso/countries alpha2
+
+rule r:
+  1

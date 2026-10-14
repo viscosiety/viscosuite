@@ -1,0 +1,21 @@
+<Module>
+	<Adapter name="AdviseDrink" description="LemmaPipe proof: weather in, ingredient out">
+		<Receiver name="AdviseDrink">
+			<ApiListener name="AdviseDrink" uriPattern="advise" method="POST"/>
+		</Receiver>
+		<Pipeline firstPipe="Decide">
+			<Exits>
+				<Exit name="EXIT" state="SUCCESS" code="200"/>
+				<Exit name="NO_ANSWER" state="ERROR" code="422"/>
+			</Exits>
+			<Pipe name="Decide" className="com.viscosiety.pipes.LemmaPipe"
+				rulesFile="AdviseDrink/rules/cocktail_advice.lemma" spec="cocktail_advice"
+				rules="ingredient,drink_profile" explain="true">
+				<Param name="temperature" xpathExpression="/weather/temperature"/>
+				<Param name="weather_group" xpathExpression="/weather/group"/>
+				<Forward name="success" path="EXIT"/>
+				<Forward name="veto" path="NO_ANSWER"/>
+			</Pipe>
+		</Pipeline>
+	</Adapter>
+</Module>

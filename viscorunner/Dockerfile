@@ -61,6 +61,12 @@ COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf
 
 # JDBC drivers — shared between the WARs via common.loader in catalina.properties
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
+# Lemma (com.viscosiety.pipes.LemmaPipe): the JNI library for THIS image's architecture, prebuilt so
+# nothing is extracted at run time. The images are built on native runners per architecture
+# (see .gitlab-ci.yml), so uname -m is the target; any other architecture fails the build.
+COPY --chown=tomcat target/native/ /tmp/lemma-native/
+RUN set -e; case "$(uname -m)" in x86_64) triple=x86_64-unknown-linux-gnu ;; aarch64) triple=aarch64-unknown-linux-gnu ;; *) echo "ERROR: no Lemma native for $(uname -m)"; exit 1 ;; esac; mkdir -p /opt/frank/native; cp "/tmp/lemma-native/${triple}/liblemma_jni.so" /opt/frank/native/liblemma_jni.so; rm -rf /tmp/lemma-native
+ENV LEMMA_JNI_LIBRARY=/opt/frank/native/liblemma_jni.so
 
 # The pack (the core's overlay is an empty WEB-INF/lib plus its identity), its demo configurations
 # (never loaded unless mounted over /opt/frank/configurations) and its identity.

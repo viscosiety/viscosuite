@@ -130,6 +130,8 @@ package:
       - viscorunner/target/viscolink.war
       - viscorunner/target/viscostore.war
       - viscorunner/target/drivers/
+      # Lemma's JNI libraries per architecture; the Dockerfile copies the one for the image's architecture to /opt/frank/native/.
+      - viscorunner/target/native/
       # Staged for viscorunner/Dockerfile: packs/<PACK>/ (webapp overlay), demo/<PACK>/
       # (demo configurations), store/<STORE>/ (viscostore.war, or nothing for none).
       - viscorunner/target/packs/
