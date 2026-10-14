@@ -162,4 +162,16 @@ class LemmaPipeTest {
 			assertTrue(json.contains("\"effective\":\"2026-01-01"), json);
 		}
 	}
+
+	@Test
+	void aMalformedEffectiveValueIsAPipeRunExceptionWithItsCause() throws Exception {
+		LemmaPipe pipe = pipe("lemma/cocktail_advice.lemma", "drink_profile", false);
+		pipe.setEffectiveSessionKey("when");
+		pipe.configure();
+		try (PipeLineSession session = new PipeLineSession()) {
+			session.put("when", "not-a-date");
+			PipeRunException e = assertThrows(PipeRunException.class, () -> run(pipe, "5", "Snow", session));
+			assertTrue(e.getCause() != null, "the cause is kept");
+		}
+	}
 }

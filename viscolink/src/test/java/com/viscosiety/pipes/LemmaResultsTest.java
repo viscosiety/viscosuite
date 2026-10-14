@@ -90,4 +90,24 @@ class LemmaResultsTest {
 		assertEquals("4", tree.get("results").get("total").get("result").asText());
 		assertTrue(tree.get("results").get("total").has("explanation"));
 	}
+
+	@Test
+	void xmlReplacesCharactersXml10CannotHold() throws Exception {
+		String spec = """
+				spec echo
+
+				data note: text
+
+				rule copy:
+				  note
+				""";
+		Response response;
+		try (Engine engine = Engine.create()) {
+			engine.load(Map.of("echo.lemma", spec));
+			response = engine.evaluate(EvaluateRequest.of("echo").data(Map.of("note", "a\u0001b")));
+		}
+		String xml = LemmaResults.xml(response, false);
+		javax.xml.parsers.DocumentBuilderFactory.newInstance().newDocumentBuilder()
+				.parse(new java.io.ByteArrayInputStream(xml.getBytes(java.nio.charset.StandardCharsets.UTF_8)));
+	}
 }

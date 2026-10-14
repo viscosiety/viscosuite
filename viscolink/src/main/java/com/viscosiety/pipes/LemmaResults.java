@@ -92,13 +92,13 @@ final class LemmaResults {
         response.results().forEach((rule, r) -> {
             xml.append("<result rule=\"").append(XmlEncodingUtils.encodeChars(rule)).append('"');
             if (r instanceof RuleResult.Veto veto) {
-                xml.append(" vetoed=\"true\">").append(XmlEncodingUtils.encodeChars(nullToEmpty(veto.vetoReason())));
+                xml.append(" vetoed=\"true\">").append(XmlEncodingUtils.encodeCharsAndReplaceNonValidXmlCharacters(nullToEmpty(veto.vetoReason())));
             } else {
                 xml.append(" type=\"").append(XmlEncodingUtils.encodeChars(r.ruleType())).append("\">")
-                        .append(XmlEncodingUtils.encodeChars(valueText(r).orElse("")));
+                        .append(XmlEncodingUtils.encodeCharsAndReplaceNonValidXmlCharacters(valueText(r).orElse("")));
             }
             if (explain && r.explanation() != null) {
-                xml.append("<explanation>").append(XmlEncodingUtils.encodeChars(explanationJson(r))).append("</explanation>");
+                xml.append("<explanation>").append(XmlEncodingUtils.encodeCharsAndReplaceNonValidXmlCharacters(explanationJson(r))).append("</explanation>");
             }
             xml.append("</result>");
         });

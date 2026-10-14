@@ -180,8 +180,8 @@
 		</dependency>
 		<!-- Lemma business rules (com.viscosiety.pipes.LemmaPipe). JNI binding; its Jackson is shaded,
 		     the natives for Linux x86_64/aarch64 are in the jar (the runner image extracts its own at
-		     build time, see viscorunner/Dockerfile). Pinned: pre-1.0, upgrade deliberately together
-		     with viscoFoundry's @lemmabase/lemma-engine. -->
+		     build time, see viscorunner/Dockerfile). Pinned: pre-1.0, upgrade deliberately; the
+		     viscorunner pom unpacks the same version (a test checks it). -->
 		<dependency>
 			<groupId>com.lemmabase</groupId>
 			<artifactId>lemma-engine</artifactId>

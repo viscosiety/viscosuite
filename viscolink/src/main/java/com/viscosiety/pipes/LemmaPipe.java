@@ -111,7 +111,12 @@ public class LemmaPipe extends FixedForwardPipe {
             sources.put(path, source);
         }
 
-        Engine loaded = Engine.create(ResourceLimits.builder().maxSourceSizeBytes(MAX_SOURCE_BYTES));
+        Engine loaded;
+        try {
+            loaded = Engine.create(ResourceLimits.builder().maxSourceSizeBytes(MAX_SOURCE_BYTES));
+        } catch (LinkageError e) {
+            throw new ConfigurationException("cannot load the Lemma native library: " + e + "; check LEMMA_JNI_LIBRARY");
+        }
         Show show;
         try {
             loaded.load(sources);
@@ -153,23 +158,24 @@ public class LemmaPipe extends FixedForwardPipe {
             throw new PipeRunException(this, "unable to resolve parameters", e);
         }
 
-        EvaluateRequest request = EvaluateRequest.of(spec)
-                .data(LemmaInputs.toData(values, singleUnits))
-                .rules(ruleNames)
-                .explain(explain);
-        if (effectiveSessionKey != null) {
-            String effective = session.getString(effectiveSessionKey);
-            if (effective != null && !effective.isBlank()) {
-                request = request.effective(effective.strip());
-            }
-        }
-
         Response response;
         try {
+            EvaluateRequest request = EvaluateRequest.of(spec)
+                    .data(LemmaInputs.toData(values, singleUnits))
+                    .rules(ruleNames)
+                    .explain(explain);
+            if (effectiveSessionKey != null) {
+                String effective = session.getString(effectiveSessionKey);
+                if (effective != null && !effective.isBlank()) {
+                    request = request.effective(effective.strip());
+                }
+            }
             response = engine.evaluate(request);
         } catch (LemmaException e) {
             String detail = e.errors().isEmpty() ? e.getMessage() : LemmaInputs.describe(e.errors());
-            throw new PipeRunException(this, "Lemma could not evaluate spec [" + spec + "]: " + detail);
+            throw new PipeRunException(this, "Lemma could not evaluate spec [" + spec + "]: " + detail, e);
+        } catch (RuntimeException e) {
+            throw new PipeRunException(this, "Lemma could not evaluate spec [" + spec + "]: " + e, e);
         }
 
         List<String> missing = LemmaResults.missingData(response.results());
@@ -242,7 +248,11 @@ public class LemmaPipe extends FixedForwardPipe {
         this.outputType = outputType;
     }
 
-    /** Adds each rule's explanation to the output (and so to the Ladybug trace). */
+    /**
+     * Adds each rule's explanation to the output (and so to the Ladybug trace). With explain=true each
+     * {@code <result>} holds the value as text followed by an {@code <explanation>} element, so select the
+     * value with {@code result[@rule='x']/text()}, not {@code string(result[@rule='x'])}.
+     */
     public void setExplain(boolean explain) {
         this.explain = explain;
     }
