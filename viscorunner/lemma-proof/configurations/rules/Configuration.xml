@@ -1,0 +1,7 @@
+<!DOCTYPE Configuration [
+        <!ENTITY AdviseDrink SYSTEM "Configuration-AdviseDrink.xml">
+        ]>
+
+<Configuration name="rules">
+    &AdviseDrink;
+</Configuration>
