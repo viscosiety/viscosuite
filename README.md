@@ -154,6 +154,9 @@ state) and makes them navigable without the developer-oriented Ladybug interface
 by subject or flow, inspecting a message's transformation step by step, and auditing routing
 decisions are first-class operations.
 
+**LemmaPipe** (part of ViscoLink, in every image, Core included) evaluates business rules written in
+[Lemma](https://lemma.run) from a rules file in the configuration; it works offline.
+
 **The Healthcare pack** (`packs/health`) lays the components below over ViscoLink. They are
 part of the Healthcare images; the Core image does not contain them.
 
@@ -353,7 +356,7 @@ Contact: [viscosiety.com](https://viscosiety.com).
 [NOTICE](https://github.com/viscosiety/viscosuite/blob/main/NOTICE).
 ViscoSuite is powered by the [Frank!Framework](https://frankframework.org), an open-source
 integration framework by WeAreFrank!, and by [HAPI FHIR](https://hapifhir.io). Third-party
-components keep their own licences: Frank!Framework and HAPI FHIR are Apache-2.0; HAPI HL7v2
+components keep their own licences: Frank!Framework, HAPI FHIR and Lemma (`lemma-engine`, used by `LemmaPipe`) are Apache-2.0; HAPI HL7v2
 (used by the Healthcare pack) is dual-licensed under the MPL 1.1 and the GPL and used under
 the MPL; the LOINC® mapping in the demo contains content from [LOINC](https://loinc.org), used
 under the LOINC licence.
