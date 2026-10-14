@@ -292,4 +292,17 @@ class DockerfileContractTest {
                 "Dockerfile.viscostore shares the ROOT page, so it fills " + placeholder + " (a literal would show)");
         }
     }
+
+    private static String lemmaEngineVersion(String pom) {
+        Matcher m = Pattern.compile("<artifactId>lemma-engine</artifactId>\\s*<version>([^<]+)</version>").matcher(pom);
+        assertTrue(m.find(), "no lemma-engine version in the pom");
+        return m.group(1).strip();
+    }
+
+    /** Tests load the jar's own native library, the image the unpacked one: the two poms must name one version. */
+    @Test
+    void lemmaEngineVersionIsTheSameInTheViscolinkAndViscorunnerPoms() throws IOException {
+        org.junit.jupiter.api.Assertions.assertEquals(
+            lemmaEngineVersion(read("../viscolink/pom.xml")), lemmaEngineVersion(read("pom.xml")));
+    }
 }
