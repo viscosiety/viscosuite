@@ -8,6 +8,9 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- The pack descriptor reports the rule engines' versions as `engines` (`{"lemma": "0.10.0"}`),
+  read from the loaded engine jar's manifest, so a client that checks rules with its own copy of
+  an engine can tell when the two differ.
 - The runner images carry Lemma's native library at /opt/frank/native/ (LEMMA_JNI_LIBRARY), built for the image's architecture.
 - `com.viscosiety.pipes.LemmaPipe` (core): evaluates business rules written in
   [Lemma](https://lemma.run) from a rules file in the configuration. Each `<Param>` is a `data`

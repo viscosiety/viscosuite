@@ -47,7 +47,7 @@ class PackJsonTest {
     void healthPackHasExactlyTheDocumentedKeysInTheDocumentedOrder() throws Exception {
         JsonNode json = parse(new HealthValuesPack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
-                "frankOwnedPaths", "deidentificationStrategyIds", "features"), keys(json));
+                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines"), keys(json));
         assertEquals(List.of("sessionKey", "metadataName", "metadataLabel", "label", "format"),
                 keys(json.get("subject")));
     }
@@ -74,7 +74,7 @@ class PackJsonTest {
     void corePackSerialisesEmptyArraysNotMissingKeys() throws Exception {
         JsonNode json = parse(new CorePack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
-                "frankOwnedPaths", "deidentificationStrategyIds", "features"), keys(json));
+                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines"), keys(json));
         assertEquals("core", json.get("id").asText());
         assertEquals("Core", json.get("displayName").asText());
         for (String array : List.of("consoleViews", "frankOwnedPaths", "deidentificationStrategyIds")) {
@@ -93,6 +93,13 @@ class PackJsonTest {
     void everyPackCarriesTheCoreFeatures() throws Exception {
         assertEquals("[\"lemma\"]", parse(new CorePack()).get("features").toString());
         assertEquals("[\"lemma\"]", parse(new HealthValuesPack()).get("features").toString());
+    }
+
+    @Test
+    void everyPackCarriesTheCoreEngineVersions() throws Exception {
+        String expected = MAPPER.writeValueAsString(CoreEngines.versions());
+        assertEquals(expected, parse(new CorePack()).get("engines").toString());
+        assertEquals(expected, parse(new HealthValuesPack()).get("engines").toString());
     }
 
     @Test
