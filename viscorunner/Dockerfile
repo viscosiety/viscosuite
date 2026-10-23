@@ -48,6 +48,11 @@ COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
+# Log retention (2026-10-23): the third file of log4j.configurationFile (catalinaAdditional.properties).
+COPY --chown=tomcat src/scripts/log4j4retention.xml /opt/frank/log4j/log4j4retention.xml
+# Tomcat's own daily files (catalina.*, localhost.*, ...): 30 days instead of the base image's 90 (2026-10-23).
+RUN set -e; f=/usr/local/tomcat/conf/logging.properties; sed -i 's/\.maxDays = 90$/.maxDays = 30/' "$f"; if grep -q 'maxDays = 90' "$f" || ! grep -q '^1catalina\.org\.apache\.juli\.AsyncFileHandler\.maxDays = 30$' "$f"; then echo "ERROR: $f does not have the expected maxDays lines; re-check it after a base-image bump"; exit 1; fi
+
 # ContextFailureEventPublisher: the shaded viscorunner jar (fabric8 Kubernetes client + transitives,
 # with Jackson/SnakeYAML relocated so they don't leak onto the shared classloader) on common.loader
 # (/opt/frank/lib/*.jar in catalinaAdditional.properties).
