@@ -35,6 +35,11 @@ minor version).
   capabilities by name (`["lemma"]` from this release), so clients can tell what a runner image carries.
 
 ### Changed
+- Runner log files are kept for 30 days: rolled Frank!Framework log files older than 30 days are
+  deleted at each rollover (a third log4j2 configuration file, `/opt/frank/log4j/log4j4retention.xml`,
+  added to `log4j.configurationFile`), and Tomcat's access log and its own daily files keep 30 days
+  (were: unlimited and 90). The security, heartbeat, leak and Ladybug logs keep
+  `log.minor.maxBackupIndex` rolled files (new property, default 4) instead of `log.maxBackupIndex`.
 - One `viscorunner/Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE`
   (`viscostore` | `none`) builds every runner image; CI builds the matrix from it.
 - The `viscolink` image now carries `server.xml` and the viscorunner jar, like the combined image.

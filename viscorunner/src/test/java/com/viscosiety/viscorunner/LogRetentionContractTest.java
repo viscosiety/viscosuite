@@ -42,8 +42,8 @@ import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
 
 /**
- * Log retention in the runner image (2026-10-23): Frank!Framework's rolling log files and Tomcat's
- * daily files are kept for 30 days. Asserted on the files as text and XML (no docker needed). Paths
+ * Log retention in the runner image (2026-10-23): Frank!Framework's rolling log files, Tomcat's
+ * access log and Tomcat's own daily files are kept for 30 days. Asserted on the files as text and XML (no docker needed). Paths
  * are relative to the module directory, where surefire runs.
  */
 class LogRetentionContractTest {
@@ -174,5 +174,28 @@ class LogRetentionContractTest {
             assertEquals(theirs.get(name).getAttribute("fileName"), ours.get(name).getAttribute("fileName"), name);
             assertEquals(theirs.get(name).getAttribute("filePattern"), ours.get(name).getAttribute("filePattern"), name);
         }
+    }
+
+    @Test
+    void theAccessLogKeepsThirtyDays() throws IOException {
+        String xml = read("conf/server.xml").replaceAll("(?s)<!--.*?-->", "");
+        java.util.regex.Matcher valve = java.util.regex.Pattern
+            .compile("<Valve\\s+className=\"org\\.apache\\.catalina\\.valves\\.AccessLogValve\"[^>]*>")
+            .matcher(xml);
+        assertTrue(valve.find(), "server.xml has the AccessLogValve");
+        assertTrue(valve.group().contains("maxDays=\"30\""), "AccessLogValve maxDays=\"30\": " + valve.group());
+    }
+
+    @Test
+    void tomcatsOwnLogFilesKeepThirtyDays() throws IOException {
+        List<String> runs = read("Dockerfile").lines()
+            .filter(l -> !l.stripLeading().startsWith("#"))
+            .map(l -> l.replaceAll("\\s+", " ").strip())
+            .filter(l -> l.startsWith("RUN ") && l.contains("/usr/local/tomcat/conf/logging.properties"))
+            .collect(Collectors.toList());
+        assertEquals(1, runs.size(), "one RUN step edits the base image's logging.properties");
+        String run = runs.get(0);
+        assertTrue(run.contains("s/\\.maxDays = 90$/.maxDays = 30/"), "90 -> 30 days: " + run);
+        assertTrue(run.contains("exit 1"), "the step fails the build when the base image's file has another shape: " + run);
     }
 }
