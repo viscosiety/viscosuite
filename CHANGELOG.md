@@ -83,6 +83,13 @@ minor version).
   declares `jdbc/ladybug` and that the demo context declares every datasource of the context it replaces.
 
 ### Security
+- The Frank!Console's file viewer and log directory listing read only the log directory
+  (`/usr/local/tomcat/logs`). `FileViewer.permission.rules` in `catalinaAdditional.properties`
+  allowed all of `/opt/frank`, which holds the mounted secrets, the keystores, the
+  configurations and the databases, so any console user with an Ibis role could list and
+  download those files. `/opt/frank/secrets`, `/opt/frank/keystores` and the rest of
+  `/opt/frank` are now denied explicitly, ahead of the log directory's allow rule.
+  `FileViewerPermissionRulesTest` checks the rules as Frank!Framework evaluates them.
 - ViscoStore's `POST /fhir/StructureMap/$compile` now requires the same HTTP Basic
   login as the rest of the FHIR API. `FmlCompileFilter` was registered ahead of
   Spring Security's filter chain, so it never got the login check; it now runs
