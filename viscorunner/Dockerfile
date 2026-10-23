@@ -48,6 +48,9 @@ COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
+# Log retention (2026-10-23): the third file of log4j.configurationFile (catalinaAdditional.properties).
+COPY --chown=tomcat src/scripts/log4j4retention.xml /opt/frank/log4j/log4j4retention.xml
+
 # ContextFailureEventPublisher: the shaded viscorunner jar (fabric8 Kubernetes client + transitives,
 # with Jackson/SnakeYAML relocated so they don't leak onto the shared classloader) on common.loader
 # (/opt/frank/lib/*.jar in catalinaAdditional.properties).

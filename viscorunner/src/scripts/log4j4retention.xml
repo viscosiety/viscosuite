@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+	Log retention for the runner image (2026-10-23). The third file of log4j.configurationFile
+	(catalinaAdditional.properties): log4j2's composite configuration replaces an appender by a
+	same-named one from a LATER file, so this redefines Frank!Framework's eight rolling-file appenders
+	and nothing else (no loggers: F!F's and log4j2stdout.xml's references stay as they are).
+
+	Copied verbatim from Frank!Framework 10.3.0-20260924.042323's log4j4ibis.xml. Changed:
+	- every RolloverStrategy deletes ROLLED files (glob *.{log,json,xml}.*, never a current file or a
+	  Tomcat file) older than 30 days, at each rollover;
+	- security, heartbeat, leaks and the Ladybug log keep log.minor.maxBackupIndex rolled files
+	  (default 4) instead of log.maxBackupIndex, so a long main-log history does not multiply by five.
+	On a Frank!Framework bump: re-copy the appenders (LogRetentionContractTest compares them when
+	F!F's file is on the test classpath).
+-->
+<log4j2:Configuration status="WARN" name="viscosuite-log-retention" strict="true" xmlns="http://logging.apache.org/log4j/2.0/config" xmlns:log4j2="log4j-config.xsd">
+	<Appenders>
+		<Appender name="leak-log-appender" createOnDemand="true" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-leaks.log" filePattern="${ff:log.dir}/${ff:instance.name.lc}-leaks.log.%i">
+			<Layout type="PatternLayout" pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} [%t] %m%n%xEx"/>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.minor.maxBackupIndex:-4}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="file" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}.log" filePattern="${ff:log.dir}/${ff:instance.name.lc}.log.%i">
+			<Filters>
+				<Filter type="IbisThreadFilter" onMatch="DENY" onMismatch="NEUTRAL" regex="${ff:log.thread.rejectRegex:-}" />
+			</Filters>
+			<Layout type="IbisPatternLayout">
+				<Pattern>%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %X{mid,cid,configuration,adapter,listener,pipe,job,sender} %c{2} - %m%n%xEx{filters(${ff:log.stacktrace.filters})}</Pattern>
+			</Layout>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.maxBackupIndex}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="msg-text" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-messages.log" filePattern="${ff:log.dir}/${ff:instance.name.lc}-messages.log.%i" append="true">
+			<Layout type="PatternLayout" pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} [%t] %m %TC %x%n"/>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.msg.maxBackupIndex}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="msg-json" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-messages.json" filePattern="${ff:log.dir}/${ff:instance.name.lc}-messages.json.%i" append="true">
+			<JsonTemplateLayout eventTemplateUri="classpath:EcsLayout.json"/>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.msg.maxBackupIndex}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="security" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-security.log" filePattern="${ff:log.dir}/${ff:instance.name.lc}-security.log.%i">
+			<Layout type="PatternLayout" pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} %X{adapter} - %m%n"/>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.minor.maxBackupIndex:-4}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="heartbeat" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-heartbeat.log" filePattern="${ff:log.dir}/${ff:instance.name.lc}-heartbeat.log.%i">
+			<Layout type="PatternLayout">
+				<Pattern>%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p %m%n</Pattern>
+			</Layout>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.minor.maxBackupIndex:-4}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="config" type="RollingFile" fileName="${ff:log.dir}/${ff:instance.name.lc}-config.xml" filePattern="${ff:log.dir}/${ff:instance.name.lc}-config.xml.%i">
+			<Layout type="PatternLayout">
+				<Pattern>&lt;event datetime=&quot;%d{yyyy-MM-dd HH:mm:ss,SSS}&quot;&gt;%n%m%n&lt;/event&gt;</Pattern>
+			</Layout>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="1MB" />
+				<OnStartupTriggeringPolicy />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="5" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+		<Appender name="ladybug" type="RollingFile" fileName="${ff:log.dir}/testtool4${ff:instance.name.lc}.log" filePattern="${ff:log.dir}/testtool4${ff:instance.name.lc}.log.%i">
+			<Layout type="PatternLayout" pattern="%d{yyyy-MM-dd HH:mm:ss,SSS} %-5p [%t] %c %m%n"/>
+			<Policies>
+				<SizeBasedTriggeringPolicy size="${ff:log.maxFileSize}" />
+			</Policies>
+			<RolloverStrategy type="DefaultRolloverStrategy" max="${ff:log.minor.maxBackupIndex:-4}" fileIndex="min">
+				<Delete basePath="${ff:log.dir}" maxDepth="1">
+					<IfFileName glob="*.{log,json,xml}.*" />
+					<IfLastModified age="30d" />
+				</Delete>
+			</RolloverStrategy>
+		</Appender>
+	</Appenders>
+</log4j2:Configuration>
