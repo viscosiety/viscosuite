@@ -1,10 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-brand-title="product">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>ViscoSuite</title>
   <script src="branding.js"></script>
+  <script src="brand-loader.js" data-brand-url="/brand/brand.json"></script>
   <style>
     /*
      * Palette mirrors viscostore/tester.css:
@@ -21,7 +22,7 @@
 
     body {
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #063B3E;
+      background: var(--brand-page, #063B3E);
       color: #F3F5F6;
       min-height: 100vh;
       display: flex;
@@ -62,8 +63,8 @@
       gap: 10px;
       width: 280px;
       padding: 28px 28px 24px;
-      background: #0a4f54;
-      border: 1px solid #0d676e;
+      background: var(--brand-card, #0a4f54);
+      border: 1px solid var(--brand-border, #0d676e);
       border-radius: 12px;
       text-decoration: none;
       color: inherit;
@@ -71,8 +72,8 @@
     }
 
     a.card:hover {
-      background: #0d676e;
-      border-color: #0F8A96;
+      background: var(--brand-border, #0d676e);
+      border-color: var(--brand-accent, #0F8A96);
       transform: translateY(-2px);
     }
 
@@ -95,8 +96,8 @@
     .spinner {
       width: 18px; height: 18px; flex-shrink: 0;
       border-radius: 50%;
-      border: 2px solid #0d676e;
-      border-top-color: #0F8A96;
+      border: 2px solid var(--brand-border, #0d676e);
+      border-top-color: var(--brand-accent, #0F8A96);
       animation: spin 0.75s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
@@ -106,7 +107,7 @@
       font-weight: 600;
       letter-spacing: 0.08em;
       text-transform: uppercase;
-      color: #0F8A96;
+      color: var(--brand-accent, #0F8A96);
     }
 
     .card h2 {
@@ -124,7 +125,7 @@
     .card-arrow {
       margin-top: 6px;
       font-size: 0.85rem;
-      color: #0F8A96;
+      color: var(--brand-accent, #0F8A96);
     }
 
     footer {
@@ -146,14 +147,14 @@
 
     <a class="card" id="card-viscolink" href="/viscolink/" hidden>
       <span class="card-label">Integration layer</span>
-      <h2>ViscoLink</h2>
+      <h2 data-brand-name="link">ViscoLink</h2>
       <p>%%PACK_LINK_BLURB%%</p>
       <span class="card-arrow">Open console →</span>
     </a>
 
     <a class="card" id="card-viscostore" href="/viscostore/tester/" hidden>
       <span class="card-label">Clinical data repository</span>
-      <h2>ViscoStore</h2>
+      <h2 data-brand-name="store">ViscoStore</h2>
       <p>
         Persistent FHIR R4 datastore built on HAPI FHIR JPA.
         Single source of truth for all inbound and codified resources.
@@ -163,7 +164,7 @@
 
   </div>
 
-  <footer><span data-product-name>ViscoSuite</span> &mdash; Viscosiety B.V.%%PACK_STAMP%%%%BUILD_TIMESTAMP%%</footer>
+  <footer><span data-product-name>ViscoSuite</span> &mdash; <span data-brand-name="company">Viscosiety B.V.</span>%%PACK_STAMP%%%%BUILD_TIMESTAMP%%</footer>
 
   <script>
     // Apply the (overridable) suite product name to the title and every [data-product-name] node.

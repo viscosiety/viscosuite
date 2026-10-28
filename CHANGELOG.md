@@ -8,6 +8,12 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- The suite's own pages (the landing page, the ViscoLink home and the flow viewer) can show a
+  deployment's own names and colours: `brand-loader.js` reads a `brand.json` (`productName`,
+  `names.link/store/suite/company`, `colors.primary/dark`) from `/brand/brand.json` (landing page)
+  or `/viscolink/brand/brand.json` (ViscoLink pages), served from a mounted directory
+  (`/usr/local/tomcat/webapps/ROOT/brand`, `/opt/frank/webapp-overlay/viscolink/brand`). Without
+  one, nothing changes.
 - The pack descriptor reports the rule engines' versions as `engines` (`{"lemma": "0.10.0"}`),
   read from the loaded engine jar's manifest, so a client that checks rules with its own copy of
   an engine can tell when the two differ.
