@@ -16,7 +16,7 @@
               PRIMARY KEY (text, specimen)
           )
 
-        Endpoints (all under /viscolink/api/):
+        Endpoints (all under /runtime/api/):
           GET    loinc-mapping                         → list all rows as JSON array
           GET    loinc-mapping/{text}/{specimen}        → get one row as JSON array
           POST   loinc-mapping                         → create row; body: {text,specimen,code,display}

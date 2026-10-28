@@ -78,7 +78,7 @@ public class CodificationConfig {
      * The filter intercepts before HAPI's RestfulServer sees the request, so HAPI
      * never attempts to parse the raw FML body as a FHIR resource.
      *
-     * The URL pattern is relative to the WAR context root (/viscostore), matching
+     * The URL pattern is relative to the WAR context root (/fhir-store), matching
      * the HAPI FHIR servlet path /fhir/*.
      *
      * The filter MUST run after Spring Security's filter chain (order -100): it answers

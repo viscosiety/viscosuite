@@ -145,14 +145,14 @@
 
   <div class="cards" id="cards">
 
-    <a class="card" id="card-viscolink" href="/viscolink/" hidden>
+    <a class="card" id="card-viscolink" href="/runtime/" hidden>
       <span class="card-label">Integration layer</span>
       <h2 data-brand-name="link">ViscoLink</h2>
       <p>%%PACK_LINK_BLURB%%</p>
       <span class="card-arrow">Open console →</span>
     </a>
 
-    <a class="card" id="card-viscostore" href="/viscostore/tester/" hidden>
+    <a class="card" id="card-viscostore" href="/fhir-store/tester/" hidden>
       <span class="card-label">Clinical data repository</span>
       <h2 data-brand-name="store">ViscoStore</h2>
       <p>
@@ -181,8 +181,8 @@
     // fails show all cards so the page is never empty.
     (async () => {
       const probes = [
-        { id: 'card-viscolink',  url: '/viscolink/tools/health' },
-        { id: 'card-viscostore', url: '/viscostore/fhir/metadata' },
+        { id: 'card-viscolink',  url: '/runtime/tools/health' },
+        { id: 'card-viscostore', url: '/fhir-store/fhir/metadata' },
       ];
 
       const loading = document.getElementById('loading');

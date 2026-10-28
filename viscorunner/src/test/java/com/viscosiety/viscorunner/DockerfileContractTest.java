@@ -114,8 +114,52 @@ class DockerfileContractTest {
             "the store WAR (target/store/none/ is empty: nothing is copied)");
         assertTrue(hasLine(lines, "COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml"),
             "the Tomcat context follows the store");
-        assertTrue(hasLine(lines, "COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/viscolink.war"),
-            "the core WAR");
+        assertTrue(hasLine(lines, "COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/runtime.war"),
+            "the core WAR, served at /runtime");
+        assertTrue(hasLine(lines,
+                "COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/runtime.xml"),
+            "the overlay context file follows the WAR's name");
+    }
+
+    // ---- neutral web paths (2026-10-28) ----
+
+    @Test
+    void theOldPathsAreServedThroughTheHostRewriteValve() throws IOException {
+        String server = read("conf/server.xml");
+        assertTrue(server.matches("(?s).*<Host [^>]*>.*<Valve className=\"org\\.apache\\.catalina\\.valves\\.rewrite\\.RewriteValve\" />.*</Host>.*"),
+            "the RewriteValve sits in the Host (a Host-level rewrite can change the context)");
+        List<String> lines = dockerfileInstructions();
+        assertTrue(hasLine(lines,
+                "COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config"),
+            "the rules ship with the runner image");
+        assertTrue(read("Dockerfile.viscostore").contains(
+                "COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config"),
+            "and with the store-only image");
+        assertTrue(read("Dockerfile.viscostore").contains("COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/fhir-store.war"),
+            "the store-only image serves the store at /fhir-store");
+    }
+
+    @Test
+    void theRewriteRulesRedirectBrowsersAndServeEverythingElseInPlace() throws IOException {
+        String rules = read("conf/Catalina/localhost/rewrite.config");
+        for (String line : rules.split("\n")) {
+            assertFalse(line.trim().startsWith("#"), "no comment lines: they made Tomcat 11 skip the conditional rules");
+        }
+        for (String[] pair : new String[][] {{"viscolink", "runtime"}, {"viscostore", "fhir-store"}}) {
+            String browser = "RewriteCond %{REQUEST_METHOD} ^GET$\nRewriteCond %{HTTP:Accept} text/html\n"
+                    + "RewriteRule ^/" + pair[0] + "/(.*)$ /" + pair[1] + "/$1 [R=302,L]\n";
+            assertTrue(rules.contains(browser), "a browser page load on /" + pair[0] + " is redirected");
+            assertTrue(rules.contains("RewriteRule ^/" + pair[0] + "/(.*)$ /" + pair[1] + "/$1 [L]\n"),
+                "every other request on /" + pair[0] + " is served in place");
+            assertTrue(rules.indexOf(browser) < rules.indexOf("RewriteRule ^/" + pair[0] + "/(.*)$ /" + pair[1] + "/$1 [L]"),
+                "the redirect rule comes first");
+        }
+    }
+
+    @Test
+    void theHealthchecksUseTheNewPaths() throws IOException {
+        assertTrue(read("Dockerfile").contains("http://localhost:8080/runtime/iaf/api/server/health"), "runner healthcheck");
+        assertTrue(read("Dockerfile.viscostore").contains("http://localhost:8080/fhir-store/fhir/metadata"), "store healthcheck");
     }
 
     @Test
@@ -229,7 +273,7 @@ class DockerfileContractTest {
         assertTrue(matches(compose, "^\\s{2}viscolink:\\s*$"), "the service keeps the name viscolink");
         assertTrue(compose.contains("8180:8080"), "console port");
         assertFalse(compose.contains("2575"), "no MLLP port: the core has no HL7v2 listener");
-        assertTrue(compose.contains("/viscolink/api/echo"), "the header says what the demo is");
+        assertTrue(compose.contains("/runtime/api/echo"), "the header says what the demo is");
     }
 
     @Test

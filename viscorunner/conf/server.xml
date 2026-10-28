@@ -150,6 +150,11 @@
         <!-- Access log processes all example.
              Documentation at: /docs/config/valve.html
              Note: The pattern used is equivalent to using pattern="common" -->
+        <!-- Neutral web paths (2026-10-28): serves the old /viscolink and /viscostore addresses from
+             /runtime and /fhir-store; rules in conf/Catalina/localhost/rewrite.config (the Dockerfile
+             explains them). -->
+        <Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />
+
         <!-- maxDays="30" (2026-10-23): daily files older than 30 days are removed; the platform keeps
              the logs folder on a volume, so without it they would pile up forever. -->
         <Valve className="org.apache.catalina.valves.AccessLogValve" directory="logs"

@@ -102,7 +102,7 @@
                  the transacted receiver retries and then parks the message. -->
             <SenderPipe name="postToStore">
                 <HttpSender name="NlCoreStoreSender"
-                            url="${nlcore.fhir.url:-http://localhost:8080/viscostore/fhir/Patient}"
+                            url="${nlcore.fhir.url:-http://localhost:8080/fhir-store/fhir/Patient}"
                             methodType="POST"
                             contentType="${nlcore.fhir.mimetype:-application/fhir+json}; charset=UTF-8"
                             username="${viscostore.username:-demo}"

@@ -1,6 +1,6 @@
 'use strict';
 
-// Strip /flow/... suffix to get the WAR context root (e.g. /viscolink)
+// Strip /flow/... suffix to get the WAR context root (e.g. /runtime)
 export const BASE = window.location.pathname.replace(/\/flow\/.*$/, '');
 
 export async function getStorage() {

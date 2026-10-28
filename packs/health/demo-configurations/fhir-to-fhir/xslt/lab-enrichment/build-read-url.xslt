@@ -20,7 +20,7 @@
         $viscoBaseUrl  — FHIR base URL of viscostore, ending with '/'
 
       Output (plain text):
-        http://localhost:8080/viscostore/fhir/Observation
+        http://localhost:8080/fhir-store/fhir/Observation
             ?_id=ccd84811-…&_format=xml&_include=Observation%3Aspecimen
     -->
 

@@ -23,7 +23,7 @@ done
 TS=$(date +"%Y%m%d%H%M%S")
 MSG_ID=$(date +"%Y%m%d%H%M%S%3N")
 
-ENDPOINT="http://${HOST}:${PORT}/viscolink/api/hl7v2?validateMessage=${VALIDATE}"
+ENDPOINT="http://${HOST}:${PORT}/runtime/api/hl7v2?validateMessage=${VALIDATE}"
 
 # --- send helper ---
 # Expands \r escape sequences to CR (0x0D) for HL7v2 segment termination,

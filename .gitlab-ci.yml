@@ -140,11 +140,11 @@ package:
       # Shaded viscorunner jar (fabric8 + relocated Jackson/SnakeYAML) for ContextFailureEventPublisher,
       # placed on Tomcat's common.loader at /opt/frank/lib by the Dockerfile.
       - viscorunner/target/viscorunner-*.jar
-    # target/store/viscostore/viscostore.war is a second copy of target/viscostore.war (about
+    # target/store/viscostore/fhir-store.war is a second copy of target/viscostore.war (about
     # 350 MB, already an artifact above): shipping both would add that to every pipeline and to
     # each of the eight docker jobs that download it. The docker jobs recreate it (.docker-build).
     exclude:
-      - viscorunner/target/store/viscostore/viscostore.war
+      - viscorunner/target/store/viscostore/fhir-store.war
     expire_in: 1 hour
   rules:
     - if: '$CI_COMMIT_BRANCH == "main"'
@@ -208,7 +208,7 @@ integration-test:
     # Empty directories may not survive the artifact zip; COPY of a missing source would fail every STORE=none build.
     - mkdir -p viscorunner/target/store/none viscorunner/target/packs/core/WEB-INF/lib
     # The store copy is not an artifact (package excludes it, it is a duplicate of target/viscostore.war): recreate it.
-    - if [ "$STORE" != none ]; then mkdir -p viscorunner/target/store/viscostore && cp viscorunner/target/viscostore.war viscorunner/target/store/viscostore/viscostore.war; fi
+    - if [ "$STORE" != none ]; then mkdir -p viscorunner/target/store/viscostore && cp viscorunner/target/viscostore.war viscorunner/target/store/viscostore/fhir-store.war; fi
     - docker build --platform "linux/$ARCH"
         --build-arg "PACK=$PACK" --build-arg "STORE=$STORE"
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"

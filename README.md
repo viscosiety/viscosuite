@@ -43,12 +43,12 @@ HL7v2 ADT messages, FHIR transaction bundles and R4 nl-core patients through rea
 pipelines — including deliberately failing messages, so you can watch validation refusals,
 error-store parking and retries happen live:
 
-- **`/viscolink/flow/`** — follow any message's journey step by step (per-pipe input,
+- **`/runtime/flow/`** — follow any message's journey step by step (per-pipe input,
   output and routing decisions)
-- **`/viscostore/tester/`** — browse the FHIR repository (ViscoStore asks for its login: enter
+- **`/fhir-store/tester/`** — browse the FHIR repository (ViscoStore asks for its login: enter
   the demo login that `viscorunner/docker-compose.demo.yml` sets under the lock icon in the
   tester's top bar)
-- **`/viscolink/iaf/`** — the full Frank!Console for the expert view
+- **`/runtime/iaf/`** — the full Frank!Console for the expert view
 
 The `fake-emr` demo adapter reads from a sample database hosted by Viscosiety, so that part of
 the demo needs internet access as well; the rest of the demo does not depend on it.
@@ -208,17 +208,17 @@ The demo overlay runs with this enabled.
 | Endpoint | Description |
 |---|---|
 | `/` | ViscoSuite landing page — service discovery |
-| `/viscolink/` | ViscoLink app launcher (tools + Frank!Console) |
-| `/viscolink/flow/` | ViscoFlow — live message flow viewer and trace debugger |
-| `/viscolink/iaf/` | Frank!Console / Ladybug flow debugger |
-| `GET /viscolink/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`) and its subject identifier; bearer-token callers only |
-| `/viscostore/fhir` | FHIR REST API (HAPI JPA Server) |
-| `/viscostore/tester/` | Interactive FHIR Tester UI |
-| `/viscostore/fhir/swagger-ui/` | Swagger API docs |
-| `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
+| `/runtime/` | ViscoLink app launcher (tools + Frank!Console) |
+| `/runtime/flow/` | ViscoFlow — live message flow viewer and trace debugger |
+| `/runtime/iaf/` | Frank!Console / Ladybug flow debugger |
+| `GET /runtime/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`) and its subject identifier; bearer-token callers only |
+| `/fhir-store/fhir` | FHIR REST API (HAPI JPA Server) |
+| `/fhir-store/tester/` | Interactive FHIR Tester UI |
+| `/fhir-store/fhir/swagger-ui/` | Swagger API docs |
+| `POST /fhir-store/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
 
 ViscoStore protects its FHIR API, Swagger UI and MCP endpoint with HTTP Basic authentication.
-Only `/viscostore/fhir/metadata`, the health probe and the tester page itself are open. The
+Only `/fhir-store/fhir/metadata`, the health probe and the tester page itself are open. The
 compose files ship a default login for local use; change it before exposing the store beyond
 your machine.
 
@@ -237,7 +237,7 @@ file, and let your MCP client send it (the header syntax differs per client):
 {
   "mcpServers": {
     "viscosuite": {
-      "url": "http://localhost:8180/viscostore/mcp/messages",
+      "url": "http://localhost:8180/fhir-store/mcp/messages",
       "headers": { "Authorization": "Basic <base64 of username:password>" }
     }
   }
@@ -300,7 +300,7 @@ release such as v0.20.0, only to a commit. The unsuffixed tags keep their long-s
 (the healthcare images) and `-health` is the explicit spelling. `-core` is the market-neutral
 integration platform: Frank!Framework, the console with OIDC, ViscoFlow and Ladybug, with no FHIR
 servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject identifier is a neutral
-"Subject" instead of "Patient", the pack descriptor endpoint (`GET /viscolink/api-service/pack`)
+"Subject" instead of "Patient", the pack descriptor endpoint (`GET /runtime/api-service/pack`)
 reports `core`, and its demo is a one-adapter echo (`viscolink/demo-configurations/echo/`; copy it into
 `viscorunner/configurations/` to load it). Try the core from `viscorunner/`: `cp secrets/credentials.properties.example secrets/credentials.properties`,
 then `docker compose -f docker-compose.core.yml up`. All images contain third-party components

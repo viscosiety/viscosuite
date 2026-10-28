@@ -68,7 +68,7 @@ class PackOverlayLayoutIT {
 
     @Test
     void storeIsTheWarOrNothing() throws IOException {
-        assertTrue(Files.isRegularFile(TARGET.resolve("store/viscostore/viscostore.war")), "target/store/viscostore/viscostore.war");
+        assertTrue(Files.isRegularFile(TARGET.resolve("store/viscostore/fhir-store.war")), "target/store/viscostore/fhir-store.war");
         Path none = TARGET.resolve("store/none");
         assertTrue(Files.isDirectory(none), "target/store/none exists");
         try (Stream<Path> entries = Files.list(none)) {

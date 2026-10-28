@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # emr-to-fhir.sh — Drive the fake-EMR → FHIR pipeline for one or more patients.
 #
-# Calls GET /viscolink/api/emr/patient/{patientId} for each supplied patient ID.
+# Calls GET /runtime/api/emr/patient/{patientId} for each supplied patient ID.
 # ViscoLink queries the fake-EMR database (sp_patient_gegevens + sp_diagnoses_patient),
 # transforms the result to a FHIR R4 transaction Bundle, and POSTs it to ViscoStore.
 # The response (ViscoStore transaction-response Bundle) is printed with resource counts.
@@ -55,8 +55,8 @@ done
 [[ -z "$STORE_HOST" ]] && STORE_HOST="$HOST"
 [[ -z "$STORE_PORT" ]] && STORE_PORT="$PORT"
 
-LINK_BASE="http://${HOST}:${PORT}/viscolink"
-CDR="http://${STORE_HOST}:${STORE_PORT}/viscostore/fhir"
+LINK_BASE="http://${HOST}:${PORT}/runtime"
+CDR="http://${STORE_HOST}:${STORE_PORT}/fhir-store/fhir"
 CURL_CDR_AUTH=(-u "${STORE_USER}:${STORE_PASS}")
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
