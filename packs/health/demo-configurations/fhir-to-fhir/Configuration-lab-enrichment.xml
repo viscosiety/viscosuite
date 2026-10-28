@@ -36,7 +36,7 @@
              description="Transparent CDR pass-through for all routes in the loinc-enriched facade that are not handled by a dedicated adapter">
 
         <Receiver name="LabEnrichmentCdrProxyReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="LabEnrichmentCdrProxyListener"
                       fhirVersion="R4"
                       facadeName="loinc-enriched"
@@ -140,7 +140,7 @@
              description="Observation search on facade 'loinc-enriched': builds viscostore URL and delegates to FetchAndEnrichBundle">
 
         <Receiver name="LabEnrichmentObservationSearchReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="LabEnrichmentObservationSearchListener"
                       fhirVersion="R4"
                       facadeName="loinc-enriched"
@@ -185,7 +185,7 @@
              description="Observation read-by-id on facade 'loinc-enriched': builds viscostore URL, delegates to FetchAndEnrichBundle, extracts the Observation">
 
         <Receiver name="LabEnrichmentObservationReadReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="LabEnrichmentObservationReadListener"
                       fhirVersion="R4"
                       facadeName="loinc-enriched"

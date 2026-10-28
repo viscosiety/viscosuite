@@ -32,19 +32,19 @@
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 send MLLP"/>
 
             <!-- Step 1: XML input → pipe-delimited HL7v2 -->
-            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe"
+            <Pipe className="com.viscosiety.pack.health.pipes.XmlToHl7v2Pipe"
                   name="encodeHl7" hl7Version="2.5" />
 
             <!-- Step 2: send over MLLP; result is a pipe-delimited ACK -->
             <SenderPipe name="sendMllpPipe">
-                <Sender className="com.viscosiety.mllp.MllpSender"
+                <Sender className="com.viscosiety.pack.health.mllp.MllpSender"
                         name="MLLPSender" resourceName="outbound-ris" />
                 <Forward name="success"   path="parseAck"/>
                 <Forward name="exception" path="Error"/>
             </SenderPipe>
 
             <!-- Step 3: pipe-delimited ACK → XML (returned to caller) -->
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe"
+            <Pipe className="com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe"
                   name="parseAck" hl7Version="2.5">
                 <Forward name="success" path="Exit"/>
             </Pipe>

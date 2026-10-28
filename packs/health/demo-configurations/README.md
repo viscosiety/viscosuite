@@ -21,7 +21,7 @@ These configurations are the examples people copy — keep them exemplary:
     quotes are literal, not in `select` attribute expressions.
 - **FHIR format conversion is FHIR-aware.** Flows build and pass FHIR as XML;
   the delivering adapter converts to the destination's configured mimetype with
-  `com.viscosiety.pipes.FhirFormatPipe` (see `fhir-delivery/`). Never use the
+  `com.viscosiety.pack.health.pipes.FhirFormatPipe` (see `fhir-delivery/`). Never use the
   generic `JsonPipe` on FHIR: it cannot know that FHIR JSON requires arrays
   (`entry`, `identifier`, …) even for single elements. `JsonPipe` remains fine
   for non-FHIR JSON.

@@ -67,7 +67,7 @@
                 <Param name="transactionUuid" sessionKey="transactionUuid"/>
             </XsltPipe>
 
-            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="ValidateFhirBundle" fhirVersion="${fhir.target.version}">
+            <Pipe className="com.viscosiety.pack.health.pipes.FhirValidatorPipe" name="ValidateFhirBundle" fhirVersion="${fhir.target.version}">
                 <Forward name="failure"  path="BadRequest"/>
             </Pipe>
 

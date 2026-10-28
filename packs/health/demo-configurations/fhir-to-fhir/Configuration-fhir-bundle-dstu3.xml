@@ -21,7 +21,7 @@
              description="Receives a FHIR DSTU3 Bundle transaction from the HAPI facade, applies XSLT, and returns the transformed Bundle">
 
         <Receiver name="Dstu3BundleTransactionReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="Dstu3BundleTransactionListener"
                       fhirVersion="DSTU3"
                       facadeName="fhir-to-fhir"

@@ -17,7 +17,7 @@
              description="Transparent proxy — forwards all FHIR R4 requests to ViscoStore">
 
         <Receiver name="FhirStoreProxyReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="FhirStoreProxyListener"
                       fhirVersion="R4"
                       facadeName="fhir-store-proxy"

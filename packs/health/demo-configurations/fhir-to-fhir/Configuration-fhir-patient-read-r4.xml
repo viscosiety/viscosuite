@@ -21,7 +21,7 @@
              description="Receives a FHIR R4 Patient read-by-id request from the HAPI facade, applies XSLT, and returns a Patient">
 
         <Receiver name="R4PatientReadReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="R4PatientReadListener"
                       fhirVersion="R4"
                       facadeName="fhir-to-fhir"

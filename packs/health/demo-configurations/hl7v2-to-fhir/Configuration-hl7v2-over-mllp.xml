@@ -25,7 +25,7 @@
     <Adapter name="HL7v2-over-MLLP"
              description="Receives HL7v2 over persistent MLLP connections, filters by department, ingests to FHIR, and returns an explicit HL7v2 ACK/NACK">
         <Receiver name="HL7V2MLLPReceiver">
-            <Listener className="com.viscosiety.mllp.MllpListener" name="HL7V2MLLPListener" resourceName="inbound-2575" />
+            <Listener className="com.viscosiety.pack.health.mllp.MllpListener" name="HL7V2MLLPListener" resourceName="inbound-2575" />
         </Receiver>
         <Pipeline>
             <Exits>
@@ -34,7 +34,7 @@
             </Exits>
 
             <!-- Step 1: pipe-delimited HL7v2 → XML (urn:hl7-org:v2xml) -->
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.5" />
+            <Pipe className="com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.5" />
 
             <!-- Step 2: save HL7v2 XML and extract key fields for tracing in the debugger.
                  Use //h: wildcards so XPaths work regardless of the root element name
@@ -137,7 +137,7 @@
             </XsltPipe>
 
             <!-- Shared: ACK/NACK XML → pipe-delimited HL7v2 (returned to MllpListener) -->
-            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
+            <Pipe className="com.viscosiety.pack.health.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
                 <Forward name="success" path="Exit"/>
             </Pipe>
 
