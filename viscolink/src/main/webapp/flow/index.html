@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-brand-title="link" data-brand-title-prefix="ViscoFlow — ">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ViscoFlow — ViscoLink</title>
 <link rel="stylesheet" href="/viscolink.css">
 <link rel="stylesheet" href="flow.css">
+<script src="../brand-loader.js" data-brand-url="../brand/brand.json"></script>
 <style>
 #left { width: 33.333%; }
 #extension-badge { font-size: 10px; font-weight: 600; letter-spacing: .4px; padding: 2px 7px; border-radius: 10px; background: rgba(255,255,255,.12); color: rgba(255,255,255,.75); border: 1px solid rgba(255,255,255,.2); }
@@ -44,7 +45,7 @@ tbody tr:hover .row-actions, tbody tr.selected .row-actions { opacity: 1; }
 <body>
 
 <div id="topbar">
-  <a id="back-btn" href="../">← ViscoLink</a>
+  <a id="back-btn" href="../">← <span data-brand-name="link">ViscoLink</span></a>
   <h1>◈ ViscoFlow</h1>
   <div id="live-badge"><span class="dot" id="dot"></span><span id="live-txt">Live</span></div>
   <span id="countdown"></span>

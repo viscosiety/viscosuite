@@ -1,11 +1,12 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-brand-title="link">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>ViscoLink</title>
 <link rel="stylesheet" href="/viscolink.css">
 <script src="branding.js"></script>
+<script src="brand-loader.js" data-brand-url="brand/brand.json"></script>
 <style>
 html, body { height: 100%; font-size: 14px; color: var(--text); background: #FAFBFB; }
 #topbar .sub { font-size: 12px; color: rgba(255,255,255,.6); }
@@ -46,7 +47,7 @@ main { max-width: 680px; margin: 48px auto; padding: 0 24px; }
 
 <div id="topbar">
   <a id="back-btn" href="/">← <span data-product-name>ViscoSuite</span></a>
-  <h1>◈ ViscoLink</h1>
+  <h1>◈ <span data-brand-name="link">ViscoLink</span></h1>
   <span class="sub">Integration Layer</span>
 </div>
 
