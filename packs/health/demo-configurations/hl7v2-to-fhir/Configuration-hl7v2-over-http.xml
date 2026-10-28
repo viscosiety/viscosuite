@@ -42,7 +42,7 @@
 
             <!-- Step 1a (pipe-delimited only): convert to HL7v2 XML (urn:hl7-org:v2xml).
                  HL7v2 validation can be disabled via ?validateMessage=false on the request URI. -->
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6" enforceHl7Version="false">
+            <Pipe className="com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe" name="parseHl7" hl7Version="2.6" enforceHl7Version="false">
                 <Param name="validateMessage" sessionKey="validateMessage"/>
                 <Forward name="success"   path="saveHl7Xml"/>
                 <Forward name="exception" path="Error"/>
@@ -152,7 +152,7 @@
             </XsltPipe>
 
             <!-- Shared: ACK/NACK XML → pipe-delimited HL7v2 (returned to MllpListener) -->
-            <Pipe className="com.viscosiety.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
+            <Pipe className="com.viscosiety.pack.health.pipes.XmlToHl7v2Pipe" name="encodeResponse" hl7Version="2.5">
                 <Forward name="success" path="Exit"/>
             </Pipe>
         </Pipeline>

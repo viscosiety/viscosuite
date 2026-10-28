@@ -21,7 +21,7 @@
              description="Receives a FHIR R5 Bundle transaction from the HAPI facade, applies XSLT, and returns the transformed Bundle">
 
         <Receiver name="R5BundleTransactionReceiver">
-            <Listener className="com.viscosiety.fhir.FhirListener"
+            <Listener className="com.viscosiety.pack.health.fhir.FhirListener"
                       name="R5BundleTransactionListener"
                       fhirVersion="R5"
                       facadeName="fhir-to-fhir"

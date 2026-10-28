@@ -21,7 +21,7 @@
                 <Exit name="Error" state="ERROR" code="500"/>
             </Exits>
             <PutInSessionPipe name="SetFlow" sessionKey="flow" value="HL7v2 to XML"/>
-            <Pipe className="com.viscosiety.pipes.Hl7v2ToXmlPipe" name="parseHl7" validateMessage="false" hl7Version="2.6" />
+            <Pipe className="com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe" name="parseHl7" validateMessage="false" hl7Version="2.6" />
         </Pipeline>
     </Adapter>
 </Configuration>

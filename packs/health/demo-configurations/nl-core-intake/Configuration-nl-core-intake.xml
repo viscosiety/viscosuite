@@ -42,7 +42,7 @@
                  With the Nictiz packages mounted (nlcore.validation.packages) and
                  strict mode on, resources are validated against the nl-core PROFILES
                  they claim, not just base R4 — see fhir-packages/README.md. -->
-            <Pipe className="com.viscosiety.pipes.FhirValidatorPipe" name="validateR4" fhirVersion="R4"
+            <Pipe className="com.viscosiety.pack.health.pipes.FhirValidatorPipe" name="validateR4" fhirVersion="R4"
                   validationPackages="${nlcore.validation.packages:-}"
                   failOnUnknownProfiles="${nlcore.validation.strict:-false}">
                 <Forward name="success" path="toXmlForTagging"/>
@@ -50,7 +50,7 @@
             </Pipe>
 
             <!-- normalize to XML so the zone-tagging stylesheet has one input shape -->
-            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toXmlForTagging"
+            <Pipe className="com.viscosiety.pack.health.pipes.FhirFormatPipe" name="toXmlForTagging"
                   fhirVersion="R4" outputFormat="application/fhir+xml">
                 <Forward name="success" path="tagInboundZone"/>
             </Pipe>
@@ -91,7 +91,7 @@
 
             <!-- Re-serialize to the destination's FHIR mimetype; parsing re-validates,
                  so a corrupt queue entry parks here instead of reaching the store. -->
-            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toTargetFormat"
+            <Pipe className="com.viscosiety.pack.health.pipes.FhirFormatPipe" name="toTargetFormat"
                   outputFormat="${nlcore.fhir.mimetype:-application/fhir+json}"
                   fhirVersion="R4">
                 <Forward name="success" path="postToStore"/>

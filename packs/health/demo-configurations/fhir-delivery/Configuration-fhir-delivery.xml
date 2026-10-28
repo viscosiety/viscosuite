@@ -104,7 +104,7 @@
                  For a per-message format, set outputFormatSessionKey to a session key
                  holding the mimetype; it overrides outputFormat when present (make the
                  sender's contentType follow the same decision). -->
-            <Pipe className="com.viscosiety.pipes.FhirFormatPipe" name="toTargetFormat"
+            <Pipe className="com.viscosiety.pack.health.pipes.FhirFormatPipe" name="toTargetFormat"
                   outputFormat="${viscostore.fhir.mimetype:-application/fhir+json}"
                   fhirVersion="R4">
                 <Forward name="success" path="postToViscoStore"/>

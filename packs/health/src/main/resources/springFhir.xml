@@ -15,13 +15,13 @@
            http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
        ">
 
-    <bean id="fhirFfBridge" class="com.viscosiety.fhir.FhirFfBridge"/>
+    <bean id="fhirFfBridge" class="com.viscosiety.pack.health.fhir.FhirFfBridge"/>
 
     <!--
         Stores the ServletContext at startup and registers one FhirFacadeServlet per facade
         declared via FhirListener elements in the loaded F!F configurations.
     -->
-    <bean id="fhirServletRegistrar" class="com.viscosiety.fhir.FhirServletRegistrar">
+    <bean id="fhirServletRegistrar" class="com.viscosiety.pack.health.fhir.FhirServletRegistrar">
         <constructor-arg ref="fhirFfBridge"/>
     </bean>
 
