@@ -1,5 +1,5 @@
 # The market-neutral core: ViscoLink without a vertical pack and without ViscoStore (no HL7v2, no FHIR).
-# /viscolink/api/echo is its demo: mount ../viscolink/demo-configurations over /opt/frank/configurations
+# /runtime/api/echo is its demo: mount ../viscolink/demo-configurations over /opt/frank/configurations
 # (the image also carries a copy in /opt/frank/demo-configurations) and POST to it.
 #
 #   docker compose -f docker-compose.core.yml up --build

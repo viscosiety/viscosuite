@@ -39,7 +39,7 @@ docker compose -f docker-compose.viscolink.yml up --build  # health pack, no sto
 docker compose -f docker-compose.core.yml up --build       # the core
 ```
 
-The core's demo is a one-adapter echo: mount `../viscolink/demo-configurations` over `/opt/frank/configurations` (or copy `echo/` into your own configuration directory) and `POST /viscolink/api/echo?subjectId=SUBJ-001`; Ladybug and ViscoFlow show the id in the Subject column.
+The core's demo is a one-adapter echo: mount `../viscolink/demo-configurations` over `/opt/frank/configurations` (or copy `echo/` into your own configuration directory) and `POST /runtime/api/echo?subjectId=SUBJ-001`; Ladybug and ViscoFlow show the id in the Subject column.
 
 **Databases.** The suite's PostgreSQL runs everything in `postgres/` as init scripts; `init-databases.sql` creates `viscolink`, `viscostore` and `ladybug`. The two store-less stacks create only `viscolink` (through `POSTGRES_DB`) and mount `postgres/init-ladybug.sql` for Ladybug's own database; without a `ladybug` database the context never starts. That file is idempotent (`\gexec` creates the database only when it is missing), so it is harmless in the suite, where both files run.
 
@@ -66,7 +66,7 @@ The demo overlay:
 
 | F!F Configuration | Description |
 |---|---|
-| `hl7v2-to-fhir` | Receives HL7v2 ADT (A01/A02/A03/A04/A08/A11/A13) and SIU (S12/S13/S14/S15) messages over HTTP (`POST /viscolink/api/hl7v2`) or MLLP (port 2575) and converts them to FHIR R4 Bundles |
+| `hl7v2-to-fhir` | Receives HL7v2 ADT (A01/A02/A03/A04/A08/A11/A13) and SIU (S12/S13/S14/S15) messages over HTTP (`POST /runtime/api/hl7v2`) or MLLP (port 2575) and converts them to FHIR R4 Bundles |
 | `hl7v2-to-xml` | Converts HL7v2 messages to a structured XML representation |
 | `fhir-to-fhir` | FHIR R4 / DSTU3 / R5 facade endpoints (bundle transactions, patient reads) bridged to F!F pipelines |
 | `fhir-store-proxy` | Transparent reverse proxy from a ViscoLink FHIR endpoint to ViscoStore, with credential injection |
@@ -75,13 +75,13 @@ The demo overlay:
 
 ### Demo tools
 
-Three browser-based tools are served directly from ViscoLink in demo mode and accessible from the `/viscolink/` launcher:
+Three browser-based tools are served directly from ViscoLink in demo mode and accessible from the `/runtime/` launcher:
 
 | Tool | URL | Purpose |
 |---|---|---|
-| ViscoFlow | `/viscolink/flow/` | Live pipeline trace viewer — shows every message flowing through F!F adapters with per-pipe input/output and forward routing |
-| Lab Code Mapper | `/viscolink/demo-tools/loinc-mapping-ui.html` | CRUD UI for the LOINC mapping table consumed by the `loinc-mapping-api` configuration. Illustrates a standalone tool with a specific functional purpose, served via the webapp overlay mechanism without modifying the WAR. |
-| Demo Pipeline Tester | `/viscolink/demo-tools/test-client.html` | Drives all demo pipelines end-to-end from the browser — sends HL7v2 ADT/SIU messages, FHIR requests, and EMR queries with configurable parameters and shows raw responses |
+| ViscoFlow | `/runtime/flow/` | Live pipeline trace viewer — shows every message flowing through F!F adapters with per-pipe input/output and forward routing |
+| Lab Code Mapper | `/runtime/demo-tools/loinc-mapping-ui.html` | CRUD UI for the LOINC mapping table consumed by the `loinc-mapping-api` configuration. Illustrates a standalone tool with a specific functional purpose, served via the webapp overlay mechanism without modifying the WAR. |
+| Demo Pipeline Tester | `/runtime/demo-tools/test-client.html` | Drives all demo pipelines end-to-end from the browser — sends HL7v2 ADT/SIU messages, FHIR requests, and EMR queries with configurable parameters and shows raw responses |
 
 Tools are mounted via `demo-tools:/opt/frank/webapp-overlay/viscolink/demo-tools:ro` in the demo overlay. New tools can be added to `demo-tools/` without rebuilding the image.
 
@@ -90,24 +90,24 @@ Tools are mounted via `demo-tools:/opt/frank/webapp-overlay/viscolink/demo-tools
 | Endpoint | Description |
 |---|---|
 | `/` | ViscoSuite landing page — probes services and shows navigation cards |
-| `/viscolink/` | ViscoLink app launcher (tools registry + Frank!Console link) |
-| `/viscolink/flow/` | ViscoFlow — live message flow viewer and pipeline trace debugger |
-| `/viscolink/demo-tools/test-client.html` | Demo Pipeline Tester — drive all demo pipelines from the browser |
-| `/viscolink/demo-tools/loinc-mapping-ui.html` | Lab Code Mapper — CRUD UI for LOINC mappings |
-| `/viscolink/iaf/` | Frank!Console and Ladybug flow debugger |
-| `POST /viscolink/api/hl7v2` | HL7v2 message ingestion over HTTP |
-| `GET /viscolink/api/emr/patient/{id}` | Fake-EMR → FHIR patient pipeline |
-| `GET /viscolink/fhir/r4/loinc-enriched/Observation` | LOINC-enriched Observation search |
-| `POST /viscolink/fhir/r4/fhir-to-fhir` | FHIR R4 bundle transaction |
-| `GET /viscolink/fhir/r4/fhir-to-fhir/Patient/{id}` | FHIR R4 patient read |
-| `POST /viscolink/fhir/r5/fhir-to-fhir` | FHIR R5 bundle transaction |
-| `GET /viscolink/fhir/r5/fhir-to-fhir/Patient/{id}` | FHIR R5 patient read |
-| `POST /viscolink/fhir/dstu3/fhir-to-fhir` | FHIR DSTU3 bundle transaction |
-| `GET /viscolink/fhir/dstu3/fhir-to-fhir/Patient/{id}` | FHIR DSTU3 patient read |
-| `/viscostore/fhir` | HAPI FHIR JPA Server REST API |
-| `/viscostore/tester/` | Interactive FHIR Tester UI |
-| `/viscostore/fhir/swagger-ui/` | Swagger API docs |
-| `POST /viscostore/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
+| `/runtime/` | ViscoLink app launcher (tools registry + Frank!Console link) |
+| `/runtime/flow/` | ViscoFlow — live message flow viewer and pipeline trace debugger |
+| `/runtime/demo-tools/test-client.html` | Demo Pipeline Tester — drive all demo pipelines from the browser |
+| `/runtime/demo-tools/loinc-mapping-ui.html` | Lab Code Mapper — CRUD UI for LOINC mappings |
+| `/runtime/iaf/` | Frank!Console and Ladybug flow debugger |
+| `POST /runtime/api/hl7v2` | HL7v2 message ingestion over HTTP |
+| `GET /runtime/api/emr/patient/{id}` | Fake-EMR → FHIR patient pipeline |
+| `GET /runtime/fhir/r4/loinc-enriched/Observation` | LOINC-enriched Observation search |
+| `POST /runtime/fhir/r4/fhir-to-fhir` | FHIR R4 bundle transaction |
+| `GET /runtime/fhir/r4/fhir-to-fhir/Patient/{id}` | FHIR R4 patient read |
+| `POST /runtime/fhir/r5/fhir-to-fhir` | FHIR R5 bundle transaction |
+| `GET /runtime/fhir/r5/fhir-to-fhir/Patient/{id}` | FHIR R5 patient read |
+| `POST /runtime/fhir/dstu3/fhir-to-fhir` | FHIR DSTU3 bundle transaction |
+| `GET /runtime/fhir/dstu3/fhir-to-fhir/Patient/{id}` | FHIR DSTU3 patient read |
+| `/fhir-store/fhir` | HAPI FHIR JPA Server REST API |
+| `/fhir-store/tester/` | Interactive FHIR Tester UI |
+| `/fhir-store/fhir/swagger-ui/` | Swagger API docs |
+| `POST /fhir-store/mcp/messages` | MCP Streamable HTTP (AI/LLM integration) |
 
 ### Additional services (demo mode only)
 
@@ -148,7 +148,7 @@ docker compose up --build
    environment:
      configurations.my-integration.classLoaderType: DirectoryClassLoader
    ```
-5. Start or reload via the Frank!Console (`/viscolink/iaf/`) — no rebuild required as long as the container is already running.
+5. Start or reload via the Frank!Console (`/runtime/iaf/`) — no rebuild required as long as the container is already running.
 
 ### Adding a JNDI datasource
 
@@ -160,13 +160,13 @@ Add a `<Resource>` entry to `conf/context-viscostore.xml` (the suite) or `conf/c
 
 ```
 conf/                       Tomcat context files context-viscostore.xml and context-none.xml (picked by STORE),
-│                           server.xml, and the /viscolink PreResources overlay definition
+│                           server.xml, and the /runtime PreResources overlay definition
 demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
 demo-hapi-overlay/          Spring Boot config overlay for ViscoStore in demo mode
 demo-rabbitmq/              RabbitMQ config and exchange/queue definitions for demo mode
 demo-resources/             resources.yml with MLLP listener and AMQP connection pre-wired
 demo-secrets/               Credentials for the demo mode (not for production)
-demo-tools/                 Browser tools served at /viscolink/demo-tools/ in demo mode
+demo-tools/                 Browser tools served at /runtime/demo-tools/ in demo mode
 │                           (test-client.html, loinc-mapping-ui.html)
 configurations/             Mount point for user-created F!F configurations
 │                           Empty by default; contains FrankConfig.xsd for IDE support

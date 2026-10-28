@@ -3,7 +3,7 @@
     <!--
         FHIR DSTU3 Bundle transaction pipeline.
 
-        Entry point : POST /viscolink/fhir/dstu3/fhir-to-fhir
+        Entry point : POST /runtime/fhir/dstu3/fhir-to-fhir
                       HAPI deserialises the Bundle, serialises it to XML, and calls
                       Dstu3BundleTransactionListener via FhirFfBridge.
 

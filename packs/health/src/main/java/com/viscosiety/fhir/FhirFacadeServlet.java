@@ -49,7 +49,7 @@ import java.util.Objects;
  * the first {@link FhirListener} for that facade is configured.  The servlet is registered with
  * Tomcat by {@link FhirServletRegistrar} and serves requests at:</p>
  * <pre>
- *   /viscolink/fhir/{version}/{facadeName}/*
+ *   /runtime/fhir/{version}/{facadeName}/*
  * </pre>
  *
  * <p>Resource providers are built at HAPI {@code initialize()} time by querying

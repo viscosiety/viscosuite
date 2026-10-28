@@ -78,7 +78,7 @@ function esc(s) {
 async function loadTools() {
   const list = document.getElementById('tool-list');
   try {
-    const resp = await fetch('/viscolink/tools/registry');
+    const resp = await fetch('tools/registry');
     if (!resp.ok) throw new Error('HTTP ' + resp.status);
     const tools = await resp.json();
     if (tools.length === 0) {

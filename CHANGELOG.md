@@ -7,6 +7,16 @@ minor version).
 
 ## [Unreleased]
 
+### Changed
+- Neutral web paths: the Frank!Framework webapp is served at `/runtime` and the FHIR store at
+  `/fhir-store`. The old `/viscolink` and `/viscostore` keep working: a Host-level `RewriteValve`
+  serves API calls, POSTs and scripts on the old paths in place and sends a browser page load
+  (GET, `Accept: text/html`) to the new address with a 302 (the session cookie is scoped to the new
+  path). The health pack's `viscostore.fhir.base.url` default, the landing page, the ViscoLink home
+  page, the store tester's links, the compose files, the demo tools and configurations, the
+  scripts and the healthchecks use the new paths. Filesystem paths (`/opt/frank/webapp-overlay/viscolink`),
+  datasource names (`jdbc/viscolink`), image names and property names are unchanged.
+
 ### Added
 - The suite's own pages (the landing page, the ViscoLink home and the flow viewer) can show a
   deployment's own names and colours: `brand-loader.js` reads a `brand.json` (`productName`,

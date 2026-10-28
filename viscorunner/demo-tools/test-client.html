@@ -457,7 +457,7 @@
 <body>
 
 <header>
-  <a id="back-btn" href="/viscolink/">← ViscoLink</a>
+  <a id="back-btn" href="/runtime/">← ViscoLink</a>
   <h1>Demo Pipeline Tester</h1>
 </header>
 
@@ -496,7 +496,7 @@ const GROUPS = [
       {
         id: 'emr-patient', label: 'EMR → FHIR Patient', method: 'GET', pipeline: 'emr',
         desc: 'Triggers sp_patient_gegevens + sp_diagnoses_patient → emr-to-fhir-bundle.xslt → POST viscostore. Returns the FHIR R4 transaction-response Bundle.',
-        path: '/viscolink/api/emr/patient/{patientId}',
+        path: '/runtime/api/emr/patient/{patientId}',
         params: [
           {
             name: 'patientId', label: 'Patient ID', placeholder: 'PAT-2020001',
@@ -521,7 +521,7 @@ const GROUPS = [
       {
         id: 'lab-obs-search', label: 'Observation Search', method: 'GET', pipeline: 'fhir',
         desc: 'loinc-enriched facade: fetches Observations from viscostore, enriches NullFlavor/OTH codes with LOINC codings from loinc_mapping table.',
-        path: '/viscolink/fhir/r4/loinc-enriched/Observation',
+        path: '/runtime/fhir/r4/loinc-enriched/Observation',
         queryParams: [
           { name: 'patient', label: 'patient', placeholder: 'pat-lab-uncoded-001' },
           { name: '_include', label: '_include', value: 'Observation:specimen', readonly: true },
@@ -531,7 +531,7 @@ const GROUPS = [
       {
         id: 'lab-obs-read', label: 'Observation Read', method: 'GET', pipeline: 'fhir',
         desc: 'loinc-enriched facade: read single Observation by ID, enriched with LOINC codings.',
-        path: '/viscolink/fhir/r4/loinc-enriched/Observation/{observationId}',
+        path: '/runtime/fhir/r4/loinc-enriched/Observation/{observationId}',
         params: [
           { name: 'observationId', label: 'Observation ID', placeholder: '' },
         ],
@@ -553,7 +553,7 @@ const GROUPS = [
       {
         id: 'f2f-patient-read', label: 'Patient Read', method: 'GET', pipeline: 'fhir',
         desc: 'fhir-to-fhir facade: read Patient by ID. Passes through XsltPipe (patient-read-{version}.xslt) — override XSLT to rewrite.',
-        path: '/viscolink/fhir/{version}/fhir-to-fhir/Patient/{patientId}',
+        path: '/runtime/fhir/{version}/fhir-to-fhir/Patient/{patientId}',
         params: [
           { name: 'patientId', label: 'Patient ID', placeholder: 'PAT-R4-001' },
         ],
@@ -562,7 +562,7 @@ const GROUPS = [
       {
         id: 'f2f-bundle-tx', label: 'Bundle Transaction', method: 'POST', pipeline: 'fhir',
         desc: 'fhir-to-fhir facade: POST a FHIR transaction Bundle. Passes through bundle-transaction-{version}.xslt — override XSLT to rewrite resources.',
-        path: '/viscolink/fhir/{version}/fhir-to-fhir',
+        path: '/runtime/fhir/{version}/fhir-to-fhir',
         versionParam: true,
         contentType: 'application/fhir+xml',
         bodyTemplates: {
@@ -1391,7 +1391,7 @@ function computeUrl(item) {
   if (!item) return '';
   if (item.pipeline === 'hl7v2') {
     const validate = cfgEls.validate ? cfgEls.validate.checked : true;
-    return `/viscolink/api/hl7v2?validateMessage=${validate}`;
+    return `/runtime/api/hl7v2?validateMessage=${validate}`;
   }
   let path = item.path;
 

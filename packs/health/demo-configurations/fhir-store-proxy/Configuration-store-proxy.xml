@@ -7,7 +7,7 @@
         All FHIR R4 requests routed to this facade are forwarded unmodified to the
         ViscoStore FHIR base URL.  No transformation or validation is applied.
 
-        Entry point : /viscolink/fhir/r4/fhir-store-proxy/{any FHIR path}
+        Entry point : /runtime/fhir/r4/fhir-store-proxy/{any FHIR path}
         Forwards to : ${viscostore.fhir.base.url}/{path}
 
         Proxying is handled at servlet level by FhirFacadeServlet; this pipeline

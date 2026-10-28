@@ -39,7 +39,7 @@ done
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FIXTURES_DIR="${SCRIPT_DIR}/fixtures"
-CDR_URL="http://${HOST}:${PORT}/viscostore/fhir"
+CDR_URL="http://${HOST}:${PORT}/fhir-store/fhir"
 CURL_AUTH=(-u "${STORE_USER}:${STORE_PASS}")
 
 # post_fixture <file>

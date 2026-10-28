@@ -117,7 +117,7 @@
                  bundle in the error store: that is the whole point of this flow. -->
             <SenderPipe name="postToViscoStore">
                 <HttpSender name="ViscoStoreSender"
-                            url="${viscostore.fhir.url:-http://localhost:8080/viscostore/fhir}"
+                            url="${viscostore.fhir.url:-http://localhost:8080/fhir-store/fhir}"
                             methodType="POST"
                             contentType="${viscostore.fhir.mimetype:-application/fhir+json}; charset=UTF-8"
                             username="${viscostore.username:-demo}"

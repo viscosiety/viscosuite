@@ -65,7 +65,7 @@ class HealthDefaultsTest {
         assertEquals("viscolink", p.getProperty("mllp.inbound.sendingApplication"));
         assertEquals("viscosiety", p.getProperty("mllp.inbound.sendingFacility"));
         assertEquals("r4", p.getProperty("fhir.target.version"));
-        assertEquals("http://localhost:8080/viscostore/fhir/", p.getProperty("viscostore.fhir.base.url"));
+        assertEquals("http://localhost:8080/fhir-store/fhir/", p.getProperty("viscostore.fhir.base.url"));
         assertEquals("https://ig.viscosiety.com/fhir/NamingSystem/", p.getProperty("mr.system.base"));
     }
 

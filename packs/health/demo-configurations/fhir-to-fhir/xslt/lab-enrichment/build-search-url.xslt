@@ -19,12 +19,12 @@
 
       Params:
         $viscoBaseUrl  — FHIR base URL of viscostore, ending with '/'
-                         (e.g. "http://localhost:8080/viscostore/fhir/")
+                         (e.g. "http://localhost:8080/fhir-store/fhir/")
         $resourceType  — FHIR resource to search (default: "Observation")
 
       Output:
         Plain text URL ready for use by HttpSender, e.g.:
-        http://localhost:8080/viscostore/fhir/Observation?patient=Patient%2F123&_include=...&_format=xml
+        http://localhost:8080/fhir-store/fhir/Observation?patient=Patient%2F123&_include=...&_format=xml
 
       Note: _format=xml is always appended so viscostore returns FHIR XML regardless of
       any Accept header negotiation — required because enrich-loinc.xslt expects XML input.

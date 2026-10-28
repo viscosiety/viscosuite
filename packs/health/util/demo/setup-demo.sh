@@ -62,7 +62,7 @@ echo "=== Step 1/2: Loading LOINC mapping (${DB_NAME}@${DB_HOST}:${DB_PORT}) ===
 "$SCRIPT_DIR/load-loinc-mapping.sh" "${LOINC_ARGS[@]}"
 
 echo ""
-echo "=== Step 2/2: Loading FHIR fixtures (http://${STORE_HOST}:${STORE_PORT}/viscostore/fhir) ==="
+echo "=== Step 2/2: Loading FHIR fixtures (http://${STORE_HOST}:${STORE_PORT}/fhir-store/fhir) ==="
 "$SCRIPT_DIR/load-fhir-fixtures.sh" "${FHIR_ARGS[@]}"
 
 echo ""

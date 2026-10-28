@@ -3,7 +3,7 @@
     <!--
         FHIR DSTU3 Patient read pipeline.
 
-        Entry point : GET /viscolink/fhir/dstu3/fhir-to-fhir/Patient/{id}
+        Entry point : GET /runtime/fhir/dstu3/fhir-to-fhir/Patient/{id}
                       HAPI extracts the ID, wraps it as <id value="..."/>, and calls
                       Dstu3PatientReadListener via FhirFfBridge.
 

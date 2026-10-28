@@ -8,5 +8,5 @@ Mount this directory over `/opt/frank/configurations` (or copy `echo/` into your
 directory), then try it:
 
 ```bash
-curl -X POST 'http://localhost:8180/viscolink/api/echo?subjectId=SUBJ-001' -d 'hello'
+curl -X POST 'http://localhost:8180/runtime/api/echo?subjectId=SUBJ-001' -d 'hello'
 ```

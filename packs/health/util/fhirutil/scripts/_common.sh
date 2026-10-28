@@ -25,7 +25,7 @@ done
 
 CURL_AUTH=(-u "${FHIR_USER}:${FHIR_PASS}")
 
-BASE_URL="http://${HOST}:${PORT}/viscolink/fhir"
+BASE_URL="http://${HOST}:${PORT}/runtime/fhir"
 
 # --- generated values ---
 # FHIR instant: YYYY-MM-DDThh:mm:ssZ

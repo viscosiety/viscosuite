@@ -3,7 +3,7 @@
     <!--
         FHIR R4 Bundle transaction pipeline.
 
-        Entry point : POST /viscolink/fhir/r4/fhir-to-fhir
+        Entry point : POST /runtime/fhir/r4/fhir-to-fhir
                       HAPI deserialises the Bundle, serialises it to XML, and calls
                       R4BundleTransactionListener via FhirFfBridge.
 

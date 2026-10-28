@@ -3,7 +3,7 @@
     <!--
         FHIR R4 Patient read pipeline.
 
-        Entry point : GET /viscolink/fhir/r4/fhir-to-fhir/Patient/{id}
+        Entry point : GET /runtime/fhir/r4/fhir-to-fhir/Patient/{id}
                       HAPI extracts the ID, wraps it as <id value="..."/>, and calls
                       R4PatientReadListener via FhirFfBridge.
 

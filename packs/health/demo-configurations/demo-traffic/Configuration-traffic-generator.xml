@@ -98,7 +98,7 @@
                  the malformed variant, not a generator error. -->
             <SenderPipe name="sendToAdtIntake">
                 <HttpSender name="AdtIntakeSender"
-                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/hl7v2"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/runtime}/api/hl7v2"
                             methodType="POST"
                             contentType="text/plain"/>
                 <Forward name="success"   path="reportDelivered"/>
@@ -107,7 +107,7 @@
 
             <SenderPipe name="sendToXmlIntake">
                 <HttpSender name="XmlIntakeSender"
-                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/hl7v2-to-xml"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/runtime}/api/hl7v2-to-xml"
                             methodType="POST"
                             contentType="text/plain"/>
                 <Forward name="success"   path="reportDelivered"/>
@@ -116,7 +116,7 @@
 
             <SenderPipe name="sendToFhirIntake">
                 <HttpSender name="FhirIntakeSender"
-                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/fhir-delivery"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/runtime}/api/fhir-delivery"
                             methodType="POST"
                             contentType="application/fhir+xml"/>
                 <Forward name="success"   path="reportDelivered"/>
@@ -125,7 +125,7 @@
 
             <SenderPipe name="sendToNlCoreIntake">
                 <HttpSender name="NlCoreIntakeSender"
-                            url="${demo.traffic.baseUrl:-http://localhost:8080/viscolink}/api/nl-core/patient"
+                            url="${demo.traffic.baseUrl:-http://localhost:8080/runtime}/api/nl-core/patient"
                             methodType="POST"
                             contentType="application/fhir+xml"/>
                 <Forward name="success"   path="reportDelivered"/>

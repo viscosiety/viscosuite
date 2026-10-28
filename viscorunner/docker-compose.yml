@@ -24,9 +24,9 @@ services:
 
       customViews.names: viscoStore,viscoLink
       customViews.viscoStore.name: ViscoStore
-      customViews.viscoStore.url: /viscostore/tester/
+      customViews.viscoStore.url: /fhir-store/tester/
       customViews.viscoLink.name: ViscoLink
-      customViews.viscoLink.url: /viscolink/
+      customViews.viscoLink.url: /runtime/
       customViews.viscoLink.target: _self
 
       # Frank!Framework (viscolink) JNDI datasource
@@ -55,7 +55,7 @@ services:
       VISCOSTORE_PASSWORD: viscolink
       # Tester backend makes server-side HTTP calls to this address; must be reachable from within
       # the container (port 8080, not the host-mapped 8180)
-      HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/viscostore/fhir
+      HAPI_FHIR_TESTER_HOME_SERVER_ADDRESS: http://localhost:8080/fhir-store/fhir
       # Pass JPDA debug flag; entrypoint.sh appends $JAVA_OPTS to the F!F JVM flags
       # spring.main.allow-circular-references: as of ladybug-common 4.1-20260813.135649,
       # org.wearefrank.ladybug.filter.View gained setTestTool(TestTool) (#814). whiteBoxView

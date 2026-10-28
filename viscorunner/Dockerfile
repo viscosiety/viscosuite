@@ -48,6 +48,14 @@ COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
+# Neutral web paths (2026-10-28): the webapps are served at /runtime (Frank!Framework) and /fhir-store
+# (the store). The old /viscolink and /viscostore keep working through the Host's RewriteValve
+# (server.xml) with these rules: a browser page load (GET, Accept text/html) is sent to the new
+# address with a 302, because the session cookie is scoped to the new path; every other request (API
+# calls, POSTs, scripts, probes) is served in place. The rules file must not contain comment lines:
+# with them Tomcat 11 silently skipped the conditional rules (found in the 2026-10-28 spike).
+COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
+
 # Log retention (2026-10-23): the third file of log4j.configurationFile (catalinaAdditional.properties).
 COPY --chown=tomcat src/scripts/log4j4retention.xml /opt/frank/log4j/log4j4retention.xml
 # Tomcat's own daily files (catalina.*, localhost.*, ...): 30 days instead of the base image's 90 (2026-10-23).
@@ -58,11 +66,12 @@ RUN set -e; f=/usr/local/tomcat/conf/logging.properties; sed -i 's/\.maxDays = 9
 # (/opt/frank/lib/*.jar in catalinaAdditional.properties).
 COPY --chown=tomcat target/viscorunner-*.jar /opt/frank/lib/
 
-# Per-context config for viscolink: a PreResources overlay, so the pack's WEB-INF/lib and
-# WEB-INF/classes (and any demo file injected at run time) are served from
-# /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/viscolink/ (which would cause
-# Tomcat to skip WAR extraction and deploy an empty context in ~6 ms).
-COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/viscolink.xml
+# Per-context config for the Frank!Framework webapp (/runtime): a PreResources overlay, so the pack's
+# WEB-INF/lib and WEB-INF/classes (and any demo file injected at run time) are served from
+# /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/runtime/ (which would cause
+# Tomcat to skip WAR extraction and deploy an empty context in ~6 ms). The overlay folder keeps its
+# name (a filesystem path, not a web address).
+COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/runtime.xml
 
 # JDBC drivers — shared between the WARs via common.loader in catalina.properties
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
@@ -90,9 +99,9 @@ RUN set -e; P=/opt/frank/webapp-overlay/viscolink/WEB-INF/pack.properties; \
             s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 
 # Deploy the WARs — Tomcat derives the context path from the filename:
-#   viscolink.war  →  /viscolink   (always)
-#   viscostore.war →  /viscostore  (STORE=viscostore only; target/store/none/ is empty, so the COPY copies nothing)
-COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/viscolink.war
+#   runtime.war    →  /runtime     (always; the viscolink module's WAR)
+#   fhir-store.war →  /fhir-store  (STORE=viscostore only; target/store/none/ is empty, so the COPY copies nothing)
+COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/runtime.war
 COPY --chown=tomcat target/store/${STORE}/ /usr/local/tomcat/webapps/
 
 # Fail fast if a WAR is a stale empty stub from .m2/ (< 1 MB); the store only when it is part of the image.
@@ -100,18 +109,18 @@ COPY --chown=tomcat target/store/${STORE}/ /usr/local/tomcat/webapps/
 # `mvn install -pl viscolink,packs/health,viscostore` was not run first the 1-2 KB placeholder
 # artifact ends up here and Tomcat deploys it silently in ~17 ms with no routes.
 RUN set -e; \
-    vl=$(stat -c%s /usr/local/tomcat/webapps/viscolink.war); \
-    [ "$vl" -gt 1000000 ] || { echo ""; echo "ERROR: viscolink.war is ${vl} bytes — stale stub. Run:"; \
+    vl=$(stat -c%s /usr/local/tomcat/webapps/runtime.war); \
+    [ "$vl" -gt 1000000 ] || { echo ""; echo "ERROR: runtime.war (viscolink.war) is ${vl} bytes — stale stub. Run:"; \
         echo "  ./mvnw install -pl viscolink,packs/health,viscostore -DskipTests && ./mvnw package -pl viscorunner -DskipTests"; echo ""; exit 1; }; \
     if [ "${STORE}" != "none" ]; then \
-        vs=$(stat -c%s /usr/local/tomcat/webapps/viscostore.war); \
-        [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: viscostore.war is ${vs} bytes — stale stub (same command)."; exit 1; }; \
+        vs=$(stat -c%s /usr/local/tomcat/webapps/fhir-store.war); \
+        [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: fhir-store.war (viscostore.war) is ${vs} bytes — stale stub (same command)."; exit 1; }; \
     fi
 
 COPY --chown=tomcat src/scripts/entrypoint.sh /scripts/entrypoint.sh
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
-	CMD curl --fail --silent http://localhost:8080/viscolink/iaf/api/server/health || exit 1
+	CMD curl --fail --silent http://localhost:8080/runtime/iaf/api/server/health || exit 1
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]
 CMD ["catalina.sh", "run"]

@@ -389,7 +389,7 @@
 								<!-- store: the WAR or nothing (COPY cannot be conditional) -->
 								<mkdir dir="${project.build.directory}/store/none"/>
 								<copy file="${project.build.directory}/viscostore.war"
-								      tofile="${project.build.directory}/store/viscostore/viscostore.war" overwrite="true"/>
+								      tofile="${project.build.directory}/store/viscostore/fhir-store.war" overwrite="true"/>
 							</target>
 						</configuration>
 					</execution>

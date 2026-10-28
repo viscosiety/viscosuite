@@ -15,8 +15,8 @@
           3. For read-by-id: extracts the single Observation from the enriched Bundle.
 
         Endpoints:
-          GET /viscolink/fhir/r4/loinc-enriched/Observation?<search params>
-          GET /viscolink/fhir/r4/loinc-enriched/Observation/{id}
+          GET /runtime/fhir/r4/loinc-enriched/Observation?<search params>
+          GET /runtime/fhir/r4/loinc-enriched/Observation/{id}
 
         All other routes (Patient, Specimen, DiagnosticReport, ...) are transparently
         proxied to viscostore by FhirFacadeServlet via the LabEnrichmentCdrProxy adapter.

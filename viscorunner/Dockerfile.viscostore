@@ -32,19 +32,25 @@ ARG BUILD_TIMESTAMP=""
 RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
     sed -i "s|%%PACK_TAGLINE%%|Healthcare integration platform|; s|%%PACK_LINK_BLURB%%||; s|%%PACK_STAMP%%||; \
             s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
-COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/viscostore.war
+# Served at /fhir-store (neutral web path, 2026-10-28); the old /viscostore keeps working through the
+# Host's RewriteValve, added to this image's stock server.xml (see the runner Dockerfile for the rules).
+COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/fhir-store.war
+COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
+RUN set -e; f=/usr/local/tomcat/conf/server.xml; \
+    sed -i 's#<Valve className="org.apache.catalina.valves.AccessLogValve"#<Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />\n        <Valve className="org.apache.catalina.valves.AccessLogValve"#' "$f"; \
+    grep -q '^        <Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />$' "$f" || { echo "ERROR: no RewriteValve in $f; re-check after a base-image bump"; exit 1; }
 
 # Fail fast if the WAR is a stale empty stub from .m2/ (< 1 MB)
 RUN set -e; \
-    vs=$(stat -c%s /usr/local/tomcat/webapps/viscostore.war); \
-    [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: viscostore.war is ${vs} bytes — stale stub. Run:"; \
+    vs=$(stat -c%s /usr/local/tomcat/webapps/fhir-store.war); \
+    [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: fhir-store.war (viscostore.war) is ${vs} bytes — stale stub. Run:"; \
         echo "  ./mvnw install -pl viscostore && ./mvnw package -pl viscorunner"; echo ""; exit 1; }
 
 COPY --chown=tomcat src/scripts/entrypoint.sh /scripts/entrypoint.sh
 
 # ViscoStore exposes its FHIR CapabilityStatement at /fhir/metadata — use it as the health probe
 HEALTHCHECK --interval=15s --timeout=5s --start-period=90s --retries=3 \
-	CMD curl --fail --silent http://localhost:8080/viscostore/fhir/metadata || exit 1
+	CMD curl --fail --silent http://localhost:8080/fhir-store/fhir/metadata || exit 1
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]
 CMD ["catalina.sh", "run"]

@@ -45,7 +45,7 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-CDR="http://${HOST}:${PORT}/viscostore/fhir"
+CDR="http://${HOST}:${PORT}/fhir-store/fhir"
 CURL_AUTH=(-u "${STORE_USER}:${STORE_PASS}")
 
 # ── Helpers ──────────────────────────────────────────────────────────────────

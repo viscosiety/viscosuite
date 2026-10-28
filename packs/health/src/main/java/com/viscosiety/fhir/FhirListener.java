@@ -42,7 +42,7 @@ import org.frankframework.receivers.JavaListener;
  * }</pre>
  *
  * <p>The {@code facadeName} determines the URL path segment between the version and the FHIR
- * resource path: {@code /viscolink/fhir/r4/my-facade/Patient/{id}}.  Multiple facades may
+ * resource path: {@code /runtime/fhir/r4/my-facade/Patient/{id}}.  Multiple facades may
  * coexist for the same FHIR version as long as they have distinct names.</p>
  *
  * <p>Supported {@code operation} values:</p>
