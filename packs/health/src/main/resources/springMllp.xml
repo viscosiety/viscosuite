@@ -24,6 +24,6 @@
                 socketTimeout: "30000"
     -->
     <bean id="mllpConnectionFactoryFactory"
-          class="com.viscosiety.mllp.MllpConnectionFactoryFactory" />
+          class="com.viscosiety.pack.health.mllp.MllpConnectionFactoryFactory" />
 
 </beans>
