@@ -281,7 +281,7 @@ class DockerfileContractTest {
             assertTrue(page.contains(placeholder), "index.html carries " + placeholder);
         }
         assertFalse(page.contains("Healthcare integration platform"), "the tagline is the pack's, not the page's");
-        assertTrue(page.contains("Viscosiety B.V.%%PACK_STAMP%%%%BUILD_TIMESTAMP%%"), "the footer: pack stamp, then build stamp");
+        assertTrue(page.contains("Viscosiety B.V.</span>%%PACK_STAMP%%%%BUILD_TIMESTAMP%%"), "the footer: company (brandable), pack stamp, then build stamp");
     }
 
     @Test
