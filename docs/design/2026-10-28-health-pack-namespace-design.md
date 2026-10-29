@@ -1,6 +1,12 @@
 # The health pack in its own Java namespace — Design
 
-**Status:** approved by Tom, 2026-10-28. Not built yet.
+**Status:** approved by Tom, 2026-10-28. Built (MR !53, merged 2026-10-28; rolled out 2026-10-29).
+**As built, 2026-10-29:** the rollout finished the same morning: runner images rebuilt, every Healthcare instance
+restarted, the three tenant configurations that still used old names (all copies of the healthcare demo) and both
+health demo templates changed to the new names, and no open draft or casting used an old name. So the seven
+compatibility subclasses (D2, D3) were removed the next day instead of "in a later release", together with
+`LegacyClassNamesIT`; `LegacyClassNamesTest` now asserts that the old names do NOT load and that the old packages
+hold nothing of the pack. An old name now fails a configuration with `ClassNotFoundException`.
 
 **Context.** Vertical packs M2 (2026-10-07, `docs/design/2026-10-07-vertical-packs-design.md`) moved the
 healthcare code into its own Maven module, `packs/health` (jar `viscolink-pack-health`), but kept every
