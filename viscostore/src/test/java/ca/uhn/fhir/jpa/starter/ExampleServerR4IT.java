@@ -97,6 +97,10 @@ class ExampleServerR4IT implements IServerSupport {
 	}
 
 	@Test
+	@DisabledIfEnvironmentVariable(named = "CI", matches = "true",
+		disabledReason = "Expands the measure's ValueSets on tx.fhir.org, which times out from CI")
+	@DisabledIfSystemProperty(named = "skipExternalTests", matches = "true",
+		disabledReason = "Requires outbound access to tx.fhir.org — skipped via -DskipExternalTests=true")
 	public void testCQLEvaluateMeasureEXM130() throws IOException {
 		String measureId = "ColorectalCancerScreeningsFHIR";
 		String measureUrl = "http://ecqi.healthit.gov/ecqms/Measure/ColorectalCancerScreeningsFHIR";
