@@ -10,12 +10,11 @@ minor version).
 ### Changed
 - The health pack's classes moved to their own namespace, `com.viscosiety.pack.health.{fhir,mllp,pipes,hl7util}`
   (for example `com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe`, `com.viscosiety.pack.health.fhir.FhirListener`).
-  The old names of the seven classes a configuration uses (`com.viscosiety.fhir.FhirListener`,
-  `com.viscosiety.mllp.MllpListener`, `com.viscosiety.mllp.MllpSender` and
-  `com.viscosiety.pipes.{Hl7v2ToXmlPipe,XmlToHl7v2Pipe,FhirFormatPipe,FhirValidatorPipe}`) still load, with a
-  configuration warning naming the new class; they will be removed in a later release. A configuration that uses
-  the new names needs this release or later. `com.viscosiety.pipes` now holds core pipes only (plus those four old
-  names).
+  **Breaking:** the old names (`com.viscosiety.fhir.FhirListener`, `com.viscosiety.mllp.MllpListener`,
+  `com.viscosiety.mllp.MllpSender` and `com.viscosiety.pipes.{Hl7v2ToXmlPipe,XmlToHl7v2Pipe,FhirFormatPipe,FhirValidatorPipe}`)
+  no longer load: a configuration that still uses one fails to start with a `ClassNotFoundException`. Change the
+  `className` to the new name (same class, same attributes); a configuration that uses the new names needs this
+  release or later. `com.viscosiety.pipes` now holds core pipes only.
 - Neutral web paths: the Frank!Framework webapp is served at `/runtime` and the FHIR store at
   `/fhir-store`. The old `/viscolink` and `/viscostore` keep working: a Host-level `RewriteValve`
   serves API calls, POSTs and scripts on the old paths in place and sends a browser page load
