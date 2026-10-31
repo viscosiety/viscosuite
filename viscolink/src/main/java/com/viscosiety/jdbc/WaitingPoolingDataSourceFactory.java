@@ -35,7 +35,7 @@ import org.frankframework.util.AppConstants;
  * "Timeout waiting for idle object" error, instead of waiting forever. {@code 0} or lower keeps
  * the framework's behaviour (no limit). Everything else about the pool is the framework's.
  *
- * <p>Swapped in for {@code PoolingDataSourceFactory} by {@code PoolWaitLimitPostProcessor}.
+ * <p>Swapped in for {@code PoolingDataSourceFactory} by {@link PoolWaitLimitPostProcessor}.
  * Can go once the framework has its own setting (frankframework/frankframework#11967).
  */
 public class WaitingPoolingDataSourceFactory extends PoolingDataSourceFactory {

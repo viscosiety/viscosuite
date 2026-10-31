@@ -56,6 +56,6 @@ public class ViscoLinkModule implements Module {
         // Kubernetes lifecycle events come from the Frank!Framework's own
         // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer) —
         // the viscolink implementation was upstreamed and then removed here.
-        return List.of("springStubbedRun.xml", "springConsoleSecurity.xml");
+        return List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml");
     }
 }
