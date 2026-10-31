@@ -25,6 +25,14 @@ minor version).
   datasource names (`jdbc/viscolink`), image names and property names are unchanged.
 
 ### Added
+- Connection pools that the Frank!Framework builds itself (datasources declared in `resources.yml`)
+  now fail a borrow after a wait limit instead of waiting forever when the pool is full. The limit
+  is `transactionmanager.jdbc.connection.maxWait`, in seconds, default 30; `0` or lower waits
+  without limit (the previous behaviour). A borrow that times out fails with DBCP's "Timeout
+  waiting for idle object" error, so a pipe takes its exception path and the console's JDBC pages
+  answer an error. Pools defined in Tomcat (`context.xml`) keep their own `maxWaitMillis`; the
+  Narayana setup is not changed. One log line per pool shows its limit. See
+  frankframework/frankframework#11966 and #11967.
 - The suite's own pages (the landing page, the ViscoLink home and the flow viewer) can show a
   deployment's own names and colours: `brand-loader.js` reads a `brand.json` (`productName`,
   `names.link/store/suite/company`, `colors.primary/dark`) from `/brand/brand.json` (landing page)
