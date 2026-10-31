@@ -16,8 +16,8 @@
 		<!-- Keep these four in lock-step with viscolink/pom.xml: the pack's provided jars must be
 		     the exact versions the WAR ships, or the class path is not the one D8 promises.
 		     (ladybug.version is read by the dependencyManagement block copied below.) -->
-		<frankframework.version>10.3.0-20260924.042323</frankframework.version>
-		<ladybug.version>4.1-20260903.105841</ladybug.version>
+		<frankframework.version>10.3.0</frankframework.version>
+		<ladybug.version>4.1-20261005.165608</ladybug.version>
 		<hapi.version>8.12.1</hapi.version>
 		<junit.version>5.14.1</junit.version>
 		<maven.compiler.source>21</maven.compiler.source>

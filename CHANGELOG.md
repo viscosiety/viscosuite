@@ -8,6 +8,8 @@ minor version).
 ## [Unreleased]
 
 ### Changed
+- Frank!Framework moved from the nightly `10.3.0-20260924.042323` to the `10.3.0` release, and
+  Ladybug to `4.1-20261005.165608`, the build the 10.3.0 release depends on.
 - The health pack's classes moved to their own namespace, `com.viscosiety.pack.health.{fhir,mllp,pipes,hl7util}`
   (for example `com.viscosiety.pack.health.pipes.Hl7v2ToXmlPipe`, `com.viscosiety.pack.health.fhir.FhirListener`).
   **Breaking:** the old names (`com.viscosiety.fhir.FhirListener`, `com.viscosiety.mllp.MllpListener`,
