@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Registered via ViscoLinkModule.getSpringConfigurationFiles(), so it is part of the same context
+    refresh as the framework's springTOMCAT.xml. PoolWaitLimitPostProcessor swaps bean
+    dataSourceFactory to WaitingPoolingDataSourceFactory when (and only when) its class is exactly
+    PoolingDataSourceFactory: framework-built pools then fail a borrow after
+    transactionmanager.jdbc.connection.maxWait seconds (default 30) instead of waiting forever.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
+
+    <bean id="poolWaitLimitPostProcessor" class="com.viscosiety.jdbc.PoolWaitLimitPostProcessor"/>
+</beans>
