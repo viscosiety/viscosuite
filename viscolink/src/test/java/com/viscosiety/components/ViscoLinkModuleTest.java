@@ -28,7 +28,7 @@ class ViscoLinkModuleTest {
 	@Test
 	void doesNotRegisterTheRemovedK8sEventsSpringFile() {
 		assertFalse(new ViscoLinkModule().getSpringConfigurationFiles().contains("springK8sEvents.xml"),
-				"lifecycle k8s events are published by the upstream frankframework-kubernetes module now");
+				"the old springK8sEvents.xml is gone: WARN/ERROR events come from the upstream frankframework-kubernetes module, the INFO lifecycle from springLifecycleEvents.xml");
 	}
 
 	@Test

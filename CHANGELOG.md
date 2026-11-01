@@ -12,7 +12,8 @@ minor version).
   (`ConfigurationStarted`, `ConfigurationClosed`, `ConfigurationStartFailed`, each naming the
   configuration), and the pack descriptor's `features` gains `lifecycle-events`, so a platform can
   tell when a running instance actually serves. Disable with
-  `viscolink.kubernetes.lifecycle-events.enabled=false`.
+  `viscolink.kubernetes.lifecycle-events.enabled=false` (the descriptor keeps reporting the
+  feature when the switch is off: it says what the build can do, not whether it is on).
 
 ### Fixed
 - Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink
