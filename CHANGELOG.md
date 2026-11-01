@@ -27,9 +27,12 @@ minor version).
   datasource names (`jdbc/viscolink`), image names and property names are unchanged.
 
 ### Fixed
-- The runner image's shared Kubernetes client (used to report a failed web application start) moved
-  from 7.7.0 to 8.0.0, the version inside the 10.3.0 runtime. With 7.7.0 the runtime failed to start
-  ("VertxHttpClientFactory not a subtype"); a test now keeps the two versions equal.
+- The runner image's shared Kubernetes client (used to report a failed web application start) is
+  now fully hidden from the web applications: all its libraries are relocated and it uses the JDK
+  HTTP client, so no Vert.x or Netty sits on Tomcat's shared class loader. With 10.3.0 an
+  unrelocated copy stopped the runtime at start ("VertxHttpClientFactory not a subtype"); the shared
+  copy can now differ from the one inside a web application, and a test fails if the packaged jar
+  exposes any library class or service registration.
 
 ### Added
 - Connection pools that the Frank!Framework builds itself (datasources declared in `resources.yml`)

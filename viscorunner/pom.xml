@@ -66,12 +66,25 @@
 		</dependency>
 
 		<!-- Kubernetes client for ContextFailureEventPublisher. Compile scope so it (and its runtime
-		     transitives) is assembled into target/lib and placed on Tomcat's common.loader at
-		     /opt/frank/lib. Version MUST equal the copy bundled inside viscolink.war (a mismatch
-		     stops /viscolink at start; SharedKubernetesClientVersionTest checks it). -->
+		     transitives) is shaded into the viscorunner jar on Tomcat's common.loader at
+		     /opt/frank/lib. The shade below RELOCATES io.fabric8, so the webapps never see this copy
+		     (its classes or its META-INF/services registrations) and it may differ from the copies
+		     inside the WARs. JDK HTTP client instead of Vert.x: no Vert.x or Netty on the shared
+		     class loader. SharedJarIsolationIT checks both on the packaged jar. -->
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
+			<version>8.0.0</version>
+			<exclusions>
+				<exclusion>
+					<groupId>io.fabric8</groupId>
+					<artifactId>kubernetes-httpclient-vertx-5</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>io.fabric8</groupId>
+			<artifactId>kubernetes-httpclient-jdk</artifactId>
 			<version>8.0.0</version>
 		</dependency>
 		<!-- Catalina API for the Server LifecycleListener. Provided: Tomcat supplies it at runtime,
@@ -429,6 +442,22 @@
 							</artifactSet>
 							<relocations>
 								<relocation>
+									<pattern>org.slf4j</pattern>
+									<shadedPattern>com.viscosiety.shaded.org.slf4j</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>org.checkerframework</pattern>
+									<shadedPattern>com.viscosiety.shaded.org.checkerframework</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>tools.jackson</pattern>
+									<shadedPattern>com.viscosiety.shaded.tools.jackson</shadedPattern>
+								</relocation>
+								<relocation>
+									<pattern>io.fabric8</pattern>
+									<shadedPattern>com.viscosiety.shaded.io.fabric8</shadedPattern>
+								</relocation>
+								<relocation>
 									<pattern>com.fasterxml.jackson</pattern>
 									<shadedPattern>com.viscosiety.shaded.com.fasterxml.jackson</shadedPattern>
 								</relocation>
@@ -452,6 +481,9 @@
 										<exclude>META-INF/*.DSA</exclude>
 										<exclude>META-INF/*.RSA</exclude>
 										<exclude>module-info.class</exclude>
+										<!-- Multi-release variants are not relocated by the shade; the base
+										     classes (relocated) are used instead. -->
+										<exclude>META-INF/versions/**</exclude>
 									</excludes>
 								</filter>
 							</filters>
