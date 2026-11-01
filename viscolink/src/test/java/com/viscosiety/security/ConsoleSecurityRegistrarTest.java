@@ -82,6 +82,13 @@ class ConsoleSecurityRegistrarTest {
     }
 
     @Test
+    void webcontentPathIsFrankOwned() {
+        // Hosted pages are secured by servlet.WebContentServlet.authenticator alone: with NONE (public
+        // pages) the console's tool-page filter must not demand a login on top.
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/webcontent/tenant/movies/index.html"));
+    }
+
+    @Test
     void toolPageIsNotFrankOwned() {
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/tools/some-tool"));
     }

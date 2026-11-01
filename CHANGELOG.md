@@ -7,6 +7,12 @@ minor version).
 
 ## [Unreleased]
 
+### Fixed
+- Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink
+  tool-page filter counted them as tool pages and demanded the console login on top, so
+  `servlet.WebContentServlet.authenticator=NONE` (public pages) still answered 401. With the
+  default authenticator nothing changes: the pages stay behind the same login.
+
 ## [0.22.0] — 2026-11-01
 
 ### Changed
