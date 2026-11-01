@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    Configuration lifecycle as Kubernetes Normal events (portal "Starting..." status, 2026-11-01).
+    Registered via ViscoLinkModule.getSpringConfigurationFiles(), so it loads into the
+    IbisApplicationContext, the tier that receives ConfigurationMessageEvents. Off-cluster the bean
+    is a silent no-op. autowire="constructor" hands it the Spring Environment.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
+
+    <bean id="configurationLifecycleEventPublisher"
+          class="com.viscosiety.k8s.ConfigurationLifecycleEventPublisher"
+          autowire="constructor"
+          destroy-method="destroy"/>
+</beans>

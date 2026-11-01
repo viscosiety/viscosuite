@@ -34,7 +34,7 @@ class ViscoLinkModuleTest {
 	@Test
 	void registersOnlyTheCoresOwnSpringFiles() {
 		// The healthcare Spring files (springMllp.xml, springFhir.xml) belong to the pack's own Module.
-		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml"),
+		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml", "springLifecycleEvents.xml"),
 				new ViscoLinkModule().getSpringConfigurationFiles());
 	}
 }
