@@ -67,11 +67,12 @@
 
 		<!-- Kubernetes client for ContextFailureEventPublisher. Compile scope so it (and its runtime
 		     transitives) is assembled into target/lib and placed on Tomcat's common.loader at
-		     /opt/frank/lib. Version matches the copy bundled inside viscolink.war. -->
+		     /opt/frank/lib. Version MUST equal the copy bundled inside viscolink.war (a mismatch
+		     stops /viscolink at start; SharedKubernetesClientVersionTest checks it). -->
 		<dependency>
 			<groupId>io.fabric8</groupId>
 			<artifactId>kubernetes-client</artifactId>
-			<version>7.7.0</version>
+			<version>8.0.0</version>
 		</dependency>
 		<!-- Catalina API for the Server LifecycleListener. Provided: Tomcat supplies it at runtime,
 		     so it is NOT assembled into /opt/frank/lib. -->
