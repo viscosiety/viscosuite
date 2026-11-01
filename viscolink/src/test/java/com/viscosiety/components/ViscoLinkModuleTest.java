@@ -28,13 +28,13 @@ class ViscoLinkModuleTest {
 	@Test
 	void doesNotRegisterTheRemovedK8sEventsSpringFile() {
 		assertFalse(new ViscoLinkModule().getSpringConfigurationFiles().contains("springK8sEvents.xml"),
-				"lifecycle k8s events are published by the upstream frankframework-kubernetes module now");
+				"the old springK8sEvents.xml is gone: WARN/ERROR events come from the upstream frankframework-kubernetes module, the INFO lifecycle from springLifecycleEvents.xml");
 	}
 
 	@Test
 	void registersOnlyTheCoresOwnSpringFiles() {
 		// The healthcare Spring files (springMllp.xml, springFhir.xml) belong to the pack's own Module.
-		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml"),
+		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml", "springLifecycleEvents.xml"),
 				new ViscoLinkModule().getSpringConfigurationFiles());
 	}
 }

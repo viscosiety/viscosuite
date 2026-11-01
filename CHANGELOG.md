@@ -7,6 +7,14 @@ minor version).
 
 ## [Unreleased]
 
+### Added
+- Each configuration reports its lifecycle as Kubernetes `Normal` events on the pod
+  (`ConfigurationStarted`, `ConfigurationClosed`, `ConfigurationStartFailed`, each naming the
+  configuration), and the pack descriptor's `features` gains `lifecycle-events`, so a platform can
+  tell when a running instance actually serves. Disable with
+  `viscolink.kubernetes.lifecycle-events.enabled=false` (the descriptor keeps reporting the
+  feature when the switch is off: it says what the build can do, not whether it is on).
+
 ### Fixed
 - Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink
   tool-page filter counted them as tool pages and demanded the console login on top, so
