@@ -62,7 +62,7 @@ COPY --chown=tomcat src/scripts/log4j4retention.xml /opt/frank/log4j/log4j4reten
 RUN set -e; f=/usr/local/tomcat/conf/logging.properties; sed -i 's/\.maxDays = 90$/.maxDays = 30/' "$f"; if grep -q 'maxDays = 90' "$f" || ! grep -q '^1catalina\.org\.apache\.juli\.AsyncFileHandler\.maxDays = 30$' "$f"; then echo "ERROR: $f does not have the expected maxDays lines; re-check it after a base-image bump"; exit 1; fi
 
 # ContextFailureEventPublisher: the shaded viscorunner jar (fabric8 Kubernetes client + transitives,
-# with Jackson/SnakeYAML relocated so they don't leak onto the shared classloader) on common.loader
+# ALL relocated under com.viscosiety.shaded, so nothing leaks onto the shared classloader) on common.loader
 # (/opt/frank/lib/*.jar in catalinaAdditional.properties).
 COPY --chown=tomcat target/viscorunner-*.jar /opt/frank/lib/
 

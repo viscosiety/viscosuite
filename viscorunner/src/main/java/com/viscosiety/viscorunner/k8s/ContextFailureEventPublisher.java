@@ -207,6 +207,25 @@ public class ContextFailureEventPublisher implements LifecycleListener {
         return (name == null || name.isBlank()) ? "unknown" : name;
     }
 
+    /**
+     * Publishes one ContextStartFailed Event to the API server at {@code masterUrl}, with the same
+     * client settings as the in-cluster path. For SharedJarIsolationIT, which calls it through the
+     * packaged (relocated) jar against a local fake API server; not used at run time.
+     */
+    static void publishOnce(String masterUrl, String namespace, String podName, String contextPath, String cause) {
+        try (KubernetesClient c = new KubernetesClientBuilder()
+                .editOrNewConfig()
+                    .withMasterUrl(masterUrl)
+                    .withTrustCerts(true)
+                    .withConnectionTimeout(TIMEOUT_MILLIS)
+                    .withRequestTimeout(TIMEOUT_MILLIS)
+                    .withRequestRetryBackoffLimit(0)
+                .endConfig()
+                .build()) {
+            c.v1().events().inNamespace(namespace).resource(buildEvent(contextPath, cause, podName, namespace)).create();
+        }
+    }
+
     private static KubernetesClient buildInClusterClientOrNull() {
         try {
             KubernetesClient c = new KubernetesClientBuilder()
