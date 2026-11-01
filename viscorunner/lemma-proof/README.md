@@ -37,7 +37,7 @@ Observed (explanations shortened; they are a JSON document per rule, XML-escaped
   `<lemmaResult spec="cocktail_advice" effective="2026-10-14T12:34:51.935953Z"><result rule="drink_profile" type="text">refreshing-citrus<explanation>...</explanation></result><result rule="ingredient" type="text">Tequila<explanation>...</explanation></result></lemmaResult>`
 * 10 degrees, Rain: **422** (veto exit): `ingredient` carries `vetoed="true"` and the message
   `No ingredient below 25 degrees in this test spec`; `drink_profile` answers `balanced-classic`.
-* `GET /viscolink/flow-api/pack`: 200, `{"id":"core","displayName":"Core",...,"features":["lemma"]}`.
+* `GET /viscolink/flow-api/pack`: 200, `{"id":"core","displayName":"Core",...,"features":["lemma","lifecycle-events"]}`.
   (`/viscolink/api-service/pack` answers 401 even in LOC: bearer-only.)
 
 ## Larva

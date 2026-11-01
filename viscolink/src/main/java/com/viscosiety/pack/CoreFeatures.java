@@ -26,8 +26,12 @@ import java.util.List;
  */
 public final class CoreFeatures {
 
-    /** {@code lemma}: {@code com.viscosiety.pipes.LemmaPipe} is on the class path. */
-    public static final List<String> ALL = List.of("lemma");
+    /**
+     * {@code lemma}: {@code com.viscosiety.pipes.LemmaPipe} is on the class path.
+     * {@code lifecycle-events}: configurations report started / closed / failed to start as
+     * Kubernetes Normal events.
+     */
+    public static final List<String> ALL = List.of("lemma", "lifecycle-events");
 
     private CoreFeatures() {
     }
