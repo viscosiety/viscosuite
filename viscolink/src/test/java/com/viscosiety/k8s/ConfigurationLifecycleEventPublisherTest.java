@@ -18,6 +18,7 @@ package com.viscosiety.k8s;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -32,6 +33,7 @@ import org.springframework.beans.factory.xml.XmlBeanDefinitionReader;
 import org.springframework.core.io.ClassPathResource;
 
 import io.fabric8.kubernetes.api.model.Event;
+import io.fabric8.kubernetes.client.KubernetesClient;
 
 class ConfigurationLifecycleEventPublisherTest {
 
@@ -100,5 +102,18 @@ class ConfigurationLifecycleEventPublisherTest {
 			context.refresh();
 			assertNotNull(context.getBean(ConfigurationLifecycleEventPublisher.class));
 		}
+	}
+
+	@Test
+	void aMalformedEventNeverEscapesTheListener() {
+		ConfigurationLifecycleEventPublisher publisher = new ConfigurationLifecycleEventPublisher(mock(KubernetesClient.class), "ns", "pod-1");
+		ConfigurationMessageEvent noSource = mock(ConfigurationMessageEvent.class);
+		when(noSource.getMessage()).thenReturn("startup in 1 ms");
+		when(noSource.getLevel()).thenReturn(MessageEventLevel.INFO);
+		assertDoesNotThrow(() -> publisher.onApplicationEvent(noSource));
+
+		ConfigurationMessageEvent noTime = event("tenant", "startup in 1 ms", MessageEventLevel.INFO);
+		when(noTime.getEventTime()).thenReturn(null);
+		assertDoesNotThrow(() -> publisher.onApplicationEvent(noTime));
 	}
 }

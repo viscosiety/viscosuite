@@ -113,14 +113,16 @@ public class ConfigurationLifecycleEventPublisher implements ApplicationListener
         if (client == null) {
             return;
         }
-        Event kubernetesEvent = toEvent(event, podName, namespace);
-        if (kubernetesEvent == null) {
-            return;
-        }
+        String reason = null;
         try {
+            Event kubernetesEvent = toEvent(event, podName, namespace);
+            if (kubernetesEvent == null) {
+                return;
+            }
+            reason = kubernetesEvent.getReason();
             client.v1().events().inNamespace(namespace).resource(kubernetesEvent).create();
         } catch (Exception e) {
-            LOG.warn("could not publish Kubernetes event [{}]: {}", kubernetesEvent.getReason(), e.toString());
+            LOG.warn("could not publish Kubernetes event [{}]: {}", reason, e.toString());
         }
     }
 
