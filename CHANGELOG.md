@@ -7,6 +7,8 @@ minor version).
 
 ## [Unreleased]
 
+## [0.22.0] — 2026-11-01
+
 ### Changed
 - Frank!Framework moved from the nightly `10.3.0-20260924.042323` to the `10.3.0` release, and
   Ladybug to `4.1-20261005.165608`, the build the 10.3.0 release depends on.
