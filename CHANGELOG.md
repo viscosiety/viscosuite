@@ -26,6 +26,11 @@ minor version).
   scripts and the healthchecks use the new paths. Filesystem paths (`/opt/frank/webapp-overlay/viscolink`),
   datasource names (`jdbc/viscolink`), image names and property names are unchanged.
 
+### Fixed
+- The runner image's shared Kubernetes client (used to report a failed web application start) moved
+  from 7.7.0 to 8.0.0, the version inside the 10.3.0 runtime. With 7.7.0 the runtime failed to start
+  ("VertxHttpClientFactory not a subtype"); a test now keeps the two versions equal.
+
 ### Added
 - Connection pools that the Frank!Framework builds itself (datasources declared in `resources.yml`)
   now fail a borrow after a wait limit instead of waiting forever when the pool is full. The limit
