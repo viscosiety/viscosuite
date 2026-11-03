@@ -239,6 +239,11 @@ public class GitClassLoader extends AbstractClassLoader {
     @Override
     public URL getLocalResource(String name) {
         File file = new File(resourceDir, name);
+        // A folder is only found when asked for as one (name ends with '/'), like Frank!Framework's jar
+        // class loaders: WebContentServlet then redirects "folder" to "folder/" and never serves a listing.
+        if (file.isDirectory() && !name.endsWith("/")) {
+            return null;
+        }
         if (file.exists()) {
             try {
                 return file.toURI().toURL();

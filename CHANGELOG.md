@@ -20,6 +20,11 @@ minor version).
   tool-page filter counted them as tool pages and demanded the console login on top, so
   `servlet.WebContentServlet.authenticator=NONE` (public pages) still answered 401. With the
   default authenticator nothing changes: the pages stay behind the same login.
+- A git-loaded configuration (`GitClassLoader`) no longer answers a resource lookup for a folder
+  unless the name ends with `/`, like Frank!Framework's jar class loaders. A request for a hosted
+  page folder without the trailing slash (`/webcontent/<config>/<folder>`) therefore never serves
+  a listing of the folder's files: today it answers 404; with a Frank!Framework that serves folder
+  welcome files (frankframework/frankframework#11829) it redirects to `<folder>/`.
 
 ## [0.22.0] — 2026-11-01
 
