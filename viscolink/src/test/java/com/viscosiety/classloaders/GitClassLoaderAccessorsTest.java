@@ -1,6 +1,7 @@
 package com.viscosiety.classloaders;
 
 import java.io.File;
+import java.nio.file.Files;
 import java.nio.file.Path;
 
 import org.frankframework.configuration.IbisContext;
@@ -43,5 +44,17 @@ class GitClassLoaderAccessorsTest {
 		String onDraft = loader.currentCommit();
 		assertTrue(onDraft.matches("[0-9a-f]{40}"), onDraft);
 		assertNotEquals(onMain, onDraft);
+	}
+
+	@Test
+	void folderIsOnlyFoundWhenAskedForAsAFolder() throws Exception {
+		// Frank!Framework's WebContentServlet redirects a folder without a trailing slash and must
+		// never serve a folder itself (a file: folder URL reads as a listing of its files).
+		Files.createDirectories(loader.getResourceDir().toPath().resolve("webcontent/movies"));
+		Files.writeString(loader.getResourceDir().toPath().resolve("webcontent/movies/index.html"), "<html/>");
+
+		assertNull(loader.getLocalResource("webcontent/movies"));
+		assertNotNull(loader.getLocalResource("webcontent/movies/"));
+		assertNotNull(loader.getLocalResource("webcontent/movies/index.html"));
 	}
 }
