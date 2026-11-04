@@ -10,11 +10,12 @@ FROM tomcat:11.0.14-jre21 AS viscobase
 ARG GID=2000
 ARG UID=2000
 
+# unzip for the fetcher's overlay zips; curl and ca-certificates come with the base image.
+# Installed BEFORE the hardening below (apt cannot run after it), which then covers unzip too.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+
 # Harden file permissions (CIS-DI-0008)
 RUN chmod -R 751 /usr/bin /usr/sbin
-
-# unzip for the fetcher's overlay zips; curl and ca-certificates come with the base image.
-RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
 
 # Create runtime directories and a non-root tomcat user
 RUN set -eux && \
