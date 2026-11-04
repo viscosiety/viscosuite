@@ -8,12 +8,44 @@ minor version).
 ## [Unreleased]
 
 ### Added
+- **Components and releases.** Every Java component of ViscoSuite is a versioned Maven artifact in
+  this project's GitLab package registry: `com.visco:viscolink` (the core WAR and its `classes` jar),
+  `com.visco:viscolink-pack-health` (the health pack's overlay zip) and `com.visco:viscostore` (the
+  store WAR). Each `main` commit publishes `A.B.C-<pipeline id>`, a tag `vA.B.C` publishes `A.B.C`,
+  and a release BOM `com.visco:viscosuite-release:<version>` (JSON) pins every file's sha256, the
+  `viscobase` image digest and the Postgres image digest. Old main-commit versions are cleaned up
+  (the newest 10 per package stay; releases stay forever).
+- **`viscobase`**, a new image: Tomcat + the Frank!Framework webapp at `/runtime` + the component
+  fetcher, no pack, no store. `/opt/frank/bin/fetch-components <list>` downloads the components a
+  list names (`file://` or registry URLs), verifies every byte against the list's sha256, unpacks
+  overlays and writes `/opt/frank/components/MANIFEST`; `place-components` (also run by the
+  entrypoint at every start) copies them into Tomcat. The fat images `viscorunner` and `viscolink`
+  are `viscobase` plus components fetched at build time; `viscolink:…-core` is `viscobase` itself.
+- `GET /api-service/pack` (and ViscoFlow's `/flow-api/pack`) report `release` and `components[]`
+  (`id`, `kind`, `version`) from the fetcher's manifest; a runtime without one reports `null` and `[]`.
 - Each configuration reports its lifecycle as Kubernetes `Normal` events on the pod
   (`ConfigurationStarted`, `ConfigurationClosed`, `ConfigurationStartFailed`, each naming the
   configuration), and the pack descriptor's `features` gains `lifecycle-events`, so a platform can
   tell when a running instance actually serves. Disable with
   `viscolink.kubernetes.lifecycle-events.enabled=false` (the descriptor keeps reporting the
   feature when the switch is off: it says what the build can do, not whether it is on).
+
+### Changed
+- One two-stage `viscorunner/Dockerfile` (`viscobase`, `fat`); the `PACK` and `STORE` build arguments
+  are gone, a fat build takes `COMPONENTS_LIST`. The global Tomcat context (`conf/context.xml`)
+  declares `jdbc/viscolink`, `jdbc/ladybug` and `jdbc/viscostore` on every image (each created lazily
+  at its first lookup; the Frank!Framework never lists a datasource it has not looked up).
+- The landing page reads the pack and the release from `components.json` next to it instead of
+  words baked at image build; the store-only image shows the core's words.
+- Both packs' demo configurations ship in every image under `/opt/frank/demo-configurations/health/`
+  and `/opt/frank/demo-configurations/core/` (was: one set at the root, per image).
+- The module version (`ViscoLinkModule.IMPLEMENTATION_VERSION`, the core pack's version) follows the
+  Maven build instead of a constant.
+
+### Removed
+- `viscorunner/conf/context-none.xml` and `context-viscostore.xml` (now one `context.xml`), the pack
+  identity files `WEB-INF/pack.properties` (identity lives in `HealthPack.java` / `CorePack.java`),
+  the separate `viscolink:-core` image build.
 
 ### Fixed
 - Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink

@@ -75,7 +75,7 @@ viscosuite/
     ├── configurations/               empty scaffold — mount your own integrations here
     ├── docker-compose.yml            base service definitions (Healthcare pack + ViscoStore)
     ├── docker-compose.viscolink.yml  Healthcare pack without ViscoStore
-    ├── docker-compose.core.yml       the market-neutral core, no pack components (see Images)
+    ├── docker-compose.core.yml       the market-neutral core = the viscobase stage, no pack, no store
     └── docker-compose.demo.yml       demo overlay (demo configurations + traffic generator)
 ```
 
@@ -211,7 +211,7 @@ The demo overlay runs with this enabled.
 | `/runtime/` | ViscoLink app launcher (tools + Frank!Console) |
 | `/runtime/flow/` | ViscoFlow — live message flow viewer and trace debugger |
 | `/runtime/iaf/` | Frank!Console / Ladybug flow debugger |
-| `GET /runtime/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`) and its subject identifier; bearer-token callers only |
+| `GET /runtime/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`), its subject identifier, the release and the components the runtime was composed with; bearer-token callers only |
 | `/fhir-store/fhir` | FHIR REST API (HAPI JPA Server) |
 | `/fhir-store/tester/` | Interactive FHIR Tester UI |
 | `/fhir-store/fhir/swagger-ui/` | Swagger API docs |
@@ -262,6 +262,13 @@ wrapper (`./mvnw`) downloads the correct Maven automatically.
 
 After the build, `docker compose up --build` in `viscorunner/` builds the images from your
 build output instead of using the published ones.
+
+Every image is `viscobase` (Tomcat, the Frank!Framework webapp, a component fetcher) plus components:
+the published `viscorunner` and `viscolink` images fetch the store WAR and the health pack overlay
+from this project's Maven package registry at build time, pinned by sha256; a local `docker compose
+build` fetches the same files from `viscorunner/target/components/`. Each tag `vA.B.C` publishes
+the components as Maven artifacts and a release BOM (`com.visco:viscosuite-release:A.B.C`) that
+pins all of them; the same BOM is what a hosted platform composes an instance from.
 
 Remote debugging (JPDA on `5005`) and smoke tests are described in
 [`viscorunner/README.md`](https://github.com/viscosiety/viscosuite/blob/main/viscorunner/README.md)

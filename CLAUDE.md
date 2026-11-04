@@ -8,6 +8,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 # Build all modules and install to local repo (required before docker compose up --build)
 ./mvnw install -pl viscolink,packs/health,viscostore
 ./mvnw package -pl viscorunner -DskipTests
+# viscorunner's package also stages target/components/ (the store WAR and the health overlay zip) and the
+# local components lists target/components-suite.list / target/components-viscolink.list (file:// URLs
+# + sha256), which the fat stage of the Dockerfile fetches from. CI writes the same lists with registry URLs.
 
 # Or in one step:
 ./mvnw install -pl viscolink,packs/health,viscostore && ./mvnw package -pl viscorunner -DskipTests
@@ -101,16 +104,19 @@ Main configuration file: `src/main/resources/application.yaml`
 A `<packaging>jar</packaging>` module (it shades the Kubernetes event-publisher jar) that assembles the deployable images. It:
 1. Copies both WARs (version-stripped) to `target/`
 2. Copies JDBC drivers (postgresql, h2) to `target/drivers/` — placed at Tomcat's `common.loader` so both WARs share them without bundling drivers inside either WAR
-3. Unpacks the health pack's overlay zip to `target/packs/health/`, stages `target/packs/core/` (empty libs plus its own identity), the demo sets `target/demo/{health,core}/` and the store variants `target/store/{viscostore,none}/`
-4. Builds Tomcat 11 / JRE 21 Docker images from ONE `Dockerfile` with the build arguments `PACK` (`health` | `core`) and `STORE` (`viscostore` | `none`); the combined image runs both WARs in the same Tomcat instance
+3. Unpacks the health pack's overlay zip to `target/packs/health/` (for the launcher ITs), stages the demo sets `target/demo/{health,core}/`, the component files `target/components/` and the two local components lists
+4. Builds Tomcat 11 / JRE 21 Docker images from ONE two-stage `Dockerfile`: stage `viscobase` (Tomcat + `runtime.war` + the fetcher; no pack, no store — the commercial runner and `viscolink:…-core`) and stage `fat` (`viscobase` + the components a list names, fetched and placed at build time: `viscorunner` = store + health pack, `viscolink` = health pack). `--target fat --build-arg COMPONENTS_LIST=target/components-suite.list`
 
 **Key runtime directories inside the container:**
 
 | Path | Content |
 |---|---|
 | `/opt/frank/configurations/` | Frank!Framework XML configurations |
-| `/opt/frank/demo-configurations/` | The pack's demo set, baked into the image; never loaded unless mounted over `/opt/frank/configurations` |
-| `/opt/frank/webapp-overlay/viscolink/` | The pack overlay (`PreResources` of `/viscolink`): `WEB-INF/lib`, `WEB-INF/classes`, `WEB-INF/pack.properties` |
+| `/opt/frank/demo-configurations/{health,core}/` | Both packs' demo sets, baked into every image; never loaded unless mounted over `/opt/frank/configurations` |
+| `/opt/frank/webapp-overlay/viscolink/` | The PreResources dir of `/runtime`: a pack's `WEB-INF/lib` and `WEB-INF/classes` (placed by `place-components`; the dir keeps its old name until M4 of the component model) |
+| `/opt/frank/webapp-overlay/console/` | The PreResources dir of a ViscoForge console (`/console`), empty here |
+| `/opt/frank/components/` | What `fetch-components` fetched: `webapps/<context>.war`, `overlay/<target>/`, `MANIFEST`, `components.json`; on the platform an emptyDir filled by an init container |
+| `/opt/frank/bin/{fetch-components,place-components}` | The fetcher (download, sha256, unzip, manifest) and the placer (copies into Tomcat at build and at every start) |
 | `/opt/frank/drivers/` | JDBC drivers (shared via `common.loader`) |
 | `/opt/frank/native/liblemma_jni.so` | Lemma's JNI library for the image's architecture (`LEMMA_JNI_LIBRARY` points at it) |
 | `/opt/frank/secrets/credentials.properties` | Credentials file (mount from secret) |
@@ -129,7 +135,16 @@ The healthcare specifics are a pack (design: `docs/design/2026-10-07-vertical-pa
 - **Ladybug column rule**: the core owns `subjectid` (changeSet `LadybugCustom:5`); a pack owns the column of its own `metadataName` in `ladybug/DatabaseChangelog_Pack.xml`, which the core's changelog includes with `errorIfMissing="false"`. The health pack adds `patientid` (`LadybugHealth:1`) under a negated `columnExists` `MARK_RAN` precondition, so databases that got the column from the old core changeSet are left alone. Never edit the core's changelog for a pack column.
 - **Console views and scripts**: `consoleViews()` is informational, it mirrors the pack's `customViews.*` keys. The core's file says `customViews.names=viscoLink,${pack.customViews.names:-}`, but deployers that set `customViews.names` themselves (the compose files, viscoFoundry's manifests) bypass it and must list a pack's views. The FHIR UI is a script, not a view: the pack's build patches the console's `index.html` and the overlay serves it from `WEB-INF/classes/console/`.
 - **The overlay zip and the class path**: `viscolink-pack-health:zip:overlay` is exactly `/opt/frank/webapp-overlay/viscolink/` (`WEB-INF/lib` = the pack jar plus the libraries the WAR lacks, `WEB-INF/classes/console/index.html`, `WEB-INF/pack.properties`). **Never add a `compile` dependency the WAR ships to a pack's pom; mark it `provided`.** `HealthClasspathIT` (viscorunner, golden `health-webapp-libs.txt`, frozen: edit by hand, never regenerate) is the oracle: WAR libs ∪ overlay libs = the golden's jars (the 430 the one WAR had before the split; 420 since the HAPI 8.12.1 bump, which dropped FHIR core's RDF libraries), and the intersection is empty. Four class-path pins in `viscolink/pom.xml` keep the WAR's own versions.
-- **Images**: build args `PACK` and `STORE` (see viscorunner above). CI publishes `viscorunner:<sha>`/`:latest` (health + ViscoStore), `viscolink:<sha>`/`:latest` (health, no store), the same two also as `-health`, and `viscolink:<sha>-core`/`:latest-core` (no pack, no store: no FHIR servlets, `/pack` answers `core`). There are no version tags. The ROOT landing page is stamped from the pack's `WEB-INF/pack.properties` at image build; `BuildInfo` does not carry the pack.
+- **Images and releases**: see "Releases and the component registry" below. CI publishes `viscobase:<sha>`/`:<version>`/`:latest` (no pack, no store; `/pack` answers `core` with `release` and an empty `components`), `viscorunner` (health + store) and `viscolink` (health) built `FROM viscobase` with the components fetched from the registry, `viscolink:…-core` = `viscobase` under another name, and `viscostore` (store-only). The `-health` aliases stay until M4. The landing page reads `components.json`; `BuildInfo` does not carry the pack.
+
+### Releases and the component registry (the component model, M1, 2026-11)
+Design: viscoFoundry `docs/superpowers/specs/2026-11-04-component-model-design.md` (the Suite-side note is `docs/design/2026-11-04-component-delivery-design.md`).
+- **A component is a Maven artifact** in this project's package registry: `com.visco:viscolink:<v>` (war + `classes` jar), `com.visco:viscolink-pack-health:<v>:zip:overlay`, `com.visco:viscostore:<v>:war`. Published by CI only (`scripts/ci/publish.sh`, `deploy:deploy-file` of the exact staged bytes, after the ITs). Never `mvn deploy` by hand.
+- **Version**: `scripts/ci/version.sh`. A tag `vA.B.C` publishes `A.B.C` and MUST equal the poms' `A.B.C-SNAPSHOT` base; a main commit publishes `A.B.C-<pipeline id>`. CI runs `versions:set -DprocessAllModules` (the modules have no common parent). After a release, bump every pom to the next `-SNAPSHOT` (`./mvnw org.codehaus.mojo:versions-maven-plugin:2.18.0:set -DnewVersion=A.B+1.0-SNAPSHOT -DprocessAllModules=true -DgenerateBackupPoms=false`) in its own MR.
+- **The release BOM** `com.visco:viscosuite-release:<v>` (one JSON file, `viscorunner/release/viscosuite-release.template.json` filled by `scripts/ci/write-release-bom.sh`): the sha256 the registry reports per package file, the `viscobase` manifest digest, the `postgres:16` digest at release time. viscoForge's release names a Suite release; the portal renders instances from a release. `base.servlets` lists the runtime's own `servlet.<name>.*` names (`pack` included: `PackServlet` is in the core WAR).
+- **The fetcher** (`viscorunner/src/scripts/fetch-components`): list line `<id> <kind> <version> <url> <sha256> <deployAs>` after `release <version>`; `war` → `webapps/<deployAs>.war`, `overlay` → unzip into `overlay/<target>/` (`deployAs: overlay/<target>`), `container` → recorded only. Token from `COMPONENT_REGISTRY_TOKEN` (Deploy-Token) or `CI_JOB_TOKEN` (Job-Token) through a 0600 curl config, never printed. Fails closed. Same script at image build, in the platform's init container and in the casting bake.
+- **Registry settings** (set at M1 rollout): Maven duplicates OFF (a version is immutable), a protected-package rule for `com/visco/*` (Maintainer pushes); anonymous pull of a public project's packages is what `release:bom` proves every pipeline (the Standard edition fetches without a token).
+- **Cleanup**: `scripts/ci/cleanup-packages.sh` keeps releases forever and the newest 10 main-commit versions per package.
 
 ## Configuration Files
 
@@ -140,7 +155,8 @@ The healthcare specifics are a pack (design: `docs/design/2026-10-07-vertical-pa
 | `viscolink/src/main/resources/StageSpecifics_LOC.properties` | Local-stage overrides (auth disabled, `NotificationProcessorApi.active=true`) |
 | `viscolink/src/main/resources/StageSpecifics_STUB.properties` | Stub overrides for testing |
 | `viscorunner/src/scripts/catalinaAdditional.properties` | Tomcat `catalina.properties` additions (shared for both WARs: log dir, DTAP stage, credential factory, classpath) |
-| `viscorunner/conf/context-viscostore.xml`, `viscorunner/conf/context-none.xml` | Tomcat JNDI datasource definitions; `STORE` picks the file, only `-viscostore` has `jdbc/viscostore` |
+| `viscorunner/conf/context.xml` | The one Tomcat global context: `jdbc/viscolink`, `jdbc/ladybug`, `jdbc/viscostore`, each from env and created at its first JNDI lookup |
+| `viscorunner/release/viscosuite-release.template.json` | The release BOM's static part (component ids, kinds, `deployAs`, `requires`, `servlets`, `properties`); `ReleaseTemplateTest` ties `pack-health.properties` to the pack's `DeploymentSpecifics.properties` keys |
 | `viscostore/src/main/resources/application.yaml` | All HAPI FHIR / Spring Boot settings |
 
 ## Smoke Tests
