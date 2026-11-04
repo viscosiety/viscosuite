@@ -2,10 +2,12 @@
 
 All notable changes to ViscoSuite are documented here. The format follows
 [Keep a Changelog](https://keepachangelog.com); versions follow
-[semantic versioning](https://semver.org) (pre-1.0: breaking changes bump the
-minor version).
+[semantic versioning](https://semver.org) (from 1.0.0: breaking changes bump the
+major version).
 
 ## [Unreleased]
+
+## [1.0.0] — 2026-11-04
 
 ### Added
 - **Components and releases.** Every Java component of ViscoSuite is a versioned Maven artifact in
