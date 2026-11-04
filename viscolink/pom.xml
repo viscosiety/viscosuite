@@ -348,4 +348,17 @@
 			<url>https://nexus.frankframework.org/content/repositories/public</url>
 		</repository>
 	</repositories>
+	<!-- Published to this project's GitLab Maven package registry by CI (scripts/ci/publish.sh,
+	     deploy:deploy-file). The URL resolves only inside a pipeline; a local `mvn deploy` is not a
+	     supported path. -->
+	<distributionManagement>
+		<repository>
+			<id>gitlab-maven</id>
+			<url>${env.CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+		</repository>
+		<snapshotRepository>
+			<id>gitlab-maven</id>
+			<url>${env.CI_API_V4_URL}/projects/${env.CI_PROJECT_ID}/packages/maven</url>
+		</snapshotRepository>
+	</distributionManagement>
 </project>
