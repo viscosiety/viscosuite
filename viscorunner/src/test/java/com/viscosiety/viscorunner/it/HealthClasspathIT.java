@@ -24,6 +24,7 @@ import java.nio.file.Path;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import java.util.zip.ZipFile;
 
@@ -32,11 +33,19 @@ import org.junit.jupiter.api.Test;
 /**
  * D8 for the class path: the core WAR's libraries plus the health overlay's libraries are exactly
  * the libraries the one WAR shipped before the split (golden/health-webapp-libs.txt, frozen), and
- * no jar is in both (duplicate classes on the webapp class loader).
+ * no jar is in both (duplicate classes on the webapp class loader). The core jar is compared
+ * without its version because CI builds at {@code A.B.C-<pipeline id>}.
  */
 class HealthClasspathIT {
 
     private static final String PACK_JAR_PREFIX = "viscolink-pack-health-";
+
+    /** The core WAR's own classes jar (never the pack jar). */
+    private static final Pattern CORE_JAR_PATTERN = Pattern.compile("viscolink-(?!pack-).*\\.jar");
+
+    private static String normalise(String name) {
+        return CORE_JAR_PATTERN.matcher(name).matches() ? "viscolink-<version>.jar" : name;
+    }
 
     @Test
     void warLibsAndPackLibsAreTodaysLibsWithNoOverlap() throws Exception {
@@ -45,13 +54,15 @@ class HealthClasspathIT {
             zip.stream().map(e -> e.getName())
                 .filter(n -> n.startsWith("WEB-INF/lib/") && n.endsWith(".jar"))
                 .map(n -> n.substring("WEB-INF/lib/".length()))
-                .forEach(war::add);
+                .map(HealthClasspathIT::normalise).forEach(war::add);
         }
         Set<String> pack = new TreeSet<>();
         try (Stream<Path> files = Files.list(Path.of("target/packs/health/WEB-INF/lib"))) {
-            files.map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".jar")).forEach(pack::add);
+            files.map(p -> p.getFileName().toString()).filter(n -> n.endsWith(".jar")).map(HealthClasspathIT::normalise).forEach(pack::add);
         }
-        Set<String> golden = new TreeSet<>(Files.readAllLines(Path.of("src/test/resources/golden/health-webapp-libs.txt")));
+        Set<String> golden = new TreeSet<>();
+        Files.readAllLines(Path.of("src/test/resources/golden/health-webapp-libs.txt")).stream()
+            .map(HealthClasspathIT::normalise).forEach(golden::add);
 
         Set<String> overlap = new HashSet<>(war);
         overlap.retainAll(pack);
