@@ -1,8 +1,18 @@
-# Same base image as Frank!Framework's own production Docker image
-FROM tomcat:11.0.14-jre21
+# ONE Dockerfile, two stages (viscoFoundry design 2026-11-04, the component model):
+#   viscobase  Tomcat 11 / JRE 21 + the Frank!Framework WAR at /runtime + the component fetcher.
+#              Nothing variant-specific: no pack, no store. The commercial runner IS this image
+#              (components fetched at pod start) and viscolink:<tag>-core is this image under another name.
+#   fat        FROM viscobase; runs the fetcher at BUILD time against a components list (file:// URLs
+#              into target/components/ from the Maven staging for local builds; registry URLs in CI)
+#              and places the result: the published viscorunner (health + store) and viscolink (health).
+FROM tomcat:11.0.14-jre21 AS viscobase
 
 ARG GID=2000
 ARG UID=2000
+
+# unzip for the fetcher's overlay zips; curl and ca-certificates come with the base image.
+# Installed BEFORE the hardening below (apt cannot run after it), which then covers unzip too.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
 
 # Harden file permissions (CIS-DI-0008)
 RUN chmod -R 751 /usr/bin /usr/sbin
@@ -14,11 +24,14 @@ RUN set -eux && \
 	mkdir -p /opt/frank/demo-configurations && \
 	mkdir -p /opt/frank/drivers && \
 	mkdir -p /opt/frank/lib && \
+	mkdir -p /opt/frank/bin && \
+	mkdir -p /opt/frank/components && \
 	mkdir -p /opt/frank/plugins && \
 	mkdir -p /opt/frank/resources && \
 	mkdir -p /opt/frank/testtool && \
 	mkdir -p /opt/frank/testtool-ext && \
 	mkdir -p /opt/frank/webapp-overlay/viscolink && \
+	mkdir -p /opt/frank/webapp-overlay/console && \
 	groupadd -g ${GID} tomcat && \
 	useradd -u ${UID} -g tomcat -s /usr/sbin/nologin -l tomcat -d ${CATALINA_HOME} && \
 	chown -hR tomcat:tomcat ${CATALINA_HOME} && \
@@ -26,34 +39,27 @@ RUN set -eux && \
 
 USER tomcat
 
-# The one runner image. Two build arguments choose what goes into it:
-#   PACK  = health | core        the vertical pack: its libraries, console patches, demo
-#                                configurations and identity (the core is no pack: empty overlay)
-#   STORE = viscostore | none    whether the ViscoStore WAR (and its JNDI datasource) is part of it
-# These are plain ARG lines: a trailing comment would be read as more ARG names.
-ARG PACK=health
-ARG STORE=viscostore
-
 # Append Frank!Framework Tomcat settings
 COPY --chown=tomcat src/scripts/catalinaAdditional.properties /tmp/catalinaAdditional.properties
 RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.properties && \
 	rm /tmp/catalinaAdditional.properties
 
-# JNDI datasource definitions (H2 for local dev; override in production via mounted context.xml).
-# context-viscostore.xml carries jdbc/viscostore as well, context-none.xml does not.
-COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml
+# The one global context: jdbc/viscolink, jdbc/ladybug AND jdbc/viscostore, each from env and created
+# lazily at its first JNDI lookup (see the comment in the file). Override in production via a mounted context.xml.
+COPY --chown=tomcat conf/context.xml /usr/local/tomcat/conf/context.xml
 
 # Tomcat server.xml with the ContextFailureEventPublisher <Server> listener (emits a Kubernetes
 # Warning Event when a WAR context fails to start). Pinned copy of the tomcat:11.0.14 default —
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
-# Neutral web paths (2026-10-28): the webapps are served at /runtime (Frank!Framework) and /fhir-store
-# (the store). The old /viscolink and /viscostore keep working through the Host's RewriteValve
-# (server.xml) with these rules: a browser page load (GET, Accept text/html) is sent to the new
-# address with a 302, because the session cookie is scoped to the new path; every other request (API
-# calls, POSTs, scripts, probes) is served in place. The rules file must not contain comment lines:
-# with them Tomcat 11 silently skipped the conditional rules (found in the 2026-10-28 spike).
+# Neutral web paths (2026-10-28): the webapps are served at /runtime (Frank!Framework), /fhir-store
+# (the store) and, on a ViscoForge composition, /console. The old /viscolink, /viscostore and /viscoforge
+# keep working through the Host's RewriteValve (server.xml) with these rules: a browser page load (GET,
+# Accept text/html) is sent to the new address with a 302, because the session cookie is scoped to the new
+# path; every other request (API calls, POSTs, scripts, probes) is served in place. A rule to a context
+# that is not deployed answers 404, as before. The rules file must not contain comment lines: with them
+# Tomcat 11 silently skipped the conditional rules (found in the 2026-10-28 spike).
 COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
 
 # Log retention (2026-10-23): the third file of log4j.configurationFile (catalinaAdditional.properties).
@@ -66,11 +72,11 @@ RUN set -e; f=/usr/local/tomcat/conf/logging.properties; sed -i 's/\.maxDays = 9
 # (/opt/frank/lib/*.jar in catalinaAdditional.properties).
 COPY --chown=tomcat target/viscorunner-*.jar /opt/frank/lib/
 
-# Per-context config for the Frank!Framework webapp (/runtime): a PreResources overlay, so the pack's
+# Per-context config for the Frank!Framework webapp (/runtime): a PreResources overlay, so a pack's
 # WEB-INF/lib and WEB-INF/classes (and any demo file injected at run time) are served from
 # /opt/frank/webapp-overlay/viscolink/ without pre-creating webapps/runtime/ (which would cause
 # Tomcat to skip WAR extraction and deploy an empty context in ~6 ms). The overlay folder keeps its
-# name (a filesystem path, not a web address).
+# name until M4 of the component model (viscoForge and the portal write into it by that name).
 COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/runtime.xml
 
 # JDBC drivers — shared between the WARs via common.loader in catalina.properties
@@ -82,41 +88,31 @@ COPY --chown=tomcat target/native/ /tmp/lemma-native/
 RUN set -e; case "$(uname -m)" in x86_64) triple=x86_64-unknown-linux-gnu ;; aarch64) triple=aarch64-unknown-linux-gnu ;; *) echo "ERROR: no Lemma native for $(uname -m)"; exit 1 ;; esac; mkdir -p /opt/frank/native; cp "/tmp/lemma-native/${triple}/liblemma_jni.so" /opt/frank/native/liblemma_jni.so; rm -rf /tmp/lemma-native
 ENV LEMMA_JNI_LIBRARY=/opt/frank/native/liblemma_jni.so
 
-# The pack (the core's overlay is an empty WEB-INF/lib plus its identity), its demo configurations
-# (never loaded unless mounted over /opt/frank/configurations) and its identity.
-COPY --chown=tomcat target/packs/${PACK}/ /opt/frank/webapp-overlay/viscolink/
-COPY --chown=tomcat target/demo/${PACK}/  /opt/frank/demo-configurations/
+# Both packs' demo configurations (never loaded unless mounted over /opt/frank/configurations).
+COPY --chown=tomcat target/demo/health/ /opt/frank/demo-configurations/health/
+COPY --chown=tomcat target/demo/core/ /opt/frank/demo-configurations/core/
 
-# Landing page, stamped with the pack's words and the build. The values come from the pack's
-# WEB-INF/pack.properties; they are free of '|', '&' and backslash, so '|' is a safe sed delimiter.
+# Landing page. The pack's words and the release come from components.json, which the fetcher writes
+# next to the page (place-components); only the build stamp is baked here.
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
 ARG BUILD_TIMESTAMP=""
-RUN set -e; P=/opt/frank/webapp-overlay/viscolink/WEB-INF/pack.properties; \
-    val() { grep "^$1=" "$P" | cut -d= -f2- ; }; \
-    BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
-    sed -i "s|%%PACK_TAGLINE%%|$(val pack.tagline)|; s|%%PACK_LINK_BLURB%%|$(val pack.linkBlurb)|; \
-            s|%%PACK_STAMP%%| \&middot; pack $(val pack.id) $(val pack.version)|; \
-            s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
+RUN set -e; BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
+    sed -i "s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 
-# Deploy the WARs — Tomcat derives the context path from the filename:
-#   runtime.war    →  /runtime     (always; the viscolink module's WAR)
-#   fhir-store.war →  /fhir-store  (STORE=viscostore only; target/store/none/ is empty, so the COPY copies nothing)
+# The Frank!Framework WAR — Tomcat derives the context path from the filename: runtime.war → /runtime.
 COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/runtime.war
-COPY --chown=tomcat target/store/${STORE}/ /usr/local/tomcat/webapps/
 
-# Fail fast if a WAR is a stale empty stub from .m2/ (< 1 MB); the store only when it is part of the image.
-# copy-dependencies resolves from the local Maven repo, not the reactor; if
-# `mvn install -pl viscolink,packs/health,viscostore` was not run first the 1-2 KB placeholder
-# artifact ends up here and Tomcat deploys it silently in ~17 ms with no routes.
+# Fail fast if the WAR is a stale empty stub from .m2/ (< 1 MB). copy-dependencies resolves from the
+# local Maven repo, not the reactor; if `mvn install -pl viscolink,packs/health,viscostore` was not run
+# first the 1-2 KB placeholder artifact ends up here and Tomcat deploys it silently with no routes.
+# (Fetched components need no such check: the fetcher verifies their sha256.)
 RUN set -e; \
     vl=$(stat -c%s /usr/local/tomcat/webapps/runtime.war); \
     [ "$vl" -gt 1000000 ] || { echo ""; echo "ERROR: runtime.war (viscolink.war) is ${vl} bytes — stale stub. Run:"; \
-        echo "  ./mvnw install -pl viscolink,packs/health,viscostore -DskipTests && ./mvnw package -pl viscorunner -DskipTests"; echo ""; exit 1; }; \
-    if [ "${STORE}" != "none" ]; then \
-        vs=$(stat -c%s /usr/local/tomcat/webapps/fhir-store.war); \
-        [ "$vs" -gt 1000000 ] || { echo ""; echo "ERROR: fhir-store.war (viscostore.war) is ${vs} bytes — stale stub (same command)."; exit 1; }; \
-    fi
+        echo "  ./mvnw install -pl viscolink,packs/health,viscostore -DskipTests && ./mvnw package -pl viscorunner -DskipTests"; echo ""; exit 1; }
 
+# The component fetcher and placer (see the scripts' headers) and the entrypoint, which places at every start.
+COPY --chown=tomcat src/scripts/fetch-components src/scripts/place-components /opt/frank/bin/
 COPY --chown=tomcat src/scripts/entrypoint.sh /scripts/entrypoint.sh
 
 HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
@@ -124,3 +120,21 @@ HEALTHCHECK --interval=15s --timeout=5s --start-period=60s --retries=3 \
 
 ENTRYPOINT ["/scripts/entrypoint.sh"]
 CMD ["catalina.sh", "run"]
+
+# ---------------------------------------------------------------------------------------------------
+# fat: viscobase plus the components a list names, fetched and placed at build time.
+#   docker build --target fat --build-arg COMPONENTS_LIST=target/components-suite.list .
+# A list with file:// URLs reads target/components/ (bind-mounted below); a list with registry URLs is fetched
+# with the job token, handed in as a BuildKit secret (docker build --secret id=job_token,env=CI_JOB_TOKEN):
+# never a build argument, never a layer.
+# ---------------------------------------------------------------------------------------------------
+FROM viscobase AS fat
+ARG COMPONENTS_LIST=target/components-suite.list
+COPY --chown=tomcat ${COMPONENTS_LIST} /opt/frank/components.list
+# Local artifacts are bind-mounted read-only for the fetch (never a layer); after placing, the image keeps
+# only MANIFEST and components.json under /opt/frank/components (the placed copies are the ones in use).
+RUN --mount=type=bind,source=target/components,target=/opt/frank/component-files,ro \
+    --mount=type=secret,id=job_token,uid=2000 set -e; \
+    if [ -f /run/secrets/job_token ]; then CI_JOB_TOKEN=$(cat /run/secrets/job_token); export CI_JOB_TOKEN; fi; \
+    /opt/frank/bin/fetch-components /opt/frank/components.list && /opt/frank/bin/place-components && \
+    rm -rf /opt/frank/components/webapps /opt/frank/components/overlay /opt/frank/components/files

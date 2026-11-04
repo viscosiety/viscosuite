@@ -1,6 +1,7 @@
 # The market-neutral core: ViscoLink without a vertical pack and without ViscoStore (no HL7v2, no FHIR).
-# /runtime/api/echo is its demo: mount ../viscolink/demo-configurations over /opt/frank/configurations
-# (the image also carries a copy in /opt/frank/demo-configurations) and POST to it.
+# It IS the viscobase stage (no component fetched); the published viscolink:latest-core is viscobase under
+# another name. /runtime/api/echo is its demo: mount ../viscolink/demo-configurations over /opt/frank/configurations
+# (the image also carries a copy in /opt/frank/demo-configurations/core) and POST to it.
 #
 #   docker compose -f docker-compose.core.yml up --build
 #
@@ -10,9 +11,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-      args:
-        PACK: core
-        STORE: none
+      target: viscobase
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscolink:latest-core
     ports:
       - "8180:8080"   # Frank!Console + ViscoLink APIs

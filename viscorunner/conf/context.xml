@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Context>
 
+	<!-- The one global context of every image. All three datasources are declared from environment
+	     variables (EnvironmentPropertySource, catalinaAdditional.properties) and created by Tomcat at
+	     their FIRST JNDI lookup. The Frank!Framework lists only datasources it has looked up, so on a
+	     runtime without the store jdbc/viscostore is never looked up and never shown; on a runtime with
+	     the store the console browses the store's database through it. -->
+
 		<Resource name="jdbc/viscolink"
 			auth="Container"
 			type="javax.sql.DataSource"

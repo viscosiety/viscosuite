@@ -4,9 +4,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: fat
       args:
-        PACK: health
-        STORE: viscostore
+        COMPONENTS_LIST: target/components-suite.list
         BUILD_TIMESTAMP: "${BUILD_TIMESTAMP:-}"
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscorunner:latest
     ports:

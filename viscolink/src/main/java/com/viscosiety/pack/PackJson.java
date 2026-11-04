@@ -25,7 +25,9 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 
 /**
  * Renders a {@link PackDescriptor} as the JSON the descriptor endpoints serve. The keys come out
- * in a fixed order and the arrays are never omitted, so clients can rely on the shape.
+ * in a fixed order and the arrays are never omitted, so clients can rely on the shape. The last
+ * two keys are the runtime's own: {@code release} (the fetcher's, or null) and {@code components}
+ * (empty when the runtime has no manifest).
  */
 public final class PackJson {
 
@@ -35,6 +37,10 @@ public final class PackJson {
     }
 
     public static String of(PackDescriptor pack) {
+        return of(pack, ComponentManifest.current());
+    }
+
+    public static String of(PackDescriptor pack, ComponentManifest manifest) {
         ObjectNode root = JSON.createObjectNode();
         root.put("id", pack.id());
         root.put("displayName", pack.displayName());
@@ -68,6 +74,15 @@ public final class PackJson {
 
         ObjectNode engines = root.putObject("engines");
         CoreEngines.versions().forEach(engines::put);
+
+        root.put("release", manifest.release().orElse(null));
+        ArrayNode components = root.putArray("components");
+        for (ComponentManifest.Component component : manifest.components()) {
+            ObjectNode node = components.addObject();
+            node.put("id", component.id());
+            node.put("kind", component.kind());
+            node.put("version", component.version());
+        }
 
         try {
             return JSON.writeValueAsString(root);

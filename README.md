@@ -75,7 +75,7 @@ viscosuite/
     ├── configurations/               empty scaffold — mount your own integrations here
     ├── docker-compose.yml            base service definitions (Healthcare pack + ViscoStore)
     ├── docker-compose.viscolink.yml  Healthcare pack without ViscoStore
-    ├── docker-compose.core.yml       the market-neutral core, no pack components (see Images)
+    ├── docker-compose.core.yml       the market-neutral core = the viscobase stage, no pack, no store
     └── docker-compose.demo.yml       demo overlay (demo configurations + traffic generator)
 ```
 
@@ -211,7 +211,7 @@ The demo overlay runs with this enabled.
 | `/runtime/` | ViscoLink app launcher (tools + Frank!Console) |
 | `/runtime/flow/` | ViscoFlow — live message flow viewer and trace debugger |
 | `/runtime/iaf/` | Frank!Console / Ladybug flow debugger |
-| `GET /runtime/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`) and its subject identifier; bearer-token callers only |
+| `GET /runtime/api-service/pack` | Pack descriptor: which pack the image runs (`health` or `core`), its subject identifier, the release and the components the runtime was composed with; bearer-token callers only |
 | `/fhir-store/fhir` | FHIR REST API (HAPI JPA Server) |
 | `/fhir-store/tester/` | Interactive FHIR Tester UI |
 | `/fhir-store/fhir/swagger-ui/` | Swagger API docs |
@@ -263,40 +263,50 @@ wrapper (`./mvnw`) downloads the correct Maven automatically.
 After the build, `docker compose up --build` in `viscorunner/` builds the images from your
 build output instead of using the published ones.
 
+Every image is `viscobase` (Tomcat, the Frank!Framework webapp, a component fetcher) plus components:
+the published `viscorunner` and `viscolink` images fetch the store WAR and the health pack overlay
+from this project's Maven package registry at build time, pinned by sha256; a local `docker compose
+build` fetches the same files from `viscorunner/target/components/`. Each tag `vA.B.C` publishes
+the components as Maven artifacts and a release BOM (`com.visco:viscosuite-release:A.B.C`) that
+pins all of them; the same BOM is what a hosted platform composes an instance from.
+
 Remote debugging (JPDA on `5005`) and smoke tests are described in
 [`viscorunner/README.md`](https://github.com/viscosiety/viscosuite/blob/main/viscorunner/README.md)
 and `viscostore/src/test/smoketest/`.
 
 ## Images
 
-One recipe, `viscorunner/Dockerfile`, builds every runner image from two build arguments.
-`PACK` (`health`, the default, or `core`) chooses the pack laid over the ViscoLink core, and
-`STORE` (`viscostore`, the default, or `none`) whether the ViscoStore FHIR server is part of
-the image.
+One recipe, `viscorunner/Dockerfile`, builds every runner image in two stages. `viscobase` is
+Tomcat, the Frank!Framework webapp at `/runtime` and a component fetcher, with nothing
+market-specific in it. The `fat` stage is `viscobase` plus the components a list names, fetched
+and verified at build time: the store WAR and the pack overlay are versioned Maven artifacts in
+Viscosiety's package registry, pinned by sha256 and listed in a release BOM.
 
 A **pack** is the market-specific layer put over the market-neutral ViscoLink core: its
 components, defaults, demo configurations and the word for the main subject of a message.
-An image carries exactly one. Today there are two: **Healthcare** (id `health`: HL7v2, MLLP and
+An image carries at most one. Today there are two: **Healthcare** (id `health`: HL7v2, MLLP and
 FHIR components, subject "Patient") and **Core** (id `core`: the market-neutral platform
-without those components, subject "Subject" — the image without a vertical pack). Further packs, for example for the public sector, are planned
+without those components, subject "Subject" — `viscobase` itself, with no overlay). Further packs, for example for the public sector, are planned
 but not built.
 
 CI publishes multi-arch images (amd64 and arm64) to Viscosiety's public container registry,
 `registry.git.viscosiety.com/public-applications/viscosuite/<image>`, which allows anonymous
-pulls. Three combinations of pack and store are published, plus the standalone store:
+pulls. The published images:
 
 | Image | Contents | Tags |
 |---|---|---|
-| `viscorunner` | Healthcare pack + ViscoStore (the full suite) | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
-| `viscolink` | Healthcare pack, no store (ViscoLink only) | `<sha>`, `latest`, `<sha>-health`, `latest-health` |
-| `viscolink` | Core: no pack components, no store | `<sha>-core`, `latest-core` |
-| `viscostore` | the standalone FHIR server | `<sha>`, `latest` |
+| `viscobase` | no pack, no store: the bare runtime and the fetcher | `<sha>`, `<version>`, `latest` |
+| `viscorunner` | Healthcare pack + ViscoStore (the full suite) | `<sha>`, `<version>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | Healthcare pack, no store (ViscoLink only) | `<sha>`, `<version>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscolink` | Core: `viscobase` under another name | `<sha>-core`, `<version>-core`, `latest-core` |
+| `viscostore` | the standalone FHIR server | `<sha>`, `<version>`, `latest` |
 
 The image name `viscorunner` means the suite (ViscoLink plus ViscoStore), not the packaging in
-general. Other combinations, such as Core with ViscoStore, are not published.
+general. Other combinations, such as Core with ViscoStore, are not published as images; a hosted platform composes them from the same components.
 
-`<sha>` is the commit; there are no release-number tags, so an image cannot be pinned to a
-release such as v0.20.0, only to a commit. The unsuffixed tags keep their long-standing meaning
+`<sha>` is the commit and `<version>` the release: a tag `vA.B.C` publishes `A.B.C`, a `main`
+commit publishes `A.B.C-<pipeline id>`, so an image can be pinned to a release. The unsuffixed
+tags keep their long-standing meaning
 (the healthcare images) and `-health` is the explicit spelling. `-core` is the market-neutral
 integration platform: Frank!Framework, the console with OIDC, ViscoFlow and Ladybug, with no FHIR
 servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject identifier is a neutral

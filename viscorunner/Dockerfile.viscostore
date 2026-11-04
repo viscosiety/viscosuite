@@ -25,13 +25,12 @@ RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.pr
 # JDBC drivers on common.loader so Spring can find the driver class
 COPY --chown=tomcat target/drivers/ /opt/frank/drivers/
 
-# The landing page is shared with the runner image, where a pack fills the %%PACK_*%% placeholders.
-# There is no pack here: keep the page this image always showed (the hidden ViscoLink card stays blank).
+# The landing page is shared with the runner image; there it reads the pack from components.json, which
+# this image never has, so it shows the core's words. Only the build stamp is baked.
 COPY --chown=tomcat src/webapp/ROOT/ /usr/local/tomcat/webapps/ROOT/
 ARG BUILD_TIMESTAMP=""
 RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
-    sed -i "s|%%PACK_TAGLINE%%|Healthcare integration platform|; s|%%PACK_LINK_BLURB%%||; s|%%PACK_STAMP%%||; \
-            s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
+    sed -i "s|%%BUILD_TIMESTAMP%%| \&middot; Built ${BUILD_TS}|" /usr/local/tomcat/webapps/ROOT/index.html
 # Served at /fhir-store (neutral web path, 2026-10-28); the old /viscostore keeps working through the
 # Host's RewriteValve, added to this image's stock server.xml (see the runner Dockerfile for the rules).
 COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/fhir-store.war

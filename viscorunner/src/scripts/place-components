@@ -1,0 +1,30 @@
+#!/bin/sh
+# place-components: copy what fetch-components left under $VF_COMPONENTS_DIR into Tomcat.
+#   webapps/<context>.war   -> $CATALINA_HOME/webapps/<context>.war   (Tomcat deploys it by name)
+#   overlay/runtime/        -> /opt/frank/webapp-overlay/viscolink/   (the PreResources dir of /runtime;
+#                              its name stays viscolink until M4, when it is renamed after the context)
+#   overlay/<other>/        -> /opt/frank/webapp-overlay/<other>/     (e.g. console)
+#   components.json         -> $CATALINA_HOME/webapps/ROOT/components.json (the landing page reads it)
+# Runs at image build (fat images) and at every start (entrypoint): plain copies, harmless to repeat.
+# A missing components dir is a runtime without components (viscobase alone): nothing to do.
+# A dir without MANIFEST is a failed or absent fetch (the fetcher writes MANIFEST last): nothing is placed.
+set -eu
+ROOT="${VF_COMPONENTS_DIR:-/opt/frank/components}"
+WEBAPPS="${VF_WEBAPPS_DIR:-${CATALINA_HOME:-/usr/local/tomcat}/webapps}"
+OVERLAYS="${VF_OVERLAY_DIR:-/opt/frank/webapp-overlay}"
+[ -d "$ROOT" ] || exit 0
+[ -f "$ROOT/MANIFEST" ] || exit 0
+for war in "$ROOT"/webapps/*.war; do
+  [ -e "$war" ] || continue
+  cp -p "$war" "$WEBAPPS/"
+done
+for dir in "$ROOT"/overlay/*/; do
+  [ -d "$dir" ] || continue
+  target=$(basename "$dir")
+  case "$target" in runtime) dest="$OVERLAYS/viscolink" ;; *) dest="$OVERLAYS/$target" ;; esac
+  mkdir -p "$dest"
+  cp -Rp "$dir". "$dest"/
+done
+if [ -f "$ROOT/components.json" ] && [ -d "$WEBAPPS/ROOT" ]; then
+  cp -p "$ROOT/components.json" "$WEBAPPS/ROOT/components.json"
+fi

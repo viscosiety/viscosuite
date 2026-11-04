@@ -25,6 +25,21 @@
     </profile>
   </profiles>
 
+  <servers>
+    <!-- The GitLab Maven package registry takes the job token as a header (no username). -->
+    <server>
+      <id>gitlab-maven</id>
+      <configuration>
+        <httpHeaders>
+          <property>
+            <name>Job-Token</name>
+            <value>${env.CI_JOB_TOKEN}</value>
+          </property>
+        </httpHeaders>
+      </configuration>
+    </server>
+  </servers>
+
   <activeProfiles>
     <activeProfile>frankframework-nexus</activeProfile>
   </activeProfiles>

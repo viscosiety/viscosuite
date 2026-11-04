@@ -138,7 +138,7 @@
 
   <header>
     <h1 data-product-name>ViscoSuite</h1>
-    <p>%%PACK_TAGLINE%%</p>
+    <p data-pack-tagline>Integration platform</p>
   </header>
 
   <div id="loading"><span class="spinner"></span>Checking services…</div>
@@ -148,7 +148,7 @@
     <a class="card" id="card-viscolink" href="/runtime/" hidden>
       <span class="card-label">Integration layer</span>
       <h2 data-brand-name="link">ViscoLink</h2>
-      <p>%%PACK_LINK_BLURB%%</p>
+      <p data-pack-blurb>Receives, converts, validates and routes messages between your systems.</p>
       <span class="card-arrow">Open console →</span>
     </a>
 
@@ -164,7 +164,7 @@
 
   </div>
 
-  <footer><span data-product-name>ViscoSuite</span> &mdash; <span data-brand-name="company">Viscosiety B.V.</span>%%PACK_STAMP%%%%BUILD_TIMESTAMP%%</footer>
+  <footer><span data-product-name>ViscoSuite</span> &mdash; <span data-brand-name="company">Viscosiety B.V.</span><span data-pack-stamp></span>%%BUILD_TIMESTAMP%%</footer>
 
   <script>
     // Apply the (overridable) suite product name to the title and every [data-product-name] node.
@@ -210,6 +210,33 @@
         } catch { /* network error or timeout */ }
         finally { done(); }
       }));
+    })();
+  </script>
+
+  <script>
+    // The pack and the release come from components.json, written by the fetcher next to this page
+    // (fat images at build, the commercial runner at start). Without it: the core's words, no stamp.
+    (function () {
+      var words = {
+        'pack-health': { tagline: 'Healthcare integration platform',
+                         blurb: 'Ingests HL7v2, FHIR, and custom source data. Converts, validates, and routes messages to the CDR.' }
+      };
+      fetch('components.json', { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (c) {
+          if (!c) return;
+          var stamp = [];
+          if (c.release) stamp.push('release ' + c.release);
+          (c.components || []).forEach(function (comp) {
+            var w = words[comp.id];
+            if (!w) return;
+            document.querySelector('[data-pack-tagline]').textContent = w.tagline;
+            document.querySelector('[data-pack-blurb]').textContent = w.blurb;
+            stamp.push('pack ' + comp.id.replace('pack-', '') + ' ' + comp.version);
+          });
+          if (stamp.length) document.querySelector('[data-pack-stamp]').textContent = ' · ' + stamp.join(' · ');
+        })
+        .catch(function () {});
     })();
   </script>
 

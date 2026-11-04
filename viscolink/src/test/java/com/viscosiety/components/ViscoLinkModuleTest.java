@@ -19,7 +19,9 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.InputStream;
 import java.util.List;
+import java.util.Properties;
 
 import org.junit.jupiter.api.Test;
 
@@ -36,5 +38,24 @@ class ViscoLinkModuleTest {
 		// The healthcare Spring files (springMllp.xml, springFhir.xml) belong to the pack's own Module.
 		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml", "springLifecycleEvents.xml"),
 				new ViscoLinkModule().getSpringConfigurationFiles());
+	}
+
+	@Test
+	void theVersionIsTheBuildsAndNeverAToken() {
+		String version = ViscoLinkModule.IMPLEMENTATION_VERSION;
+		assertFalse(version.isBlank(), "version is set");
+		assertFalse(version.contains("${"), "Maven filtered the version: " + version);
+		assertTrue(version.matches("\\d+\\.\\d+\\.\\d+(-[A-Za-z0-9.]+)?"), "A.B.C[-qualifier]: " + version);
+	}
+
+	@Test
+	void theVersionIsWhatTheFilteredResourceSaysAndWhatTheManifestCarries() throws Exception {
+		Properties props = new Properties();
+		try (InputStream in = ViscoLinkModule.class.getResourceAsStream("/META-INF/viscolink-version.properties")) {
+			props.load(in);
+		}
+		assertEquals(props.getProperty("version"), ViscoLinkModule.IMPLEMENTATION_VERSION);
+		assertEquals(ViscoLinkModule.IMPLEMENTATION_VERSION,
+				new ViscoLinkModule().getModuleInformation().getVersion(), "the manifest carries the same version");
 	}
 }

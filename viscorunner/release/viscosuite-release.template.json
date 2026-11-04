@@ -1,0 +1,53 @@
+{
+  "release": "${VERSION}",
+  "base": {
+    "image": "${BASE_IMAGE}",
+    "digest": "${BASE_DIGEST}",
+    "version": "${VERSION}",
+    "servlets": ["ApiListenerServlet", "WebContentServlet", "configRef", "larvaRun", "agentApi", "pack"]
+  },
+  "suiteRelease": null,
+  "components": [
+    {
+      "id": "store",
+      "kind": "war",
+      "artifact": "com.visco:viscostore:${VERSION}:war",
+      "version": "${VERSION}",
+      "sha256": "${SHA_STORE}",
+      "deployAs": "fhir-store",
+      "requires": ["postgres"],
+      "excludes": [],
+      "servlets": [],
+      "properties": []
+    },
+    {
+      "id": "pack-health",
+      "kind": "overlay",
+      "artifact": "com.visco:viscolink-pack-health:${VERSION}:zip:overlay",
+      "version": "${VERSION}",
+      "sha256": "${SHA_PACK_HEALTH}",
+      "deployAs": "overlay/runtime",
+      "requires": [],
+      "excludes": [],
+      "servlets": [],
+      "properties": [
+        "mllp.inbound.sendingApplication",
+        "mllp.inbound.sendingFacility",
+        "fhir.target.version",
+        "viscostore.fhir.base.url",
+        "mr.system.base"
+      ]
+    },
+    {
+      "id": "postgres",
+      "kind": "container",
+      "image": "docker.io/library/postgres",
+      "version": "16",
+      "digest": "${POSTGRES_DIGEST}",
+      "requires": [],
+      "excludes": [],
+      "servlets": [],
+      "properties": []
+    }
+  ]
+}
