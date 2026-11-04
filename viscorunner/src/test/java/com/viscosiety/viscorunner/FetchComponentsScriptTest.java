@@ -182,4 +182,26 @@ class FetchComponentsScriptTest {
         assertEquals("release=1.0.0\n", Files.readString(components.resolve("MANIFEST")));
         assertEquals("{\"release\":\"1.0.0\",\"components\":[]}\n", Files.readString(components.resolve("components.json")));
     }
+
+    @Test
+    void aLastLineWithoutANewlineIsStillFetched(@TempDir Path tmp) throws Exception {
+        Path store = war(Files.createDirectory(tmp.resolve("src")), "viscostore.war");
+        Path list = tmp.resolve("components.list");
+        Files.writeString(list, "release 1.0.0\nstore war 1.0.0 file://" + store + " " + sha256(store) + " fhir-store");
+        Path components = tmp.resolve("components");
+        Run r = run(FETCH, tmp, Map.of("VF_COMPONENTS_DIR", components.toString()), list.toString());
+        assertEquals(0, r.exit(), r.err());
+        assertTrue(Files.isRegularFile(components.resolve("webapps/fhir-store.war")), "the unterminated last line is placed");
+        assertEquals("release=1.0.0\ncomponent=store war 1.0.0\n", Files.readString(components.resolve("MANIFEST")));
+    }
+
+    @Test
+    void aTokenIsNeverSentOverHttp(@TempDir Path tmp) throws Exception {
+        Path list = tmp.resolve("components.list");
+        Files.writeString(list, "release 1.0.0\nstore war 1.0.0 http://127.0.0.1:9/nothing.war " + "0".repeat(64) + " fhir-store\n");
+        Run r = run(FETCH, tmp, Map.of("VF_COMPONENTS_DIR", tmp.resolve("c").toString(), "COMPONENT_REGISTRY_TOKEN", "glpat-SECRET-VALUE"), list.toString());
+        assertNotEquals(0, r.exit());
+        assertTrue(r.err().contains("cleartext"), r.err());
+        assertFalse((r.out() + r.err()).contains("SECRET-VALUE"), "the token is never printed");
+    }
 }

@@ -11,6 +11,8 @@
 #   url: file://, http:// or https://. A registry URL is fetched with the Deploy-Token header from
 #        COMPONENT_REGISTRY_TOKEN or the Job-Token header from CI_JOB_TOKEN, whichever is set, passed
 #        to curl through a 0600 config file: the token is never on a command line and never printed.
+#        A token is never sent over http:// (the fetch refuses) and never follows a redirect (a 3xx
+#        fails the fetch). A public pull (no token) may follow redirects.
 # Every byte is verified against the list's sha256 before it is kept; any failure exits non-zero and
 # writes no MANIFEST, so Tomcat (place-components, the entrypoint) never starts on a half composition.
 # Output: <dir>/MANIFEST (release=<v>, component=<id> <kind> <version> per line) and <dir>/components.json,
@@ -61,8 +63,15 @@ while read -r id kind version url sha deploy_as extra || [ -n "$id" ]; do
       case "$url" in
         file://*) cp "${url#file://}" "$file" 2>/dev/null || die "$id: cannot read $url" ;;
         https://*|http://*)
-          curl --fail --silent --show-error --location --retry 3 --config "$curlcfg" --output "$file" "$url" \
-            || die "$id: download of $url failed" ;;
+          if [ -s "$curlcfg" ]; then
+            case "$url" in http://*) die "$id: a token is configured; refusing to send it in cleartext to $url" ;; esac
+            status=$(curl --silent --show-error --retry 3 --config "$curlcfg" --output "$file" --write-out '%{http_code}' "$url") \
+              || die "$id: download of $url failed"
+            [ "$status" = 200 ] || die "$id: download of $url answered HTTP $status (redirects are not followed when a token is configured)"
+          else
+            curl --fail --silent --show-error --location --retry 3 --output "$file" "$url" \
+              || die "$id: download of $url failed"
+          fi ;;
         *) die "$id: url must be file://, http:// or https://" ;;
       esac
       actual=$(sha_of "$file")
