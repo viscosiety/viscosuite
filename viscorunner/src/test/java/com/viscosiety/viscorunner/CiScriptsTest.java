@@ -17,6 +17,7 @@
 package com.viscosiety.viscorunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -25,6 +26,7 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import org.junit.jupiter.api.Test;
@@ -81,5 +83,23 @@ class CiScriptsTest {
 		Run r = sh(pomWith("1.0.0-SNAPSHOT"), Map.of("CI_PIPELINE_ID", "1", "CI_COMMIT_TAG", "release-1"), "/bin/sh", VERSION_SH);
 		assertNotEquals(0, r.exit());
 		assertTrue(r.err().contains("vA.B.C"), r.err());
+	}
+
+	@Test
+	void cleanupKeepsReleasesAndTheNewestTenMainVersions() throws Exception {
+		StringBuilder in = new StringBuilder();
+		for (int i = 20; i >= 1; i--) {                      // newest first
+			in.append("2026-11-").append(String.format("%02d", i)).append("T00:00:00Z\t1.0.0-").append(i).append("\t").append(i).append('\n');
+		}
+		in.append("2026-10-01T00:00:00Z\t0.22.0\t99\n");    // a release, older than everything
+		Path dir = Files.createTempDirectory("cleanup");
+		Path input = dir.resolve("versions.tsv");
+		Files.writeString(input, in.toString());
+		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString()), "/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
+		assertEquals(0, r.exit(), r.err());
+		List<String> deleted = r.out().lines().filter(l -> l.startsWith("delete ")).toList();
+		assertEquals(10, deleted.size(), r.out());
+		assertTrue(deleted.get(0).equals("delete 10 1.0.0-10") && deleted.get(9).equals("delete 1 1.0.0-1"), "the ten oldest main versions: " + deleted);
+		assertFalse(r.out().contains("0.22.0"), "a release is never deleted");
 	}
 }
