@@ -140,14 +140,21 @@ class DockerfileContractTest {
     void theFatStageFetchesFromTheListAndPlaces() throws IOException {
         List<String> fat = stage(dockerfileInstructions(), "FROM viscobase AS fat", null);
         assertTrue(hasLine(fat, "ARG COMPONENTS_LIST=target/components-suite.list"), "the list is a build argument (a path in the build context)");
-        assertTrue(hasLine(fat, "COPY --chown=tomcat target/components/ /opt/frank/component-files/"), "local artifacts for file:// lists");
         assertTrue(hasLine(fat, "COPY --chown=tomcat ${COMPONENTS_LIST} /opt/frank/components.list"), "the list itself");
         // a RUN spans several lines (backslash continuations): look at the whole instruction
         List<String> fatInstructions = String.join("\n", fat).replace(" \\\n", " ").lines().collect(Collectors.toList());
-        assertTrue(fatInstructions.stream().anyMatch(l -> l.startsWith("RUN --mount=type=secret,id=job_token,uid=2000")
+        assertTrue(fatInstructions.stream().anyMatch(l -> l.startsWith("RUN ") && l.contains("--mount=type=secret,id=job_token,uid=2000")
                 && l.contains("/run/secrets/job_token") && l.contains("/opt/frank/bin/fetch-components /opt/frank/components.list")
                 && l.contains("/opt/frank/bin/place-components")),
             "fetch then place, with the job token as a BuildKit secret (never a build argument, never a layer)");
+        assertTrue(fatInstructions.stream().anyMatch(l -> l.startsWith("RUN --mount=type=bind,source=target/components,target=/opt/frank/component-files,ro ")),
+            "local artifacts for file:// lists are bind-mounted read-only, never copied into a layer");
+        assertTrue(fatInstructions.stream().anyMatch(l -> l.startsWith("RUN ")
+                && l.endsWith("rm -rf /opt/frank/components/webapps /opt/frank/components/overlay /opt/frank/components/files")),
+            "after placing, the fat image keeps only MANIFEST and components.json");
+        assertTrue(fat.stream().noneMatch(l -> l.startsWith("COPY") && l.contains("target/components/")), "no COPY of the local artifacts");
+        assertTrue(Files.exists(MODULE.resolve(".dockerignore")) && read(".dockerignore").lines().anyMatch(l -> l.strip().equals("target/publish/")),
+            ".dockerignore keeps target/publish/ (~850 MB) out of the build context");
         assertTrue(fat.stream().noneMatch(l -> l.startsWith("ARG") && l.contains("TOKEN")), "no token build argument");
     }
 

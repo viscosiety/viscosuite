@@ -125,6 +125,33 @@ class FetchComponentsScriptTest {
     }
 
     @Test
+    void theFetcherKeepsNothingUnderFilesAfterPlacement(@TempDir Path tmp) throws Exception {
+        Path src = Files.createDirectory(tmp.resolve("src"));
+        Path store = war(src, "viscostore.war");
+        Path zip = overlayZip(src);
+        Path list = tmp.resolve("components.list");
+        Files.writeString(list, "release 1.0.0\nstore war 1.0.0 file://" + store + " " + sha256(store) + " fhir-store\n"
+                + "pack overlay 1.0.0 file://" + zip + " " + sha256(zip) + " overlay/runtime\n");
+        Path components = tmp.resolve("components");
+        assertEquals(0, run(FETCH, tmp, Map.of("VF_COMPONENTS_DIR", components.toString()), list.toString()).exit());
+        try (var files = Files.list(components.resolve("files"))) {
+            assertEquals(0, files.count(), "the verified download is moved or removed, never kept twice");
+        }
+    }
+
+    @Test
+    void aComponentsDirWithoutAManifestPlacesNothing(@TempDir Path tmp) throws Exception {
+        Path components = Files.createDirectories(tmp.resolve("components/webapps"));
+        war(components, "fhir-store.war");
+        Path webapps = Files.createDirectories(tmp.resolve("tomcat/webapps"));
+        Path overlays = Files.createDirectories(tmp.resolve("webapp-overlay"));
+        Run placed = run(PLACE, tmp, Map.of("VF_COMPONENTS_DIR", tmp.resolve("components").toString(),
+                "VF_WEBAPPS_DIR", webapps.toString(), "VF_OVERLAY_DIR", overlays.toString()));
+        assertEquals(0, placed.exit(), placed.err());
+        assertFalse(Files.exists(webapps.resolve("fhir-store.war")), "no MANIFEST means a failed or absent fetch: nothing is placed");
+    }
+
+    @Test
     void aWrongSha256FailsAndDeploysNothing(@TempDir Path tmp) throws Exception {
         Path store = war(Files.createDirectory(tmp.resolve("src")), "viscostore.war");
         Path list = tmp.resolve("components.list");
@@ -156,6 +183,8 @@ class FetchComponentsScriptTest {
                 "store war 1.0.0 file://" + store + " " + sha + " overlay/x",       // a war with an overlay target
                 "pack overlay 1.0.0 file://" + store + " " + sha + " runtime",      // an overlay without overlay/
                 "st ore war 1.0.0 file://" + store + " " + sha + " fhir-store x",   // id with a space (7 fields)
+                "pack overlay 1.0.0 file://" + store + " " + sha + " overlay/.",     // overlay target .
+                "pack overlay 1.0.0 file://" + store + " " + sha + " overlay/..",    // overlay target ..
                 "s\"t war 1.0.0 file://" + store + " " + sha + " fhir-store"}) {    // id with a quote
             Files.writeString(tmp.resolve("components.list"), "release 1.0.0\n" + bad + "\n");
             Run r = run(FETCH, tmp, Map.of("VF_COMPONENTS_DIR", tmp.resolve("c").toString()), tmp.resolve("components.list").toString());

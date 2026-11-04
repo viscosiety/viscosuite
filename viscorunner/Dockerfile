@@ -124,14 +124,17 @@ CMD ["catalina.sh", "run"]
 # ---------------------------------------------------------------------------------------------------
 # fat: viscobase plus the components a list names, fetched and placed at build time.
 #   docker build --target fat --build-arg COMPONENTS_LIST=target/components-suite.list .
-# A list with file:// URLs reads target/components/ (copied below); a list with registry URLs is fetched
+# A list with file:// URLs reads target/components/ (bind-mounted below); a list with registry URLs is fetched
 # with the job token, handed in as a BuildKit secret (docker build --secret id=job_token,env=CI_JOB_TOKEN):
 # never a build argument, never a layer.
 # ---------------------------------------------------------------------------------------------------
 FROM viscobase AS fat
 ARG COMPONENTS_LIST=target/components-suite.list
-COPY --chown=tomcat target/components/ /opt/frank/component-files/
 COPY --chown=tomcat ${COMPONENTS_LIST} /opt/frank/components.list
-RUN --mount=type=secret,id=job_token,uid=2000 set -e; \
+# Local artifacts are bind-mounted read-only for the fetch (never a layer); after placing, the image keeps
+# only MANIFEST and components.json under /opt/frank/components (the placed copies are the ones in use).
+RUN --mount=type=bind,source=target/components,target=/opt/frank/component-files,ro \
+    --mount=type=secret,id=job_token,uid=2000 set -e; \
     if [ -f /run/secrets/job_token ]; then CI_JOB_TOKEN=$(cat /run/secrets/job_token); export CI_JOB_TOKEN; fi; \
-    /opt/frank/bin/fetch-components /opt/frank/components.list && /opt/frank/bin/place-components
+    /opt/frank/bin/fetch-components /opt/frank/components.list && /opt/frank/bin/place-components && \
+    rm -rf /opt/frank/components/webapps /opt/frank/components/overlay /opt/frank/components/files
