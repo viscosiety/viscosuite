@@ -1,58 +1,57 @@
 # ViscoSuite CI/CD pipeline
 #
 # Stages:
-#   test     — unit + integration tests, plus viscorunner's two fast class-path ITs (all branches and MRs)
-#   package  — full Maven build, produces WARs for the Docker image (main only)
-#   docker   — builds platform-specific images in parallel (main only)
-#   manifest — combines amd64 + arm64 images into a single multi-arch manifest (main only)
-#   cleanup  — deletes per-arch intermediate tags; keeps only the multi-arch tags below
+#   test              unit + integration tests, viscorunner's fast ITs and script tests (every branch, MR and tag)
+#   package           versions:set to this pipeline's version, full Maven build, the staged publish files (main + release tags)
+#   integration-test  viscorunner's launcher ITs (main + release tags)
+#   publish           the three component artifacts to this project's Maven package registry + the registry components lists
+#   docker            viscobase, viscorunner (fat), viscolink (fat), viscostore — per architecture, each smoke-tested before its push
+#   manifest          multi-arch manifests; viscolink:<v>-core is viscobase under another name
+#   release           the release BOM viscosuite-release:<v> (and the anonymous-pull proof)
+#   downstream        trigger viscoForge (UPSTREAM_RELEASE + UPSTREAM_TAG); the GitHub release on a tag
+#   cleanup           per-arch image tags; old main-commit packages
+#
+# Version (scripts/ci/version.sh): a tag vA.B.C publishes A.B.C (it must equal the poms' A.B.C-SNAPSHOT
+# base); a main commit publishes A.B.C-<pipeline id>. Image tags: <sha>, <version>, latest.
 #
 # Runners: self-hosted Docker runners
 #   amd64: tags [docker, x86-64, dind]
 #   arm64: tags [docker, arm64, dind]  (Raspberry Pi 5)
 # Registry: $CI_REGISTRY_IMAGE (GitLab project registry)
 #
-# Images (the runner images are ONE recipe, viscorunner/Dockerfile, x PACK x STORE):
-#   image        PACK    STORE       tags (all multi-arch)
-#   viscorunner  health  viscostore  :<sha>        :latest        :<sha>-health  :latest-health
-#   viscolink    health  none        :<sha>        :latest        :<sha>-health  :latest-health
-#   viscolink    core    none        :<sha>-core   :latest-core
-#   viscostore   -       -           :<sha>        :latest        (viscorunner/Dockerfile.viscostore)
-# The unsuffixed tags keep their old meaning (health); -health is the explicit spelling and
-# -core is the pack-less core. Per-arch build intermediates are <tag>-amd64 / <tag>-arm64.
+# Images (viscorunner/Dockerfile, two stages; the component model, viscoFoundry design 2026-11-04):
+#   image        stage      components fetched at build        tags (all multi-arch)
+#   viscobase    viscobase  none                               :<sha> :<version> :latest  (+ viscolink:<sha>-core, :<version>-core, :latest-core)
+#   viscorunner  fat        store + pack-health                :<sha> :<version> :latest  :<sha>-health :latest-health
+#   viscolink    fat        pack-health                        :<sha> :<version> :latest  :<sha>-health :latest-health
+#   viscostore   -          -                                  :<sha> :<version> :latest  (viscorunner/Dockerfile.viscostore)
+# The -health aliases stay until M4 of the component model. Per-arch build intermediates are <sha>-amd64 / <sha>-arm64.
 
 stages:
   - test
   - package
   - integration-test
+  - publish
   - docker
   - manifest
+  - release
   - downstream
   - cleanup
 
 variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
-  # -B: batch mode (no ANSI colours, no interactive prompts)
-  # No -U: the F!F dependency is pinned to a TIMESTAMPED snapshot version
-  # (frankframework.version in the root pom), which is immutable — the version
-  # string IS the timestamp, so there is no stale-metadata problem for -U to
-  # solve, and -U would force remote metadata checks against WAF's Nexus for
-  # every snapshot artifact in every job. Bumping to a newer nightly changes
-  # the version string, which forces the fresh download by itself.
+  # -B: batch mode. No -U: the F!F dependency is pinned to an immutable version (see the root pom).
   MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
-  IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # combined image
-  IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # ViscoLink-only image
-  IMAGE_VISCOSTORE: $CI_REGISTRY_IMAGE/viscostore   # ViscoStore-only image
+  IMAGE_VISCOBASE: $CI_REGISTRY_IMAGE/viscobase
+  IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # the suite image (health + store)
+  IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # health, no store; its -core tags are viscobase
+  IMAGE_VISCOSTORE: $CI_REGISTRY_IMAGE/viscostore   # the store-only image
+  VERSIONS_PLUGIN: org.codehaus.mojo:versions-maven-plugin:2.18.0
   # Disable TLS for Docker-in-Docker on self-hosted runners
   DOCKER_TLS_CERTDIR: ""
 
-# Maven dependency cache — ONE shared key across all branches: the local repo is
-# append-only in practice (versions are pinned, releases immutable), so a per-branch
-# key only forces every new branch to re-download the full F!F tree from WAF's Nexus.
-# Branch/MR jobs pull; only the main-only package job pushes, so concurrent MR
-# pipelines never race on the cache upload and jobs skip the multi-GB re-zip.
-# Applied explicitly only to Maven jobs; docker/manifest/cleanup jobs opt out via
-# cache: [] so they don't emit "no matching files" warnings.
+# Maven dependency cache — ONE shared key across all branches (see the comment in git history: the
+# local repo is append-only in practice). Branch/MR jobs pull; only the main-only package job pushes.
 .maven-cache: &maven-cache
   cache:
     key: maven-repo
@@ -67,30 +66,33 @@ variables:
       - .m2/repository/
     policy: pull-push
 
+# Node + pnpm for the UI builds, unzip for the fetcher's script tests.
+.maven-before: &maven-before
+  - apt-get update
+  - apt-get install -y curl ca-certificates unzip
+  - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+  - apt-get install -y nodejs
+  - corepack enable
+  - corepack prepare pnpm@9.14.2 --activate
+
+# main commits and release tags publish; everything else only tests.
+.on-main-or-release: &on-main-or-release
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "main"'
+    - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
+
 # ---------------------------------------------------------------------------
-# Stage: test
-# Unit and integration tests for viscolink, the health pack and viscostore.
-# Runs on every push and every merge request.
-#
-# Then viscorunner's two fast class-path ITs (HealthClasspathIT, the D8 oracle with its frozen
-# golden, and PackOverlayLayoutIT) so a Frank!Framework / ladybug / HAPI bump or a pack pom
-# change is caught on the merge request, not after the merge (the slow launcher ITs stay in
-# integration-test, main only). One `install` (tests on) both runs the three modules' tests and
-# leaves their artifacts in .m2/, which viscorunner's copy-dependencies and unpack resolve from
-# (not the reactor — see CLAUDE.md); a separate `verify` would package everything twice.
-# `verify -pl viscorunner` also runs viscorunner's unit tests (Dockerfile contract, event publisher).
+# Stage: test — every push, merge request and tag.
+# One `install` (tests on) runs the three modules' tests and leaves their artifacts in .m2/, which
+# viscorunner's copy-dependencies and unpack resolve from (not the reactor — see CLAUDE.md).
+# `verify -pl viscorunner` runs its unit tests (Dockerfile contract, the fetcher and CI scripts, the
+# release template, the event publisher) and the two fast ITs.
 # ---------------------------------------------------------------------------
 test:
   stage: test
   image: maven:3.9-eclipse-temurin-21
   <<: *maven-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y curl ca-certificates
-    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    - apt-get install -y nodejs
-    - corepack enable
-    - corepack prepare pnpm@9.14.2 --activate
+  before_script: *maven-before
   tags: [docker]
   script:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
@@ -98,99 +100,86 @@ test:
   rules:
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
+    - if: '$CI_COMMIT_TAG'
 
 # ---------------------------------------------------------------------------
-# Stage: package
-# Pure artifact production — no tests.  Installs viscolink, the health pack and
-# viscostore to .m2/ so that viscorunner's copy-dependencies can resolve them, then
-# packages viscorunner (copies WARs + drivers into target/ and stages the pack
-# overlays, the demo sets and the store WARs that the one Dockerfile COPYs).
-# (packs/health/util/hl7util is a utility, not part of the image: CI does not build it.)
-#
-# NOTE: install before package is required because copy-dependencies resolves
-# from .m2/ rather than the reactor — see CLAUDE.md.
+# Stage: package — pure artifact production at this pipeline's version.
+# versions:set rewrites every module pom (they have no common parent, hence processAllModules), then
+# install + package as before, then stage-publish.sh collects the bytes the publish job uploads and the
+# fat images fetch. VERSION is exported through a dotenv report for the trigger job.
 # ---------------------------------------------------------------------------
 package:
   stage: package
   image: maven:3.9-eclipse-temurin-21
   <<: *maven-cache-push
-  before_script:
-    - apt-get update
-    - apt-get install -y curl ca-certificates
-    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    - apt-get install -y nodejs
-    - corepack enable
-    - corepack prepare pnpm@9.14.2 --activate
+  before_script: *maven-before
   tags: [docker]
   script:
+    - VERSION=$(sh scripts/ci/version.sh) && echo "VERSION=$VERSION" > version.env && echo "version $VERSION"
+    - ./mvnw $MAVEN_CLI_OPTS -q $VERSIONS_PLUGIN:set -DnewVersion="$VERSION" -DprocessAllModules=true -DgenerateBackupPoms=false
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
     - ./mvnw $MAVEN_CLI_OPTS package -pl viscorunner -DskipTests
+    - sh scripts/ci/stage-publish.sh "$VERSION"
   artifacts:
+    reports:
+      dotenv: version.env
     paths:
       - viscorunner/target/viscolink.war
-      - viscorunner/target/viscostore.war
       - viscorunner/target/drivers/
-      # Lemma's JNI libraries per architecture; the Dockerfile copies the one for the image's architecture to /opt/frank/native/.
       - viscorunner/target/native/
-      # Staged for viscorunner/Dockerfile: packs/<PACK>/ (webapp overlay), demo/<PACK>/
-      # (demo configurations), store/<STORE>/ (viscostore.war, or nothing for none).
-      - viscorunner/target/packs/
       - viscorunner/target/demo/
-      - viscorunner/target/store/
-      # Shaded viscorunner jar (fabric8 + relocated Jackson/SnakeYAML) for ContextFailureEventPublisher,
-      # placed on Tomcat's common.loader at /opt/frank/lib by the Dockerfile.
       - viscorunner/target/viscorunner-*.jar
-    # target/store/viscostore/fhir-store.war is a second copy of target/viscostore.war (about
-    # 350 MB, already an artifact above): shipping both would add that to every pipeline and to
-    # each of the eight docker jobs that download it. The docker jobs recreate it (.docker-build).
-    exclude:
-      - viscorunner/target/store/viscostore/fhir-store.war
+      - viscorunner/target/publish/
+      - packs/health/target/viscolink-pack-health-*.jar
+    # target/viscostore.war and target/packs/ are no longer shipped: the images fetch the store and the pack
+    # from the registry (publish.sh), and the ITs rebuild their own staging in integration-test.
     expire_in: 1 hour
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+  <<: *on-main-or-release
 
 # ---------------------------------------------------------------------------
-# Stage: integration-test
-# Runs viscorunner's LabEnrichmentIT (starts real viscostore + viscolink
-# processes with the health pack's overlay).  Re-installs viscolink, the health
-# pack and viscostore from cache so the launcher JARs are in .m2/, then runs
-# verify which repackages and fires failsafe.
-# Docker build depends on both this job and package, so a failing IT blocks
-# the image push.
+# Stage: integration-test — viscorunner's launcher ITs at the same version.
 # ---------------------------------------------------------------------------
 integration-test:
   stage: integration-test
   image: maven:3.9-eclipse-temurin-21
   <<: *maven-cache
-  before_script:
-    - apt-get update
-    - apt-get install -y curl ca-certificates
-    - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
-    - apt-get install -y nodejs
-    - corepack enable
-    - corepack prepare pnpm@9.14.2 --activate
+  before_script: *maven-before
   tags: [docker]
   script:
+    - VERSION=$(sh scripts/ci/version.sh)
+    - ./mvnw $MAVEN_CLI_OPTS -q $VERSIONS_PLUGIN:set -DnewVersion="$VERSION" -DprocessAllModules=true -DgenerateBackupPoms=false
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore -DskipTests
     - ./mvnw $MAVEN_CLI_OPTS verify   -pl viscorunner
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+  <<: *on-main-or-release
 
 # ---------------------------------------------------------------------------
-# Stage: docker
-# Builds a platform-specific image on each native runner and pushes it with
-# a platform suffix tag, e.g.:
-#   <registry>/viscorunner:<sha>-amd64
-#   <registry>/viscorunner:<sha>-arm64
-# The jobs run in parallel.
-#
-# One recipe (viscorunner/Dockerfile) x PACK x STORE x arch. The image name and
-# the tag suffix per variant:
-#   health + viscostore -> viscorunner:<sha>[-arch]        (today's meaning, kept)
-#   health + none       -> viscolink:<sha>[-arch]          (today's meaning, kept)
-#   core   + none       -> viscolink:<sha>-core[-arch]
-# .docker-build is the shared recipe; each job names its runner (tags), its arch and
-# one of the three variant variable sets below.
+# Stage: publish — the three component artifacts, exactly the staged bytes, after the ITs passed.
+# Writes the registry components lists the fat image builds fetch from.
+# ---------------------------------------------------------------------------
+publish:
+  stage: publish
+  image: maven:3.9-eclipse-temurin-21
+  <<: *maven-cache
+  tags: [docker]
+  needs:
+    - job: package
+      artifacts: true
+    - job: integration-test
+      artifacts: false
+  script:
+    - sh scripts/ci/publish.sh
+  artifacts:
+    paths:
+      - viscorunner/target/components-registry-suite.list
+      - viscorunner/target/components-registry-viscolink.list
+    expire_in: 1 hour
+  <<: *on-main-or-release
+
+# ---------------------------------------------------------------------------
+# Stage: docker — one recipe (viscorunner/Dockerfile), a stage and a list per image, per architecture.
+# A fat build fetches the just-published artifacts from the registry with the job token handed in as a
+# BuildKit secret (never a build argument). Every image is booted and checked (scripts/ci/smoke-image.sh)
+# before it is pushed.
 # ---------------------------------------------------------------------------
 .docker-build:
   stage: docker
@@ -200,55 +189,55 @@ integration-test:
   needs:
     - job: package
       artifacts: true
-    - job: integration-test
-      artifacts: false
+    - job: publish
+      artifacts: true
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    # Empty directories may not survive the artifact zip; COPY of a missing source would fail every STORE=none build.
-    - mkdir -p viscorunner/target/store/none viscorunner/target/packs/core/WEB-INF/lib
-    # The store copy is not an artifact (package excludes it, it is a duplicate of target/viscostore.war): recreate it.
-    - if [ "$STORE" != none ]; then mkdir -p viscorunner/target/store/viscostore && cp viscorunner/target/viscostore.war viscorunner/target/store/viscostore/fhir-store.war; fi
-    - docker build --platform "linux/$ARCH"
-        --build-arg "PACK=$PACK" --build-arg "STORE=$STORE"
-        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
-        -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA$TAG_SUFFIX-$ARCH"
+    - VERSION=$(sh scripts/ci/version.sh)
+    # The fat stage COPYs target/components/ (local artifacts for file:// lists); CI lists carry registry URLs, so it is empty here.
+    - mkdir -p viscorunner/target/components
+    - |
+      LIST_ARG=""
+      if [ "$TARGET" != viscobase ]; then LIST_ARG="--build-arg COMPONENTS_LIST=target/$COMPONENTS_LIST"; fi
+    - docker build --platform "linux/$ARCH" --target "$TARGET" $LIST_ARG
+        --secret id=job_token,env=CI_JOB_TOKEN
+        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $VERSION ($CI_COMMIT_SHORT_SHA)"
+        -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH"
         viscorunner/
-    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA$TAG_SUFFIX-$ARCH"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - sh scripts/ci/smoke-image.sh "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH" $SMOKE_COMPONENTS
+    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH"
+  <<: *on-main-or-release
 
-# Per-variant variables (merged into each job's `variables` below).
-.health-suite: &health-suite
-  PACK: health
-  STORE: viscostore
+.viscobase: &viscobase
+  TARGET: viscobase
+  IMAGE_NAME: viscobase
+  COMPONENTS_LIST: ""
+  SMOKE_COMPONENTS: ""
+.suite: &suite
+  TARGET: fat
   IMAGE_NAME: viscorunner
-  TAG_SUFFIX: ""
-.health-link: &health-link
-  PACK: health
-  STORE: none
+  COMPONENTS_LIST: components-registry-suite.list
+  SMOKE_COMPONENTS: "store pack-health"
+.link: &link
+  TARGET: fat
   IMAGE_NAME: viscolink
-  TAG_SUFFIX: ""
-.core-link: &core-link
-  PACK: core
-  STORE: none
-  IMAGE_NAME: viscolink
-  TAG_SUFFIX: "-core"
+  COMPONENTS_LIST: components-registry-viscolink.list
+  SMOKE_COMPONENTS: "pack-health"
 
-docker:viscosuite:amd64:      { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *health-suite, ARCH: amd64 } }
-docker:viscosuite:arm64:      { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *health-suite, ARCH: arm64 } }
-docker:viscolink:amd64:       { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *health-link,  ARCH: amd64 } }
-docker:viscolink:arm64:       { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *health-link,  ARCH: arm64 } }
-docker:viscolink-core:amd64:  { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *core-link,    ARCH: amd64 } }
-docker:viscolink-core:arm64:  { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *core-link,    ARCH: arm64 } }
+docker:viscobase:amd64:   { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *viscobase, ARCH: amd64 } }
+docker:viscobase:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *viscobase, ARCH: arm64 } }
+docker:viscosuite:amd64:  { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *suite,     ARCH: amd64 } }
+docker:viscosuite:arm64:  { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *suite,     ARCH: arm64 } }
+docker:viscolink:amd64:   { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *link,      ARCH: amd64 } }
+docker:viscolink:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *link,      ARCH: arm64 } }
 
 # ---------------------------------------------------------------------------
-# Stage: docker — standalone ViscoStore image
+# Stage: docker — standalone ViscoStore image (unchanged recipe; needs the staged store WAR from publish/).
 # ---------------------------------------------------------------------------
-docker:viscostore:amd64:
+.docker-viscostore:
   stage: docker
   image: docker:27
-  tags: [docker, x86-64, dind]
   services:
     - docker:27-dind
   needs:
@@ -259,182 +248,146 @@ docker:viscostore:amd64:
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
-    - docker build --platform linux/amd64
+    - cp viscorunner/target/publish/viscostore.war viscorunner/target/viscostore.war
+    - docker build --platform "linux/$ARCH"
         -f viscorunner/Dockerfile.viscostore
-        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
+        --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$ARCH"
         viscorunner/
-    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$ARCH"
+  <<: *on-main-or-release
 
-docker:viscostore:arm64:
-  stage: docker
-  image: docker:27
-  tags: [docker, arm64, dind]
-  services:
-    - docker:27-dind
-  needs:
-    - job: package
-      artifacts: true
-    - job: integration-test
-      artifacts: false
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker build --platform linux/arm64
-        -f viscorunner/Dockerfile.viscostore
-        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
-        viscorunner/
-    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+docker:viscostore:amd64: { extends: .docker-viscostore, tags: [docker, x86-64, dind], variables: { ARCH: amd64 } }
+docker:viscostore:arm64: { extends: .docker-viscostore, tags: [docker, arm64, dind],  variables: { ARCH: arm64 } }
 
 # ---------------------------------------------------------------------------
-# Stage: manifest
-# Combines platform images into multi-arch manifests.
-# Combined:       <registry>/viscorunner:<sha>     + :latest + :<sha>-health + :latest-health
-# ViscoLink:      <registry>/viscolink:<sha>       + :latest + :<sha>-health + :latest-health
-# ViscoLink core: <registry>/viscolink:<sha>-core  + :latest-core
-# ViscoStore:     <registry>/viscostore:<sha>      + :latest
-# (-health tags are extra names for the same manifest as the unsuffixed ones: no extra build.)
+# Stage: manifest — multi-arch manifests. viscobase is also tagged as viscolink:…-core (the core IS the
+# bare image). If imagetools cannot tag across repositories on this registry, replace the two
+# viscolink -core lines with: docker pull/tag/push of each per-arch viscobase image under
+# viscolink:<sha>-core-<arch>, then a second imagetools create from those.
 # ---------------------------------------------------------------------------
-manifest:viscosuite:
+.manifest:
   stage: manifest
   image: docker:27
   tags: [dind]
   services:
     - docker:27-dind
+  before_script:
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+  <<: *on-main-or-release
+
+manifest:viscobase:
+  extends: .manifest
+  needs:
+    - docker:viscobase:amd64
+    - docker:viscobase:arm64
+  script:
+    - VERSION=$(sh scripts/ci/version.sh)
+    - docker buildx imagetools create
+        -t "$IMAGE_VISCOBASE:$CI_COMMIT_SHA" -t "$IMAGE_VISCOBASE:$VERSION" -t "$IMAGE_VISCOBASE:latest"
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core" -t "$IMAGE_VISCOLINK:$VERSION-core" -t "$IMAGE_VISCOLINK:latest-core"
+        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-amd64"
+        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-arm64"
+
+manifest:viscosuite:
+  extends: .manifest
   needs:
     - docker:viscosuite:amd64
     - docker:viscosuite:arm64
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
+    - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
-        -t "$IMAGE:$CI_COMMIT_SHA"
-        -t "$IMAGE:latest"
-        -t "$IMAGE:$CI_COMMIT_SHA-health"
-        -t "$IMAGE:latest-health"
+        -t "$IMAGE:$CI_COMMIT_SHA" -t "$IMAGE:$VERSION" -t "$IMAGE:latest"
+        -t "$IMAGE:$CI_COMMIT_SHA-health" -t "$IMAGE:latest-health"
         "$IMAGE:$CI_COMMIT_SHA-amd64"
         "$IMAGE:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
 
 manifest:viscolink:
-  stage: manifest
-  image: docker:27
-  tags: [dind]
-  services:
-    - docker:27-dind
+  extends: .manifest
   needs:
     - docker:viscolink:amd64
     - docker:viscolink:arm64
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
+    - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA"
-        -t "$IMAGE_VISCOLINK:latest"
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-health"
-        -t "$IMAGE_VISCOLINK:latest-health"
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA" -t "$IMAGE_VISCOLINK:$VERSION" -t "$IMAGE_VISCOLINK:latest"
+        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-health" -t "$IMAGE_VISCOLINK:latest-health"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
-
-manifest:viscolink-core:
-  stage: manifest
-  image: docker:27
-  tags: [dind]
-  services:
-    - docker:27-dind
-  needs:
-    - docker:viscolink-core:amd64
-    - docker:viscolink-core:arm64
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-  script:
-    - docker buildx imagetools create
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core"
-        -t "$IMAGE_VISCOLINK:latest-core"
-        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core-amd64"
-        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
 
 manifest:viscostore:
-  stage: manifest
-  image: docker:27
-  tags: [dind]
-  services:
-    - docker:27-dind
+  extends: .manifest
   needs:
     - docker:viscostore:amd64
     - docker:viscostore:arm64
-  before_script:
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
+    - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
-        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA"
-        -t "$IMAGE_VISCOSTORE:latest"
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA" -t "$IMAGE_VISCOSTORE:$VERSION" -t "$IMAGE_VISCOSTORE:latest"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
         "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
 
 # ---------------------------------------------------------------------------
-# Stage: downstream
-# Once the combined multi-arch viscorunner image is published, trigger the
-# ViscoForge pipeline so it rebuilds against the new base image. GitLab cannot
-# start a pipeline "on registry push", so the upstream pipeline emits the trigger.
-#
-# Requires (ViscoForge side): Settings -> CI/CD -> Token Access must allow this
-# project (public-applications/viscosuite) to trigger via CI_JOB_TOKEN, and its
-# .gitlab-ci.yml must run on `$CI_PIPELINE_SOURCE == "pipeline"`.
-#
-# allow_failure keeps the ViscoSuite pipeline green while the ViscoForge side is
-# being wired up; drop it once the trigger is confirmed working.
+# Stage: release — the BOM. Pins the registry's own sha256 of each package file and viscobase's manifest
+# digest, uploads viscosuite-release:<version>, and proves one package file is pullable without a token.
+# ---------------------------------------------------------------------------
+release:bom:
+  stage: release
+  image: docker:27
+  tags: [dind]
+  services:
+    - docker:27-dind
+  needs:
+    - manifest:viscobase
+    - manifest:viscosuite
+    - manifest:viscolink
+    - job: publish
+      artifacts: false
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - VERSION=$(sh scripts/ci/version.sh)
+    - sh scripts/ci/write-release-bom.sh "$VERSION"
+  artifacts:
+    paths:
+      - viscorunner/target/viscosuite-release-*.json
+    expire_in: 1 week
+  <<: *on-main-or-release
+
+# ---------------------------------------------------------------------------
+# Stage: downstream — trigger viscoForge once the release exists. UPSTREAM_RELEASE is the version
+# (viscoForge resolves the Suite BOM from it, from M2 on); UPSTREAM_TAG stays for the Forge pipeline as
+# it is today (it builds FROM viscorunner:<sha> until M2). VERSION comes from package's dotenv report.
 # ---------------------------------------------------------------------------
 trigger:viscoforge:
   stage: downstream
-  # Wait for EVERY base image ViscoForge builds FROM: viscorunner (suite stack),
-  # viscolink (link stack) and viscolink's core variant (link stack, PACK=core). All
-  # carry the same $CI_COMMIT_SHA tag (the core one with the -core suffix); without
-  # the core manifest here, Forge's core build could race the tag on a slow arm64 day.
   needs:
+    - job: package
+      artifacts: true
+    - release:bom
     - manifest:viscosuite
     - manifest:viscolink
-    - manifest:viscolink-core
+    - manifest:viscobase
   allow_failure: true
   variables:
-    # The exact tag just pushed for viscorunner, viscolink AND viscolink:<sha>-core;
-    # ViscoForge builds FROM them.
     UPSTREAM_TAG: "$CI_COMMIT_SHA"
+    UPSTREAM_RELEASE: "$VERSION"
   trigger:
-    project: commercial/viscoforge   # << confirm ViscoForge's project path
+    project: commercial/viscoforge
     branch: main
-    # strategy: depend   # uncomment to make THIS pipeline wait for / reflect ViscoForge's result
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+  <<: *on-main-or-release
 
 # ---------------------------------------------------------------------------
-# Stage: cleanup
-# Deletes per-arch intermediate tags (:<sha>-amd64, :<sha>-arm64, and for the
-# core variant :<sha>-core-amd64, :<sha>-core-arm64) immediately after manifests
-# are pushed — these are build intermediates only.
-# Keeping only the multi-arch tags (:<sha>, :latest, -health, -core; see the header).
-#
-# "Keep last N builds" is handled by GitLab's built-in cleanup policy:
-# Settings → Packages and registries → Cleanup policies
+# Stage: cleanup — per-arch intermediates; old main-commit packages (releases are kept forever).
 # ---------------------------------------------------------------------------
 cleanup:arch-tags:
   stage: cleanup
   image: alpine:3
   tags: [docker]
   needs:
+    - manifest:viscobase
     - manifest:viscosuite
     - manifest:viscolink
-    - manifest:viscolink-core
     - manifest:viscostore
   before_script:
     - apk add --no-cache curl jq
@@ -442,18 +395,14 @@ cleanup:arch-tags:
     - |
       REPOS=$(curl --silent --header "JOB-TOKEN: $CI_JOB_TOKEN" \
         "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/registry/repositories")
-      # "<image>:<tag suffix>" pairs (an empty suffix is the plain <sha>-<arch> tag).
-      # The viscolink repo holds two variants: health (no suffix) and core (-core).
-      for PAIR in "viscorunner:" "viscolink:" "viscolink:-core" "viscostore:"; do
-        IMAGE_NAME=${PAIR%%:*}
-        TAG_SUFFIX=${PAIR#*:}
+      for IMAGE_NAME in viscobase viscorunner viscolink viscostore; do
         REPO_ID=$(echo "$REPOS" | jq -r ".[] | select(.name == \"${IMAGE_NAME}\") | .id")
         if [ -z "$REPO_ID" ] || [ "$REPO_ID" = "null" ]; then
           echo "WARNING: repo not found for ${IMAGE_NAME}, skipping"
           continue
         fi
         for ARCH in amd64 arm64; do
-          TAG="${CI_COMMIT_SHA}${TAG_SUFFIX}-${ARCH}"
+          TAG="${CI_COMMIT_SHA}-${ARCH}"
           STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
             --request DELETE \
             --header "JOB-TOKEN: $CI_JOB_TOKEN" \
@@ -461,28 +410,23 @@ cleanup:arch-tags:
           echo "${IMAGE_NAME}:${TAG} → HTTP ${STATUS}"
         done
       done
-  rules:
-    - if: '$CI_COMMIT_BRANCH == "main"'
+  <<: *on-main-or-release
+
+cleanup:packages:
+  stage: cleanup
+  image: alpine:3
+  tags: [docker]
+  needs:
+    - release:bom
+  before_script:
+    - apk add --no-cache curl jq
+  script:
+    - sh scripts/ci/cleanup-packages.sh
+  <<: *on-main-or-release
 
 # ---------------------------------------------------------------------------
-# Open-source distribution
-#
-# GitHub is the community front door; this GitLab is the system of record.
-# Branches and tags reach GitHub via push mirroring (Settings → Repository →
-# Mirroring repositories: push, GitHub classic PAT with the `repo` scope,
-# "keep divergent refs" off). Releases do NOT mirror, so this job creates the
-# GitHub Release when a tag is pushed. Requires CI/CD variable GITHUB_TOKEN
-# (masked, Protected): a PAT that can write viscosiety/viscosuite contents.
-# GITHUB_TOKEN being Protected means it is ONLY visible on protected refs —
-# tags must match a protected-tag pattern (v*) under Settings → Repository →
-# Protected tags, or the job runs with an empty token.
-#
-# target_commitish covers mirror lag: if the tag hasn't reached GitHub yet
-# when this runs, GitHub creates it on the right commit instead of on the
-# default branch's head. A 422 means the release already exists (job retry,
-# or a tag re-push) and is treated as success.
+# Open-source distribution: the GitHub Release on a tag (unchanged; see git history for the token notes).
 # ---------------------------------------------------------------------------
-
 github-release:
   stage: downstream
   image: alpine:3.20
@@ -493,10 +437,7 @@ github-release:
     - apk add --no-cache curl
     - |
       if [ -z "${GITHUB_TOKEN}" ]; then
-        echo "ERROR: GITHUB_TOKEN is empty in this job."
-        echo "It is defined as a Protected CI/CD variable, so it is only injected on protected refs."
-        echo "Fix: protect tags matching 'v*' under Settings -> Repository -> Protected tags,"
-        echo "or untick 'Protected' on the GITHUB_TOKEN variable."
+        echo "ERROR: GITHUB_TOKEN is empty in this job (a Protected variable: protect tags matching 'v*')."
         exit 1
       fi
     - |
