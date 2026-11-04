@@ -16,6 +16,7 @@
 
 package com.viscosiety.viscorunner;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -79,46 +80,110 @@ class DockerfileContractTest {
         return names;
     }
 
-    // ---- the Dockerfile ----
+    private static List<String> stage(List<String> lines, String from, String to) {
+        int start = lines.indexOf(from);
+        int end = to == null ? lines.size() : lines.indexOf(to);
+        assertTrue(start >= 0, from);
+        assertTrue(end > start, to);
+        return lines.subList(start, end);
+    }
+
+    // ---- the two stages ----
 
     @Test
-    void packAndStoreAreDeclaredBeforeTheirFirstUse() throws IOException {
+    void oneDockerfileTwoStages() throws IOException {
         List<String> lines = dockerfileInstructions();
-        int packArg = lines.indexOf("ARG PACK=health");
-        int storeArg = lines.indexOf("ARG STORE=viscostore");
-        assertTrue(packArg >= 0, "ARG PACK=health (no trailing comment: a Dockerfile reads it as more ARG names)");
-        assertTrue(storeArg >= 0, "ARG STORE=viscostore (no trailing comment)");
-
-        int firstPackUse = -1;
-        int firstStoreUse = -1;
-        for (int i = 0; i < lines.size(); i++) {
-            if (firstPackUse < 0 && lines.get(i).contains("${PACK}")) {
-                firstPackUse = i;
-            }
-            if (firstStoreUse < 0 && lines.get(i).contains("${STORE}")) {
-                firstStoreUse = i;
-            }
-        }
-        assertTrue(firstPackUse > packArg, "ARG PACK precedes the first ${PACK}");
-        assertTrue(firstStoreUse > storeArg, "ARG STORE precedes the first ${STORE}");
+        assertTrue(hasLine(lines, "FROM tomcat:11.0.14-jre21 AS viscobase"), "stage viscobase on the Frank!Framework base image");
+        assertTrue(hasLine(lines, "FROM viscobase AS fat"), "stage fat builds on viscobase");
+        assertTrue(lines.stream().noneMatch(l -> l.contains("${PACK}") || l.contains("${STORE}") || l.startsWith("ARG PACK") || l.startsWith("ARG STORE")),
+            "no PACK/STORE variants: composition is a components list");
     }
 
     @Test
-    void packStoreAndContextAreCopiedFromTheirVariants() throws IOException {
-        List<String> lines = dockerfileInstructions();
-        assertTrue(hasLine(lines, "COPY --chown=tomcat target/packs/${PACK}/ /opt/frank/webapp-overlay/viscolink/"),
-            "the pack's overlay lands in the PreResources set of the /viscolink context");
-        assertTrue(hasLine(lines, "COPY --chown=tomcat target/demo/${PACK}/ /opt/frank/demo-configurations/"),
-            "the pack's demo configurations");
-        assertTrue(hasLine(lines, "COPY --chown=tomcat target/store/${STORE}/ /usr/local/tomcat/webapps/"),
-            "the store WAR (target/store/none/ is empty: nothing is copied)");
-        assertTrue(hasLine(lines, "COPY --chown=tomcat conf/context-${STORE}.xml /usr/local/tomcat/conf/context.xml"),
-            "the Tomcat context follows the store");
-        assertTrue(hasLine(lines, "COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/runtime.war"),
-            "the core WAR, served at /runtime");
-        assertTrue(hasLine(lines,
-                "COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/runtime.xml"),
+    void viscobaseHoldsNoComponent() throws IOException {
+        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        for (String forbidden : List.of("target/packs/", "target/store/", "fhir-store.war", "webapp-overlay/viscolink/WEB-INF", "components.list")) {
+            assertTrue(base.stream().noneMatch(l -> l.contains(forbidden)), "viscobase never copies " + forbidden);
+        }
+        assertTrue(hasLine(base, "COPY --chown=tomcat target/viscolink.war /usr/local/tomcat/webapps/runtime.war"), "the core WAR, served at /runtime");
+        assertTrue(hasLine(base, "COPY --chown=tomcat conf/Catalina/localhost/viscolink.xml /usr/local/tomcat/conf/Catalina/localhost/runtime.xml"),
             "the overlay context file follows the WAR's name");
+    }
+
+    @Test
+    void theOneGlobalContextDeclaresEveryDatasource() throws IOException {
+        List<String> lines = dockerfileInstructions();
+        assertTrue(hasLine(lines, "COPY --chown=tomcat conf/context.xml /usr/local/tomcat/conf/context.xml"), "one context for every composition");
+        assertFalse(Files.exists(MODULE.resolve("conf/context-none.xml")), "context-none.xml is gone");
+        assertFalse(Files.exists(MODULE.resolve("conf/context-viscostore.xml")), "renamed to context.xml");
+        assertEquals(Set.of("jdbc/viscolink", "jdbc/viscostore", "jdbc/ladybug"), contextResourceNames("conf/context.xml"),
+            "jdbc/viscostore stays declared: Tomcat creates it lazily and the Frank!Framework never enumerates JNDI, so a runtime without a store never sees it");
+    }
+
+    @Test
+    void theFetcherAndThePlacerShipInViscobase() throws IOException {
+        List<String> lines = dockerfileInstructions();
+        List<String> base = stage(lines, "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        assertTrue(hasLine(base, "COPY --chown=tomcat src/scripts/fetch-components src/scripts/place-components /opt/frank/bin/"), "the two scripts");
+        int unzip = -1, user = -1;
+        for (int i = 0; i < base.size(); i++) {
+            if (base.get(i).startsWith("RUN ") && base.get(i).contains("apt-get install") && base.get(i).contains("unzip")) unzip = i;
+            if (base.get(i).equals("USER tomcat")) user = i;
+        }
+        assertTrue(unzip >= 0 && user > unzip, "unzip is installed as root, before USER tomcat");
+        assertTrue(read("src/scripts/entrypoint.sh").contains("/opt/frank/bin/place-components"), "the entrypoint places the components at every start");
+        assertTrue(Files.isExecutable(MODULE.resolve("src/scripts/fetch-components")) && Files.isExecutable(MODULE.resolve("src/scripts/place-components")),
+            "both scripts are executable in git");
+    }
+
+    @Test
+    void theFatStageFetchesFromTheListAndPlaces() throws IOException {
+        List<String> fat = stage(dockerfileInstructions(), "FROM viscobase AS fat", null);
+        assertTrue(hasLine(fat, "ARG COMPONENTS_LIST=target/components-suite.list"), "the list is a build argument (a path in the build context)");
+        assertTrue(hasLine(fat, "COPY --chown=tomcat target/components/ /opt/frank/component-files/"), "local artifacts for file:// lists");
+        assertTrue(hasLine(fat, "COPY --chown=tomcat ${COMPONENTS_LIST} /opt/frank/components.list"), "the list itself");
+        // a RUN spans several lines (backslash continuations): look at the whole instruction
+        List<String> fatInstructions = String.join("\n", fat).replace(" \\\n", " ").lines().collect(Collectors.toList());
+        assertTrue(fatInstructions.stream().anyMatch(l -> l.startsWith("RUN --mount=type=secret,id=job_token,uid=2000")
+                && l.contains("/run/secrets/job_token") && l.contains("/opt/frank/bin/fetch-components /opt/frank/components.list")
+                && l.contains("/opt/frank/bin/place-components")),
+            "fetch then place, with the job token as a BuildKit secret (never a build argument, never a layer)");
+        assertTrue(fat.stream().noneMatch(l -> l.startsWith("ARG") && l.contains("TOKEN")), "no token build argument");
+    }
+
+    @Test
+    void theDemoSetsOfBothPacksShipInViscobase() throws IOException {
+        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        assertTrue(hasLine(base, "COPY --chown=tomcat target/demo/health/ /opt/frank/demo-configurations/health/"), "the health demo set");
+        assertTrue(hasLine(base, "COPY --chown=tomcat target/demo/core/ /opt/frank/demo-configurations/core/"), "the core demo set");
+    }
+
+    @Test
+    void theRuntimeDirectoriesTheOverlayAndTheJarNeedExist() throws IOException {
+        String dockerfile = read("Dockerfile");
+        for (String dir : List.of("/opt/frank/lib", "/opt/frank/bin", "/opt/frank/components", "/opt/frank/webapp-overlay/viscolink",
+                "/opt/frank/webapp-overlay/console", "/opt/frank/demo-configurations")) {
+            assertTrue(dockerfile.contains("mkdir -p " + dir), "mkdir -p " + dir);
+        }
+    }
+
+    @Test
+    void theWarStubCheckCoversTheRuntimeOnly() throws IOException {
+        String dockerfile = read("Dockerfile");
+        assertTrue(dockerfile.contains("stat -c%s /usr/local/tomcat/webapps/runtime.war"), "runtime.war is checked (a stale .m2 stub)");
+        assertFalse(dockerfile.contains("fhir-store.war"), "a fetched WAR is sha256-verified instead");
+    }
+
+    @Test
+    void oneDockerfileForTheRunnerAndNoMoreViscolinkDockerfile() {
+        assertFalse(Files.exists(MODULE.resolve("Dockerfile.viscolink")), "Dockerfile.viscolink is replaced by Dockerfile");
+        assertTrue(Files.exists(MODULE.resolve("Dockerfile.viscostore")), "Dockerfile.viscostore stays");
+    }
+
+    @Test
+    void thePackIdentityFilesAreGone() {
+        assertFalse(Files.exists(MODULE.resolve("src/packs")), "src/packs/core (its pack.properties) is gone: the core is the absence of an overlay");
+        assertFalse(Files.exists(MODULE.resolve("../packs/health/src/main/overlay")), "the health pack carries no pack.properties: its identity is HealthPack.java");
     }
 
     // ---- neutral web paths (2026-10-28) ----
@@ -178,51 +243,10 @@ class DockerfileContractTest {
     }
 
     @Test
-    void theRuntimeDirectoriesTheOverlayAndTheJarNeedExist() throws IOException {
-        String dockerfile = read("Dockerfile");
-        for (String dir : List.of("/opt/frank/lib", "/opt/frank/webapp-overlay/viscolink", "/opt/frank/demo-configurations")) {
-            assertTrue(dockerfile.contains("mkdir -p " + dir), "mkdir -p " + dir);
-        }
-    }
-
-    @Test
-    void theLandingPageIsStampedFromThePackOnTheOverlayInTheImage() throws IOException {
-        String dockerfile = read("Dockerfile");
-        assertTrue(dockerfile.contains("WEB-INF/pack.properties"), "reads the pack's identity from the overlay");
-        for (String placeholder : List.of("%%PACK_TAGLINE%%", "%%PACK_LINK_BLURB%%", "%%PACK_STAMP%%", "%%BUILD_TIMESTAMP%%")) {
-            assertTrue(dockerfile.contains(placeholder), "the Dockerfile fills " + placeholder);
-        }
-        assertTrue(dockerfile.indexOf("target/packs/${PACK}/") < dockerfile.indexOf("WEB-INF/pack.properties"),
-            "the overlay is copied before the stamp reads it");
-    }
-
-    @Test
-    void theWarIsOnlyCheckedForTheStoreThatIsInTheImage() throws IOException {
-        String dockerfile = read("Dockerfile");
-        assertTrue(dockerfile.contains("\"${STORE}\" != \"none\""), "the viscostore.war stub check is conditional on the store");
-    }
-
-    @Test
-    void oneDockerfileForTheRunnerAndNoMoreViscolinkDockerfile() {
-        assertFalse(Files.exists(MODULE.resolve("Dockerfile.viscolink")), "Dockerfile.viscolink is replaced by Dockerfile");
-        assertTrue(Files.exists(MODULE.resolve("Dockerfile.viscostore")), "Dockerfile.viscostore stays");
-    }
-
-    @Test
-    void contextFilesAreNamedAfterTheStore() throws IOException {
-        assertTrue(Files.exists(MODULE.resolve("conf/context-viscostore.xml")), "conf/context-viscostore.xml");
-        assertTrue(Files.exists(MODULE.resolve("conf/context-none.xml")), "conf/context-none.xml");
-        assertFalse(Files.exists(MODULE.resolve("conf/context-viscosuite.xml")), "renamed to context-viscostore.xml");
-        assertFalse(Files.exists(MODULE.resolve("conf/context-viscolink.xml")), "renamed to context-none.xml");
-        assertTrue(read("conf/context-viscostore.xml").contains("jdbc/viscostore"), "the suite context carries jdbc/viscostore");
-        assertFalse(read("conf/context-none.xml").contains("jdbc/viscostore"), "the store-less context does not");
-    }
-
-    @Test
     void everyTomcatContextDeclaresTheLadybugDatasource() throws IOException {
         // Every compose stack sets ladybug.jdbc.datasource=jdbc/ladybug; a context without it fails the
         // deploy of /viscolink (bean ladybugDataSource: unable to find resource [jdbc/ladybug]).
-        for (String file : List.of("conf/context-viscostore.xml", "conf/context-none.xml", "demo-conf/context.xml")) {
+        for (String file : List.of("conf/context.xml", "demo-conf/context.xml")) {
             assertTrue(contextResourceNames(file).contains("jdbc/ladybug"), file + " declares jdbc/ladybug");
         }
     }
@@ -230,7 +254,7 @@ class DockerfileContractTest {
     @Test
     void theDemoContextDeclaresEveryDatasourceOfTheSuiteContextItReplaces() throws IOException {
         // docker-compose.demo.yml mounts demo-conf/context.xml over the suite image's conf/context.xml.
-        Set<String> suite = contextResourceNames("conf/context-viscostore.xml");
+        Set<String> suite = contextResourceNames("conf/context.xml");
         Set<String> demo = contextResourceNames("demo-conf/context.xml");
         assertTrue(demo.containsAll(suite), "demo-conf/context.xml declares " + demo + ", the suite context " + suite);
         assertTrue(read("docker-compose.demo.yml").contains("./demo-conf/context.xml:/usr/local/tomcat/conf/context.xml:ro"),
@@ -246,30 +270,29 @@ class DockerfileContractTest {
     // ---- compose ----
 
     @Test
-    void suiteComposeBuildsTheHealthPackWithTheStore() throws IOException {
+    void suiteComposeBuildsTheFatStageWithTheSuiteList() throws IOException {
         String compose = read("docker-compose.yml");
         assertTrue(matches(compose, "^\\s+dockerfile:\\s*Dockerfile\\s*$"), "builds the one Dockerfile");
-        assertTrue(matches(compose, "^\\s+PACK:\\s*health\\s*$"), "PACK: health");
-        assertTrue(matches(compose, "^\\s+STORE:\\s*viscostore\\s*$"), "STORE: viscostore");
+        assertTrue(matches(compose, "^\\s+target:\\s*fat\\s*$"), "target: fat");
+        assertTrue(matches(compose, "^\\s+COMPONENTS_LIST:\\s*target/components-suite\\.list\\s*$"), "store + pack-health");
+        assertFalse(compose.contains("PACK:") || compose.contains("STORE:"), "no PACK/STORE build arguments");
     }
 
     @Test
-    void viscolinkComposeBuildsTheHealthPackWithoutAStore() throws IOException {
+    void viscolinkComposeBuildsTheFatStageWithTheViscolinkList() throws IOException {
         String compose = read("docker-compose.viscolink.yml");
-        assertTrue(matches(compose, "^\\s+dockerfile:\\s*Dockerfile\\s*$"), "builds the one Dockerfile");
-        assertTrue(matches(compose, "^\\s+PACK:\\s*health\\s*$"), "PACK: health");
-        assertTrue(matches(compose, "^\\s+STORE:\\s*none\\s*$"), "STORE: none");
+        assertTrue(matches(compose, "^\\s+target:\\s*fat\\s*$"), "target: fat");
+        assertTrue(matches(compose, "^\\s+COMPONENTS_LIST:\\s*target/components-viscolink\\.list\\s*$"), "pack-health only");
         assertTrue(matches(compose, "^\\s+image:\\s*" + Pattern.quote(LINK_IMAGE) + ":latest\\s*$"), "image ...:latest");
         assertTrue(compose.contains("2575:2575"), "the MLLP port stays");
     }
 
     @Test
-    void coreComposeBuildsTheCorePackWithoutAStore() throws IOException {
+    void coreComposeBuildsViscobase() throws IOException {
         String compose = read("docker-compose.core.yml");
-        assertTrue(matches(compose, "^\\s+dockerfile:\\s*Dockerfile\\s*$"), "builds the one Dockerfile");
-        assertTrue(matches(compose, "^\\s+PACK:\\s*core\\s*$"), "PACK: core");
-        assertTrue(matches(compose, "^\\s+STORE:\\s*none\\s*$"), "STORE: none");
-        assertTrue(matches(compose, "^\\s+image:\\s*" + Pattern.quote(LINK_IMAGE) + ":latest-core\\s*$"), "image ...:latest-core");
+        assertTrue(matches(compose, "^\\s+target:\\s*viscobase\\s*$"), "the core IS viscobase");
+        assertFalse(compose.contains("COMPONENTS_LIST"), "no list: no components");
+        assertTrue(matches(compose, "^\\s+image:\\s*" + Pattern.quote(LINK_IMAGE) + ":latest-core\\s*$"), "image ...:latest-core (an alias of viscobase)");
         assertTrue(matches(compose, "^\\s{2}viscolink:\\s*$"), "the service keeps the name viscolink");
         assertTrue(compose.contains("8180:8080"), "console port");
         assertFalse(compose.contains("2575"), "no MLLP port: the core has no HL7v2 listener");
@@ -298,43 +321,23 @@ class DockerfileContractTest {
             "a plain CREATE DATABASE statement would abort the suite's first start");
     }
 
-    // ---- the pack identity the Dockerfile stamps ----
-
-    @Test
-    void bothPackPropertiesFilesAreSafeForTheDockerfileSedAndDefineTheFiveKeys() throws IOException {
-        // The Dockerfile reads these files and fills the landing page with sed, using '|' as the delimiter and
-        // writing the values as the replacement text: a '|', '&' or backslash in a value would break it.
-        for (String file : List.of("../packs/health/src/main/overlay/WEB-INF/pack.properties",
-                "src/packs/core/WEB-INF/pack.properties")) {
-            String text = read(file);
-            for (char unsafe : new char[] {'|', '&', '\\'}) {
-                assertTrue(text.indexOf(unsafe) < 0, file + " contains '" + unsafe + "', which the Dockerfile's sed cannot take");
-            }
-            for (String key : List.of("pack.id", "pack.displayName", "pack.version", "pack.tagline", "pack.linkBlurb")) {
-                assertTrue(matches(text, "^" + Pattern.quote(key) + "=\\S.*$"), file + " defines " + key);
-            }
-        }
-    }
-
     // ---- landing page ----
 
     @Test
-    void theLandingPageTakesItsWordsFromThePack() throws IOException {
+    void theLandingPageReadsThePackFromComponentsJsonAndOnlyTheBuildStampIsBaked() throws IOException {
         String page = read("src/webapp/ROOT/index.html");
-        for (String placeholder : List.of("%%PACK_TAGLINE%%", "%%PACK_LINK_BLURB%%", "%%PACK_STAMP%%", "%%BUILD_TIMESTAMP%%")) {
-            assertTrue(page.contains(placeholder), "index.html carries " + placeholder);
+        for (String gone : List.of("%%PACK_TAGLINE%%", "%%PACK_LINK_BLURB%%", "%%PACK_STAMP%%")) {
+            assertFalse(page.contains(gone), "index.html no longer carries " + gone);
+            assertFalse(read("Dockerfile").contains(gone), "the Dockerfile no longer fills " + gone);
+            assertFalse(read("Dockerfile.viscostore").contains(gone), "Dockerfile.viscostore no longer fills " + gone);
         }
-        assertFalse(page.contains("Healthcare integration platform"), "the tagline is the pack's, not the page's");
-        assertTrue(page.contains("Viscosiety B.V.</span>%%PACK_STAMP%%%%BUILD_TIMESTAMP%%"), "the footer: company (brandable), pack stamp, then build stamp");
-    }
-
-    @Test
-    void theViscostoreOnlyImageFillsThePlaceholdersToo() throws IOException {
-        String dockerfile = read("Dockerfile.viscostore");
-        for (String placeholder : List.of("%%PACK_TAGLINE%%", "%%PACK_LINK_BLURB%%", "%%PACK_STAMP%%", "%%BUILD_TIMESTAMP%%")) {
-            assertTrue(dockerfile.contains(placeholder),
-                "Dockerfile.viscostore shares the ROOT page, so it fills " + placeholder + " (a literal would show)");
-        }
+        assertTrue(page.contains("%%BUILD_TIMESTAMP%%") && read("Dockerfile").contains("%%BUILD_TIMESTAMP%%")
+                && read("Dockerfile.viscostore").contains("%%BUILD_TIMESTAMP%%"), "the build stamp is still baked by both Dockerfiles");
+        assertTrue(page.contains("<p data-pack-tagline>Integration platform</p>"), "the core's tagline is the page's default");
+        assertTrue(page.contains("data-pack-blurb") && page.contains("<span data-pack-stamp></span>"), "pack blurb and stamp slots");
+        assertTrue(page.contains("fetch('components.json'"), "the page reads components.json (written by the fetcher next to it)");
+        assertTrue(page.contains("'pack-health'") && page.contains("Healthcare integration platform"), "the health pack's words live in the page");
+        assertTrue(page.contains("Viscosiety B.V.</span><span data-pack-stamp></span>%%BUILD_TIMESTAMP%%"), "the footer: company (brandable), pack/release stamp, then build stamp");
     }
 
     private static String lemmaEngineVersion(String pom) {

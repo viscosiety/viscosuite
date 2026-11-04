@@ -13,4 +13,11 @@ export JAVA_OPTS="\
 	--add-opens jdk.management/com.sun.management.internal=ALL-UNNAMED \
 	$JAVA_OPTS"
 
+# Components fetched into /opt/frank/components (at image build for the fat images, by the init
+# container on the platform) are copied into Tomcat's dirs at every start. The store-only image has
+# no placer: nothing to do there.
+if [ -x /opt/frank/bin/place-components ]; then
+	/opt/frank/bin/place-components
+fi
+
 exec "$@"
