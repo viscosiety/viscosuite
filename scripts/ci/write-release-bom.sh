@@ -14,6 +14,7 @@ VERSION="${1:?usage: write-release-bom.sh <version>}"
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
 auth="JOB-TOKEN: ${CI_JOB_TOKEN:?}"
 out="viscorunner/target/viscosuite-release-${VERSION}.json"
+mkdir -p "$(dirname "$out")"
 . "$(dirname "$0")/lib/packages.sh"
 
 api() { curl --fail --silent --show-error --header "$auth" "$@"; }
