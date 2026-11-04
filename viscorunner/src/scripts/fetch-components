@@ -1,0 +1,90 @@
+#!/bin/sh
+# fetch-components <list>: compose this runtime from the components a list names.
+#
+# The list (written by the portal, by CI or by the Maven build) has one header line
+#   release <version>
+# and one line per component
+#   <id> <kind> <version> <url> <sha256> <deployAs>
+#   kind: war       -> downloaded, verified, kept as <dir>/webapps/<deployAs>.war (deployAs = context name)
+#         overlay   -> downloaded, verified, unzipped into <dir>/overlay/<target>/ (deployAs = overlay/<target>)
+#         container -> recorded only (url = <image>@<digest>, sha256 and deployAs are "-")
+#   url: file://, http:// or https://. A registry URL is fetched with the Deploy-Token header from
+#        COMPONENT_REGISTRY_TOKEN or the Job-Token header from CI_JOB_TOKEN, whichever is set, passed
+#        to curl through a 0600 config file: the token is never on a command line and never printed.
+# Every byte is verified against the list's sha256 before it is kept; any failure exits non-zero and
+# writes no MANIFEST, so Tomcat (place-components, the entrypoint) never starts on a half composition.
+# Output: <dir>/MANIFEST (release=<v>, component=<id> <kind> <version> per line) and <dir>/components.json,
+# <dir> = $VF_COMPONENTS_DIR (default /opt/frank/components). place-components copies the result into Tomcat.
+set -eu
+
+LIST="${1:?usage: fetch-components <list-file>}"
+ROOT="${VF_COMPONENTS_DIR:-/opt/frank/components}"
+
+die() { echo "fetch-components: $*" >&2; exit 1; }
+
+sha_of() {
+  if command -v sha256sum >/dev/null 2>&1; then sha256sum "$1" | cut -d' ' -f1
+  else shasum -a 256 "$1" | cut -d' ' -f1; fi
+}
+
+[ -r "$LIST" ] || die "cannot read list $LIST"
+rm -rf "$ROOT/webapps" "$ROOT/overlay" "$ROOT/files" "$ROOT/MANIFEST" "$ROOT/components.json"
+mkdir -p "$ROOT/webapps" "$ROOT/overlay" "$ROOT/files"
+
+curlcfg=$(mktemp)
+chmod 600 "$curlcfg"
+trap 'rm -f "$curlcfg" "$ROOT/MANIFEST.part"' EXIT
+if [ -n "${COMPONENT_REGISTRY_TOKEN:-}" ]; then printf 'header = "Deploy-Token: %s"\n' "$COMPONENT_REGISTRY_TOKEN" >> "$curlcfg"
+elif [ -n "${CI_JOB_TOKEN:-}" ]; then printf 'header = "Job-Token: %s"\n' "$CI_JOB_TOKEN" >> "$curlcfg"; fi
+
+release=""
+json=""
+: > "$ROOT/MANIFEST.part"
+
+while read -r id kind version url sha deploy_as extra || [ -n "$id" ]; do
+  case "$id" in ''|'#'*) continue ;; esac
+  if [ "$id" = release ]; then
+    [ -n "$kind" ] && [ -z "$version" ] || die "the release line is 'release <version>'"
+    case "$kind" in *[!A-Za-z0-9._-]*) die "release is [A-Za-z0-9._-]+" ;; esac
+    release="$kind"
+    continue
+  fi
+  [ -n "$deploy_as" ] && [ -z "$extra" ] || die "$id: expected '<id> <kind> <version> <url> <sha256> <deployAs>', got: $id $kind $version $url $sha $deploy_as $extra"
+  for field in "$id" "$kind" "$version"; do
+    case "$field" in *[!A-Za-z0-9._-]*|'') die "$id: id, kind and version are [A-Za-z0-9._-]+" ;; esac
+  done
+  case "$kind" in
+    container)
+      ;;
+    war|overlay)
+      case "$kind" in war) file="$ROOT/files/$id.war" ;; *) file="$ROOT/files/$id.zip" ;; esac
+      case "$url" in
+        file://*) cp "${url#file://}" "$file" 2>/dev/null || die "$id: cannot read $url" ;;
+        https://*|http://*)
+          curl --fail --silent --show-error --location --retry 3 --config "$curlcfg" --output "$file" "$url" \
+            || die "$id: download of $url failed" ;;
+        *) die "$id: url must be file://, http:// or https://" ;;
+      esac
+      actual=$(sha_of "$file")
+      [ "$actual" = "$sha" ] || die "$id: sha256 mismatch: expected $sha, got $actual; fetch aborted"
+      if [ "$kind" = war ]; then
+        case "$deploy_as" in ''|*/*|-) die "$id: deployAs of a war is a context name (e.g. fhir-store)" ;; esac
+        cp "$file" "$ROOT/webapps/$deploy_as.war"
+      else
+        case "$deploy_as" in overlay/?*) ;; *) die "$id: deployAs of an overlay is overlay/<context>" ;; esac
+        target="${deploy_as#overlay/}"
+        case "$target" in *[!A-Za-z0-9._-]*) die "$id: overlay target is [A-Za-z0-9._-]+" ;; esac
+        mkdir -p "$ROOT/overlay/$target"
+        unzip -oq "$file" -d "$ROOT/overlay/$target" || die "$id: not a zip"
+      fi
+      ;;
+    *) die "$id: unknown kind $kind (war, overlay or container)" ;;
+  esac
+  printf 'component=%s %s %s\n' "$id" "$kind" "$version" >> "$ROOT/MANIFEST.part"
+  json="${json}{\"id\":\"$id\",\"kind\":\"$kind\",\"version\":\"$version\"},"
+done < "$LIST"
+
+{ printf 'release=%s\n' "$release"; cat "$ROOT/MANIFEST.part"; } > "$ROOT/MANIFEST"
+if [ -n "$release" ]; then release_json="\"$release\""; else release_json=null; fi
+printf '{"release":%s,"components":[%s]}\n' "$release_json" "${json%,}" > "$ROOT/components.json"
+echo "fetch-components: release ${release:-(none)}, $(grep -c '^component=' "$ROOT/MANIFEST") component(s)"
