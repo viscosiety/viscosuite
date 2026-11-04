@@ -48,6 +48,8 @@ minor version).
   the separate `viscolink:-core` image build.
 
 ### Fixed
+- `HealthClasspathIT` no longer fails on a versioned build: the core WAR's own `viscolink-<version>.jar`
+  is compared without its version (CI builds at `A.B.C-<pipeline id>` since the component model M1).
 - Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink
   tool-page filter counted them as tool pages and demanded the console login on top, so
   `servlet.WebContentServlet.authenticator=NONE` (public pages) still answered 401. With the
