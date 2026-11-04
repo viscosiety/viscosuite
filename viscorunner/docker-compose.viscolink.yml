@@ -4,9 +4,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+      target: fat
       args:
-        PACK: health
-        STORE: none
+        COMPONENTS_LIST: target/components-viscolink.list
     image: registry.git.viscosiety.com/public-applications/viscosuite/viscolink:latest
     ports:
       - "8180:8080"   # Frank!Console + ViscoLink APIs
