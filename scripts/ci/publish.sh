@@ -24,15 +24,22 @@ deploy "packs/health/target/viscolink-pack-health-${VERSION}.jar" jar viscolink-
 # the store
 deploy "$pub/viscostore.war" war viscostore.pom
 
-sha() { grep " $1\$" "$pub/SHA256SUMS" | cut -d' ' -f1; }
+sha() { # <staged file name> -> its sha256 from SHA256SUMS; exits 1 when there is none
+  s=$(grep -F " $1" "$pub/SHA256SUMS" | awk -v f="$1" '$2 == f { print $1 }')
+  [ -n "$s" ] || { echo "publish: no sha256 for $1 in $pub/SHA256SUMS" >&2; exit 1; }
+  echo "$s"
+}
 url() { echo "$REPO_URL/com/visco/$1/$VERSION/$2"; }
+# computed before the list blocks: a failure here stops the script (an echo argument would not)
+sha_store=$(sha viscostore.war) || exit 1
+sha_pack=$(sha viscolink-pack-health-overlay.zip) || exit 1
 {
   echo "release $VERSION"
-  echo "store war $VERSION $(url viscostore viscostore-$VERSION.war) $(sha viscostore.war) fhir-store"
-  echo "pack-health overlay $VERSION $(url viscolink-pack-health viscolink-pack-health-$VERSION-overlay.zip) $(sha viscolink-pack-health-overlay.zip) overlay/runtime"
+  echo "store war $VERSION $(url viscostore viscostore-$VERSION.war) $sha_store fhir-store"
+  echo "pack-health overlay $VERSION $(url viscolink-pack-health viscolink-pack-health-$VERSION-overlay.zip) $sha_pack overlay/runtime"
 } > viscorunner/target/components-registry-suite.list
 {
   echo "release $VERSION"
-  echo "pack-health overlay $VERSION $(url viscolink-pack-health viscolink-pack-health-$VERSION-overlay.zip) $(sha viscolink-pack-health-overlay.zip) overlay/runtime"
+  echo "pack-health overlay $VERSION $(url viscolink-pack-health viscolink-pack-health-$VERSION-overlay.zip) $sha_pack overlay/runtime"
 } > viscorunner/target/components-registry-viscolink.list
 cat viscorunner/target/components-registry-suite.list
