@@ -25,7 +25,10 @@
 #   viscorunner  fat        store + pack-health                :<sha> :<version> :latest  :<sha>-health :latest-health
 #   viscolink    fat        pack-health                        :<sha> :<version> :latest  :<sha>-health :latest-health
 #   viscostore   -          -                                  :<sha> :<version> :latest  (viscorunner/Dockerfile.viscostore)
-# The -health aliases stay until M4 of the component model. Per-arch build intermediates are <sha>-amd64 / <sha>-arm64.
+# The -health aliases stay until M4 of the component model. Per-arch build intermediates are
+# <sha>-<pipeline id>-amd64 / -arm64: keyed by PIPELINE, because a tag and a main pipeline run on the same
+# commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
+# amd64 halves to the main pipeline's cleanup, 2026-11-04).
 
 stages:
   - test
@@ -208,10 +211,10 @@ publish:
     - docker build --platform "linux/$ARCH" --target "$TARGET" $LIST_ARG
         --secret id=job_token,env=CI_JOB_TOKEN
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $VERSION ($CI_COMMIT_SHORT_SHA)"
-        -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH"
+        -t "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$CI_PIPELINE_ID-$ARCH"
         viscorunner/
-    - sh scripts/ci/smoke-image.sh "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH" $SMOKE_COMPONENTS
-    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$ARCH"
+    - sh scripts/ci/smoke-image.sh "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$CI_PIPELINE_ID-$ARCH" $SMOKE_COMPONENTS
+    - docker push "$CI_REGISTRY_IMAGE/$IMAGE_NAME:$CI_COMMIT_SHA-$CI_PIPELINE_ID-$ARCH"
   <<: *on-main-or-release
 
 .viscobase: &viscobase
@@ -259,9 +262,9 @@ docker:viscolink:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],
     - docker build --platform "linux/$ARCH"
         -f viscorunner/Dockerfile.viscostore
         --build-arg "BUILD_TIMESTAMP=$(date -u '+%Y-%m-%d %H:%M UTC') · $CI_COMMIT_SHORT_SHA"
-        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$ARCH"
+        -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-$ARCH"
         viscorunner/
-    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$ARCH"
+    - docker push "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-$ARCH"
   <<: *on-main-or-release
 
 docker:viscostore:amd64: { extends: .docker-viscostore, tags: [docker, x86-64, dind], variables: { ARCH: amd64 } }
@@ -293,8 +296,8 @@ manifest:viscobase:
     - docker buildx imagetools create
         -t "$IMAGE_VISCOBASE:$CI_COMMIT_SHA" -t "$IMAGE_VISCOBASE:$VERSION" -t "$IMAGE_VISCOBASE:latest"
         -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-core" -t "$IMAGE_VISCOLINK:$VERSION-core" -t "$IMAGE_VISCOLINK:latest-core"
-        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-amd64"
-        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-arm64"
+        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
+        "$IMAGE_VISCOBASE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 
 manifest:viscosuite:
   extends: .manifest
@@ -306,8 +309,8 @@ manifest:viscosuite:
     - docker buildx imagetools create
         -t "$IMAGE:$CI_COMMIT_SHA" -t "$IMAGE:$VERSION" -t "$IMAGE:latest"
         -t "$IMAGE:$CI_COMMIT_SHA-health" -t "$IMAGE:latest-health"
-        "$IMAGE:$CI_COMMIT_SHA-amd64"
-        "$IMAGE:$CI_COMMIT_SHA-arm64"
+        "$IMAGE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
+        "$IMAGE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 
 manifest:viscolink:
   extends: .manifest
@@ -319,8 +322,8 @@ manifest:viscolink:
     - docker buildx imagetools create
         -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA" -t "$IMAGE_VISCOLINK:$VERSION" -t "$IMAGE_VISCOLINK:latest"
         -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-health" -t "$IMAGE_VISCOLINK:latest-health"
-        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-amd64"
-        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-arm64"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
+        "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 
 manifest:viscostore:
   extends: .manifest
@@ -331,8 +334,8 @@ manifest:viscostore:
     - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
         -t "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA" -t "$IMAGE_VISCOSTORE:$VERSION" -t "$IMAGE_VISCOSTORE:latest"
-        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-amd64"
-        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-arm64"
+        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
+        "$IMAGE_VISCOSTORE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 
 # ---------------------------------------------------------------------------
 # Stage: release — the BOM. Pins the registry's own sha256 of each package file and viscobase's manifest
@@ -409,7 +412,7 @@ cleanup:arch-tags:
           continue
         fi
         for ARCH in amd64 arm64; do
-          TAG="${CI_COMMIT_SHA}-${ARCH}"
+          TAG="${CI_COMMIT_SHA}-${CI_PIPELINE_ID}-${ARCH}"
           STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
             --request DELETE \
             --header "JOB-TOKEN: $CI_JOB_TOKEN" \
