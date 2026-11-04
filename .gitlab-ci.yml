@@ -164,6 +164,7 @@ publish:
   stage: publish
   image: maven:3.9-eclipse-temurin-21
   <<: *maven-cache
+  before_script: *maven-before
   tags: [docker]
   needs:
     - job: package
