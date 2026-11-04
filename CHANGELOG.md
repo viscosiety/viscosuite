@@ -48,6 +48,7 @@ minor version).
   the separate `viscolink:-core` image build.
 
 ### Fixed
+- The release BOM and the publish idempotency check compute a package file's sha256 from the served bytes when the Packages API has none (GitLab 19.4 stores only md5/sha1 for Maven files).
 - `HealthClasspathIT` no longer fails on a versioned build: the core WAR's own `viscolink-<version>.jar`
   is compared without its version (CI builds at `A.B.C-<pipeline id>` since the component model M1).
 - Hosted pages (`/webcontent/`) follow their own authenticator setting only. The ViscoLink
