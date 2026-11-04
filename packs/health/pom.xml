@@ -454,6 +454,8 @@
 				<configuration>
 					<systemPropertyVariables>
 						<log.dir>${project.build.directory}/logs</log.dir>
+						<!-- PackVersionTest compares the filtered pack-version.properties with the pom's version. -->
+						<project.version>${project.version}</project.version>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>
