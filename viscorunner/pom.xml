@@ -204,6 +204,16 @@
 			<artifactId>jackson-databind</artifactId>
 			<version>2.18.3</version>
 			<scope>test</scope>
+			<!-- Test scope only, and WITHOUT its jackson-annotations: a direct 2.18.3 annotations jar would win
+			     Maven's nearest-wins mediation over the 2.22 that fabric8's Jackson 3 needs on the shaded jar
+			     (SharedJarIsolationIT caught it: NoClassDefFoundError JsonSerializeAs). Annotations 2.22 is
+			     backward compatible for readTree. -->
+			<exclusions>
+				<exclusion>
+					<groupId>com.fasterxml.jackson.core</groupId>
+					<artifactId>jackson-annotations</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 	</dependencies>
 
