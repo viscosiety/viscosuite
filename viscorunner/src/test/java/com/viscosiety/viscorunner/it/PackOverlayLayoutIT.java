@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+
 package com.viscosiety.viscorunner.it;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,24 +22,27 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.io.Reader;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Properties;
+import java.util.List;
 import java.util.stream.Stream;
+import java.util.zip.ZipFile;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 
 /**
- * The staging the one Dockerfile COPYs from: {@code target/packs/{health,core}/},
- * {@code target/demo/{health,core}/} and {@code target/store/{viscostore,none}/}.
+ * The staging the Dockerfile and the ITs read from: {@code target/packs/health/} (the unpacked overlay the
+ * launcher ITs run), {@code target/demo/{health,core}/} and, for the fat image, {@code target/components/}
+ * plus the two local components lists.
  */
 class PackOverlayLayoutIT {
 
     private static final Path TARGET = Path.of("target");
 
     @Test
-    void healthOverlayIsUnpackedWithItsIdentity() throws IOException {
+    void healthOverlayIsUnpackedForTheLauncherIts() throws IOException {
         Path health = TARGET.resolve("packs/health");
         assertTrue(Files.isDirectory(health.resolve("WEB-INF/lib")), "target/packs/health/WEB-INF/lib");
         assertTrue(Files.isRegularFile(health.resolve("WEB-INF/classes/console/index.html")), "patched console index");
@@ -46,18 +50,9 @@ class PackOverlayLayoutIT {
             assertTrue(jars.anyMatch(p -> p.getFileName().toString().startsWith("viscolink-pack-health-")),
                 "the pack's own jar is in the overlay's WEB-INF/lib");
         }
-        assertPackIdentity(health.resolve("WEB-INF/pack.properties"), "health");
-    }
-
-    @Test
-    void coreHasItsIdentityAndNoLibraries() throws IOException {
-        Path core = TARGET.resolve("packs/core");
-        assertPackIdentity(core.resolve("WEB-INF/pack.properties"), "core");
-        Path lib = core.resolve("WEB-INF/lib");
-        assertTrue(Files.isDirectory(lib), "target/packs/core/WEB-INF/lib exists");
-        try (Stream<Path> entries = Files.list(lib)) {
-            assertEquals(0, entries.count(), "the core pack ships no libraries");
-        }
+        assertFalse(Files.exists(health.resolve("WEB-INF/pack.properties")), "no pack.properties: the identity is HealthPack.java");
+        assertFalse(Files.exists(TARGET.resolve("packs/core")), "no core staging: the core is the absence of an overlay");
+        assertFalse(Files.exists(TARGET.resolve("store")), "no store staging: the store is a component");
     }
 
     @Test
@@ -67,12 +62,27 @@ class PackOverlayLayoutIT {
     }
 
     @Test
-    void storeIsTheWarOrNothing() throws IOException {
-        assertTrue(Files.isRegularFile(TARGET.resolve("store/viscostore/fhir-store.war")), "target/store/viscostore/fhir-store.war");
-        Path none = TARGET.resolve("store/none");
-        assertTrue(Files.isDirectory(none), "target/store/none exists");
-        try (Stream<Path> entries = Files.list(none)) {
-            assertEquals(0, entries.count(), "target/store/none is empty (COPY cannot be conditional)");
+    void componentsAreStagedWithTheirLists() throws IOException {
+        assertTrue(Files.isRegularFile(TARGET.resolve("components/viscostore.war")), "target/components/viscostore.war");
+        assertTrue(Files.isRegularFile(TARGET.resolve("components/viscolink-pack-health-overlay.zip")), "target/components/viscolink-pack-health-overlay.zip");
+        List<String> suite = Files.readAllLines(TARGET.resolve("components-suite.list"));
+        List<String> link = Files.readAllLines(TARGET.resolve("components-viscolink.list"));
+        assertTrue(suite.get(0).matches("release \\S+"), "suite list header: " + suite.get(0));
+        assertEquals(3, suite.size(), "release + store + pack-health: " + suite);
+        assertEquals(2, link.size(), "release + pack-health: " + link);
+        assertEquals(suite.get(0), link.get(0), "same release");
+        assertTrue(suite.get(1).matches("store war \\S+ file:///opt/frank/component-files/viscostore\\.war [0-9a-f]{64} fhir-store"), suite.get(1));
+        assertTrue(suite.get(2).matches("pack-health overlay \\S+ file:///opt/frank/component-files/viscolink-pack-health-overlay\\.zip [0-9a-f]{64} overlay/runtime"), suite.get(2));
+        assertEquals(suite.get(2), link.get(1), "the pack line is the same in both lists");
+        String storeSha = suite.get(1).split(" ")[4];
+        assertEquals(sha256(TARGET.resolve("components/viscostore.war")), storeSha, "the list's sha256 is the staged file's");
+    }
+
+    @Test
+    void theOverlayZipCarriesNoPackProperties() throws IOException {
+        try (ZipFile zip = new ZipFile(TARGET.resolve("components/viscolink-pack-health-overlay.zip").toFile())) {
+            assertTrue(zip.stream().noneMatch(e -> e.getName().endsWith("WEB-INF/pack.properties")), "pack.properties is gone from the overlay");
+            assertTrue(zip.stream().anyMatch(e -> e.getName().startsWith("WEB-INF/lib/viscolink-pack-health-")), "the pack jar is there");
         }
     }
 
@@ -83,17 +93,28 @@ class PackOverlayLayoutIT {
         assertTrue(Files.isDirectory(TARGET.resolve("drivers")), "target/drivers");
     }
 
-    private static void assertPackIdentity(Path file, String id) throws IOException {
-        assertTrue(Files.isRegularFile(file), file + " exists");
-        Properties props = new Properties();
-        try (Reader in = Files.newBufferedReader(file)) {
-            props.load(in);
+    /** The staged list feeds the real fetcher (paths rewritten to this checkout): Ant's checksum and the fetcher's agree. */
+    @Test
+    void theStagedListFeedsTheFetcher(@TempDir Path tmp) throws Exception {
+        String list = Files.readString(TARGET.resolve("components-suite.list"))
+                .replace("file:///opt/frank/component-files/", "file://" + TARGET.resolve("components").toAbsolutePath() + "/");
+        Path file = tmp.resolve("components.list");
+        Files.writeString(file, list);
+        ProcessBuilder pb = new ProcessBuilder("sh", Path.of("src/scripts/fetch-components").toAbsolutePath().toString(), file.toString())
+                .redirectErrorStream(true).directory(tmp.toFile());
+        pb.environment().put("VF_COMPONENTS_DIR", tmp.resolve("components").toString());
+        Process p = pb.start();
+        String out = new String(p.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+        assertEquals(0, p.waitFor(), out);
+        assertTrue(Files.isRegularFile(tmp.resolve("components/webapps/fhir-store.war")));
+        assertTrue(Files.isDirectory(tmp.resolve("components/overlay/runtime/WEB-INF/lib")));
+    }
+
+    private static String sha256(Path file) throws IOException {
+        try {
+            return java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(Files.readAllBytes(file)));
+        } catch (java.security.NoSuchAlgorithmException e) {
+            throw new IllegalStateException(e);
         }
-        assertEquals(id, props.getProperty("pack.id"), "pack.id in " + file);
-        String version = props.getProperty("pack.version");
-        assertTrue(version != null && !version.isBlank(), "pack.version in " + file);
-        assertFalse(version.contains("@") || version.contains("${"), "pack.version is filtered, not a token: " + version);
-        assertTrue(props.getProperty("pack.displayName") != null && !props.getProperty("pack.displayName").isBlank(),
-            "pack.displayName in " + file);
     }
 }

@@ -34,7 +34,7 @@
 			<version>${project.version}</version>
 			<type>war</type>
 		</dependency>
-		<!-- The health pack's overlay zip (WEB-INF/lib + WEB-INF/classes + WEB-INF/pack.properties),
+		<!-- The health pack's overlay zip (WEB-INF/lib + WEB-INF/classes),
 		     unpacked to target/packs/health/ by unpack-health-overlay. -->
 		<dependency>
 			<groupId>com.visco</groupId>
@@ -312,7 +312,7 @@
 							<overWriteSnapshots>true</overWriteSnapshots>
 						</configuration>
 					</execution>
-					<!-- The health pack's overlay (WEB-INF/lib + classes + pack.properties) → target/packs/health/ -->
+					<!-- The health pack's overlay (WEB-INF/lib + classes) → target/packs/health/ -->
 					<execution>
 						<id>unpack-health-overlay</id>
 						<phase>package</phase>
@@ -328,6 +328,27 @@
 									<type>zip</type>
 									<classifier>overlay</classifier>
 									<outputDirectory>${project.build.directory}/packs/health</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+					<!-- The health overlay zip as a component file for local fat builds (file:// list). -->
+					<execution>
+						<id>copy-health-overlay-component</id>
+						<phase>package</phase>
+						<goals><goal>copy</goal></goals>
+						<configuration>
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<overWriteReleases>true</overWriteReleases>
+							<stripVersion>true</stripVersion>
+							<artifactItems>
+								<artifactItem>
+									<groupId>com.visco</groupId>
+									<artifactId>viscolink-pack-health</artifactId>
+									<version>${project.version}</version>
+									<type>zip</type>
+									<classifier>overlay</classifier>
+									<outputDirectory>${project.build.directory}/components</outputDirectory>
 								</artifactItem>
 							</artifactItems>
 						</configuration>
@@ -358,7 +379,8 @@
 			</plugin>
 
 			<!-- Everything the one Dockerfile COPYs besides the WARs, the drivers and the unpacked health
-			     overlay: the core pack's identity, the demo configurations per pack, the store variants.
+			     overlay: the demo configurations per pack and the components (store WAR, health overlay zip)
+			     a local fat build fetches, with their lists.
 			     Declared AFTER maven-dependency-plugin: same-phase executions run in declaration order and
 			     the store copy needs target/viscostore.war from copy-wars. -->
 			<plugin>
@@ -366,9 +388,8 @@
 				<artifactId>maven-antrun-plugin</artifactId>
 				<version>3.1.0</version>
 				<executions>
-					<!-- dependency:unpack and the copies below only add files: a pack overlay that lost a jar
-					     (a new provided declaration) would keep the stale one in an incremental build. Start
-					     from nothing. -->
+					<!-- dependency:unpack and the copies below only add files: start from nothing so a jar a new
+					     provided declaration dropped never survives an incremental build. -->
 					<execution>
 						<id>reset-staging</id>
 						<phase>prepare-package</phase>
@@ -378,32 +399,36 @@
 								<delete dir="${project.build.directory}/packs"/>
 								<delete dir="${project.build.directory}/demo"/>
 								<delete dir="${project.build.directory}/store"/>
+								<delete dir="${project.build.directory}/components"/>
+								<delete file="${project.build.directory}/components-suite.list"/>
+								<delete file="${project.build.directory}/components-viscolink.list"/>
 							</target>
 						</configuration>
 					</execution>
+					<!-- The demo sets (both baked into viscobase) and the components a local fat build fetches:
+					     target/components/ holds the store WAR and the health overlay zip, and the two lists name
+					     them with file:// URLs under /opt/frank/component-files/ (where the Dockerfile's fat stage
+					     copies target/components/) and their sha256. CI writes the same lists with registry URLs
+					     (scripts/ci/publish.sh); the fetcher does not care which. -->
 					<execution>
-						<id>stage-packs-demos-stores</id>
+						<id>stage-demos-and-components</id>
 						<phase>package</phase>
 						<goals><goal>run</goal></goals>
 						<configuration>
 							<target>
-								<!-- core: no libs, its own identity -->
-								<mkdir dir="${project.build.directory}/packs/core/WEB-INF/lib"/>
-								<copy file="${project.basedir}/src/packs/core/WEB-INF/pack.properties"
-								      todir="${project.build.directory}/packs/core/WEB-INF" overwrite="true">
-									<filterset><filter token="PACK_VERSION" value="${project.version}"/></filterset>
-								</copy>
-								<!-- demo configurations per pack -->
 								<copy todir="${project.build.directory}/demo/health" overwrite="true">
 									<fileset dir="${project.basedir}/../packs/health/demo-configurations"/>
 								</copy>
 								<copy todir="${project.build.directory}/demo/core" overwrite="true">
 									<fileset dir="${project.basedir}/../viscolink/demo-configurations"/>
 								</copy>
-								<!-- store: the WAR or nothing (COPY cannot be conditional) -->
-								<mkdir dir="${project.build.directory}/store/none"/>
+								<mkdir dir="${project.build.directory}/components"/>
 								<copy file="${project.build.directory}/viscostore.war"
-								      tofile="${project.build.directory}/store/viscostore/fhir-store.war" overwrite="true"/>
+								      tofile="${project.build.directory}/components/viscostore.war" overwrite="true"/>
+								<checksum file="${project.build.directory}/components/viscostore.war" algorithm="SHA-256" property="sha.viscostore"/>
+								<checksum file="${project.build.directory}/components/viscolink-pack-health-overlay.zip" algorithm="SHA-256" property="sha.pack"/>
+								<echo file="${project.build.directory}/components-suite.list" append="false" message="release ${project.version}${line.separator}store war ${project.version} file:///opt/frank/component-files/viscostore.war ${sha.viscostore} fhir-store${line.separator}pack-health overlay ${project.version} file:///opt/frank/component-files/viscolink-pack-health-overlay.zip ${sha.pack} overlay/runtime${line.separator}"/>
+								<echo file="${project.build.directory}/components-viscolink.list" append="false" message="release ${project.version}${line.separator}pack-health overlay ${project.version} file:///opt/frank/component-files/viscolink-pack-health-overlay.zip ${sha.pack} overlay/runtime${line.separator}"/>
 							</target>
 						</configuration>
 					</execution>
