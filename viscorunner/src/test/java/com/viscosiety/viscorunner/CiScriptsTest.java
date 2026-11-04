@@ -123,4 +123,37 @@ class CiScriptsTest {
 			assertEquals(c[2], r.out());
 		}
 	}
+
+	private Run publishedShaWithFakeCurl(long recordedSize, byte[] served) throws Exception {
+		Path dir = Files.createTempDirectory("fakecurl");
+		Path fixture = dir.resolve("fixture.bin");
+		Files.write(fixture, served);
+		Path curl = dir.resolve("curl");
+		Files.writeString(curl, "#!/bin/sh\n"
+				+ "out=''; url=''\n"
+				+ "while [ $# -gt 0 ]; do case \"$1\" in --output) out=$2; shift 2 ;; --header) shift 2 ;; -*) shift ;; *) url=$1; shift ;; esac; done\n"
+				+ "case \"$url\" in\n"
+				+ "  */packages\\?*) echo '[{\"id\":7,\"name\":\"com/visco/viscostore\",\"version\":\"1.0.0-1\"}]' ;;\n"
+				+ "  */packages/7/package_files*) echo '[{\"file_name\":\"viscostore-1.0.0-1.war\",\"size\":" + recordedSize + ",\"file_sha256\":null}]' ;;\n"
+				+ "  */packages/maven/*) cp '" + fixture + "' \"$out\" ;;\n"
+				+ "  *) echo \"unexpected $url\" >&2; exit 22 ;;\n"
+				+ "esac\n");
+		assertTrue(curl.toFile().setExecutable(true));
+		String lib = REPO.resolve("scripts/ci/lib/packages.sh").toString();
+		Map<String, String> env = Map.of("PATH", dir + ":" + System.getenv("PATH"),
+				"CI_API_V4_URL", "https://example.invalid/api/v4", "CI_PROJECT_ID", "2", "CI_JOB_TOKEN", "x", "VERSION", "1.0.0-1");
+		return sh(REPO, env, "/bin/sh", "-c", ". " + lib + "; published_sha com/visco/viscostore viscostore-1.0.0-1.war");
+	}
+
+	@Test
+	void aMissingApiSha256IsComputedFromTheServedBytes() throws Exception {
+		byte[] bytes = "served war bytes".getBytes(StandardCharsets.UTF_8);
+		Run r = publishedShaWithFakeCurl(bytes.length, bytes);
+		assertEquals(0, r.exit(), r.err());
+		String expected = java.util.HexFormat.of().formatHex(java.security.MessageDigest.getInstance("SHA-256").digest(bytes));
+		assertEquals(expected, r.out());
+		Run bad = publishedShaWithFakeCurl(bytes.length + 1, bytes);
+		assertNotEquals(0, bad.exit());
+		assertTrue(bad.err().contains("registry records"), bad.err());
+	}
 }

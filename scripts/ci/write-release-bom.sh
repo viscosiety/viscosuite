@@ -2,8 +2,9 @@
 # write-release-bom.sh <version>: fills viscorunner/release/viscosuite-release.template.json with this
 # pipeline's facts and uploads it as com.visco:viscosuite-release:<version> (one JSON file) to the
 # project's Maven registry. Runs in the release job (image docker:27 + curl + jq) after the manifests:
-#   SHA_*            from the Packages API (package_files[].file_sha256 of the published files), so the BOM
-#                    pins what the registry really serves, not what we uploaded
+#   SHA_*            the sha256 of the published files (package_files[].file_sha256, or, when the API has
+#                    none as on GitLab 19.4, of the file as downloaded), so the BOM pins what the registry
+#                    really serves, not what we uploaded
 #   BASE_DIGEST      the multi-arch manifest digest of viscobase:<version> (container registry API)
 #   POSTGRES_DIGEST  docker buildx imagetools inspect of postgres:16 at release time
 # Then proves anonymous pull (a public project; the Standard edition fetches without a token): one
@@ -13,21 +14,13 @@ VERSION="${1:?usage: write-release-bom.sh <version>}"
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
 auth="JOB-TOKEN: ${CI_JOB_TOKEN:?}"
 out="viscorunner/target/viscosuite-release-${VERSION}.json"
+mkdir -p "$(dirname "$out")"
 . "$(dirname "$0")/lib/packages.sh"
 
 api() { curl --fail --silent --show-error --header "$auth" "$@"; }
 
-package_id() { # <package_name> -> id of the package at $VERSION
-  api "$API/packages?package_type=maven&package_name=$1&package_version=$VERSION&per_page=100" \
-    | jq -r --arg n "$1" --arg v "$VERSION" '.[] | select(.name == $n and .version == $v) | .id' | head -1
-}
-file_sha() { # <package_name> <file_name>
-  pid=$(package_id "$1"); [ -n "$pid" ] || { echo "write-release-bom: no package $1 $VERSION" >&2; exit 1; }
-  api "$API/packages/$pid/package_files?per_page=100" | jq -r --arg f "$2" '.[] | select(.file_name == $f) | .file_sha256' | head -1
-}
-
-SHA_STORE=$(file_sha com/visco/viscostore "viscostore-${VERSION}.war")
-SHA_PACK_HEALTH=$(file_sha com/visco/viscolink-pack-health "viscolink-pack-health-${VERSION}-overlay.zip")
+SHA_STORE=$(published_sha com/visco/viscostore "viscostore-${VERSION}.war") || { echo "write-release-bom: cannot read the viscostore package" >&2; exit 1; }
+SHA_PACK_HEALTH=$(published_sha com/visco/viscolink-pack-health "viscolink-pack-health-${VERSION}-overlay.zip") || { echo "write-release-bom: cannot read the pack-health package" >&2; exit 1; }
 [ -n "$SHA_STORE" ] && [ -n "$SHA_PACK_HEALTH" ] || { echo "write-release-bom: a package file sha256 is missing" >&2; exit 1; }
 
 BASE_IMAGE="${CI_REGISTRY_IMAGE:?}/viscobase"
