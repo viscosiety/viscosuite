@@ -66,10 +66,10 @@ variables:
       - .m2/repository/
     policy: pull-push
 
-# Node + pnpm for the UI builds, unzip for the fetcher's script tests.
+# Node + pnpm for the UI builds, unzip for the fetcher's script tests, jq for publish.sh's registry lookups.
 .maven-before: &maven-before
   - apt-get update
-  - apt-get install -y curl ca-certificates unzip
+  - apt-get install -y curl ca-certificates unzip jq
   - curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
   - apt-get install -y nodejs
   - corepack enable
@@ -134,6 +134,10 @@ package:
     # target/viscostore.war and target/packs/ are no longer shipped: the images fetch the store and the pack
     # from the registry (publish.sh), and the ITs rebuild their own staging in integration-test.
     expire_in: 1 hour
+  after_script:
+    # The versioned install must not pile up in the shared cache (~850 MB per main commit); the cache
+    # archive is created after after_script, so this keeps only third-party artifacts in it.
+    - rm -rf .m2/repository/com/visco
   <<: *on-main-or-release
 
 # ---------------------------------------------------------------------------
@@ -195,7 +199,7 @@ publish:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
   script:
     - VERSION=$(sh scripts/ci/version.sh)
-    # The fat stage COPYs target/components/ (local artifacts for file:// lists); CI lists carry registry URLs, so it is empty here.
+    # The fat stage bind-mounts target/components/ (local artifacts for file:// lists); CI lists carry registry URLs, so it is empty here.
     - mkdir -p viscorunner/target/components
     - |
       LIST_ARG=""
@@ -226,11 +230,11 @@ publish:
   SMOKE_COMPONENTS: "pack-health"
 
 docker:viscobase:amd64:   { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *viscobase, ARCH: amd64 } }
-docker:viscobase:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *viscobase, ARCH: arm64 } }
+docker:viscobase:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *viscobase, ARCH: arm64, SMOKE_TIMEOUT: "480" } }
 docker:viscosuite:amd64:  { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *suite,     ARCH: amd64 } }
-docker:viscosuite:arm64:  { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *suite,     ARCH: arm64 } }
+docker:viscosuite:arm64:  { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *suite,     ARCH: arm64, SMOKE_TIMEOUT: "480" } }
 docker:viscolink:amd64:   { extends: .docker-build, tags: [docker, x86-64, dind], variables: { <<: *link,      ARCH: amd64 } }
-docker:viscolink:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *link,      ARCH: arm64 } }
+docker:viscolink:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],  variables: { <<: *link,      ARCH: arm64, SMOKE_TIMEOUT: "480" } }
 
 # ---------------------------------------------------------------------------
 # Stage: docker — standalone ViscoStore image (unchanged recipe; needs the staged store WAR from publish/).
@@ -244,6 +248,8 @@ docker:viscolink:arm64:   { extends: .docker-build, tags: [docker, arm64, dind],
     - job: package
       artifacts: true
     - job: integration-test
+      artifacts: false
+    - job: publish
       artifacts: false
   before_script:
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"

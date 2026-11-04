@@ -100,6 +100,27 @@ class CiScriptsTest {
 		List<String> deleted = r.out().lines().filter(l -> l.startsWith("delete ")).toList();
 		assertEquals(10, deleted.size(), r.out());
 		assertTrue(deleted.get(0).equals("delete 10 1.0.0-10") && deleted.get(9).equals("delete 1 1.0.0-1"), "the ten oldest main versions: " + deleted);
-		assertFalse(r.out().contains("0.22.0"), "a release is never deleted");
+		assertFalse(r.out().lines().anyMatch(l -> l.startsWith("delete ") && l.contains("0.22.0")), "a release is never deleted");
+		assertTrue(r.out().contains("keep 99 0.22.0 (release)"), r.out());
+	}
+
+	@Test
+	void cleanupRefusesAKeepThatIsNotANumber() throws Exception {
+		Path dir = Files.createTempDirectory("cleanup");
+		Path input = dir.resolve("versions.tsv");
+		Files.writeString(input, "");
+		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString(), "KEEP", "ten"), "/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
+		assertEquals(2, r.exit());
+		assertTrue(r.err().contains("KEEP must be a number"), r.err());
+	}
+
+	@Test
+	void anUploadIsSkippedForTheSameBytesAndRefusedForOtherBytes() throws Exception {
+		String lib = REPO.resolve("scripts/ci/lib/packages.sh").toString();
+		for (String[] c : new String[][] {{"", "aa", "upload"}, {"aa", "aa", "skip"}, {"bb", "aa", "conflict"}}) {
+			Run r = sh(REPO, Map.of(), "/bin/sh", "-c", ". " + lib + "; upload_decision '" + c[0] + "' '" + c[1] + "'");
+			assertEquals(0, r.exit(), r.err());
+			assertEquals(c[2], r.out());
+		}
 	}
 }

@@ -13,6 +13,7 @@ VERSION="${1:?usage: write-release-bom.sh <version>}"
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
 auth="JOB-TOKEN: ${CI_JOB_TOKEN:?}"
 out="viscorunner/target/viscosuite-release-${VERSION}.json"
+. "$(dirname "$0")/lib/packages.sh"
 
 api() { curl --fail --silent --show-error --header "$auth" "$@"; }
 
@@ -44,8 +45,15 @@ jq --arg v "$VERSION" --arg img "$BASE_IMAGE" --arg bd "$BASE_DIGEST" --arg ss "
 grep -q '\${' "$out" && { echo "write-release-bom: unfilled placeholder in $out" >&2; grep -n '\${' "$out" >&2; exit 1; }
 
 url="$API/packages/maven/com/visco/viscosuite-release/$VERSION/viscosuite-release-$VERSION.json"
-curl --fail --silent --show-error --header "$auth" --upload-file "$out" "$url" > /dev/null
-echo "write-release-bom: uploaded $url"
+# idempotent: a re-run of the release pipeline finds the BOM already there (same bytes: skip, other bytes: stop)
+bom_have=$(published_sha com/visco/viscosuite-release "viscosuite-release-$VERSION.json") || { echo "write-release-bom: cannot ask the registry about the BOM" >&2; exit 1; }
+case $(upload_decision "$bom_have" "$(sha256sum "$out" | cut -d' ' -f1)") in
+  skip) echo "write-release-bom: $url already published with the same sha256, skipping the upload" ;;
+  conflict) echo "write-release-bom: viscosuite-release-$VERSION.json is already published with another content; delete it first" >&2; exit 1 ;;
+  *)
+    curl --fail --silent --show-error --header "$auth" --upload-file "$out" "$url" > /dev/null
+    echo "write-release-bom: uploaded $url" ;;
+esac
 
 # Anonymous pull proof (no token at all).
 anon="$API/packages/maven/com/visco/viscostore/$VERSION/viscostore-$VERSION.war"

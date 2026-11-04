@@ -6,11 +6,12 @@
 # print the decisions and exit (the unit test).
 set -eu
 KEEP="${KEEP:-10}"
+case "$KEEP" in ''|*[!0-9]*) echo "cleanup: KEEP must be a number" >&2; exit 2 ;; esac
 
 decide() { # stdin: created_at \t version \t id, newest first
   awk -F'\t' -v keep="$KEEP" '
     { v = $2; id = $3 }
-    v !~ /-/ { print "keep " id " release"; next }
+    v !~ /-/ { print "keep " id " " v " (release)"; next }
     { n++; if (n <= keep) print "keep " id " " v; else print "delete " id " " v }'
 }
 
@@ -26,7 +27,7 @@ for name in com/visco/viscolink com/visco/viscolink-pack-health com/visco/viscos
     "$API/packages?package_type=maven&package_name=$name&order_by=created_at&sort=desc&per_page=100" \
     | jq -r --arg n "$name" '.[] | select(.name == $n) | [.created_at, .version, .id] | @tsv' \
     | decide \
-    | while read -r action id version; do
+    | while read -r action id version _rest; do
         echo "$name $version: $action"
         if [ "$action" = delete ]; then
           curl --fail --silent --show-error --header "$auth" --request DELETE "$API/packages/$id" > /dev/null
