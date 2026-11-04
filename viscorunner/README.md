@@ -159,8 +159,9 @@ Add a `<Resource>` entry to `conf/context.xml` and rebuild (`docker compose up -
 ## Directory layout
 
 ```
-conf/                       Tomcat context.xml (every datasource, created lazily), server.xml, the RewriteValve rules,
-│                           server.xml, and the /runtime PreResources overlay definition
+conf/                       Tomcat context.xml (every datasource, created lazily), the pinned server.xml
+│                           (ContextFailureEventPublisher listener + RewriteValve), Catalina/localhost/
+│                           (the /runtime PreResources context and rewrite.config)
 demo-conf/                  Demo Tomcat context — adds jdbc/fake-emr on top of the base resources
 demo-hapi-overlay/          Spring Boot config overlay for ViscoStore in demo mode
 demo-rabbitmq/              RabbitMQ config and exchange/queue definitions for demo mode
@@ -177,7 +178,7 @@ configurations/             Mount point for user-created F!F configurations
 ../viscolink/demo-configurations/
 │                           The core's neutral echo demo
 postgres/                   PostgreSQL init scripts (database + schema setup; init-ladybug.sql for the store-less stacks)
-src/packs/core/             The core pack's identity (WEB-INF/pack.properties); the health pack's lives in packs/health
+release/                    The release BOM template (viscosuite-release.template.json), filled and uploaded by CI
 scripts/                    Developer utilities (see below)
 secrets/                    Runtime credentials (gitignored; copy from .example)
 src/scripts/                Build-time scripts baked into the Docker image (entrypoint, Tomcat settings)
