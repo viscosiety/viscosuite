@@ -47,7 +47,7 @@ class PackJsonTest {
     void healthPackHasExactlyTheDocumentedKeysInTheDocumentedOrder() throws Exception {
         JsonNode json = parse(new HealthValuesPack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
-                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines"), keys(json));
+                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines", "release", "components"), keys(json));
         assertEquals(List.of("sessionKey", "metadataName", "metadataLabel", "label", "format"),
                 keys(json.get("subject")));
     }
@@ -74,7 +74,7 @@ class PackJsonTest {
     void corePackSerialisesEmptyArraysNotMissingKeys() throws Exception {
         JsonNode json = parse(new CorePack());
         assertEquals(List.of("id", "displayName", "version", "subject", "consoleViews",
-                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines"), keys(json));
+                "frankOwnedPaths", "deidentificationStrategyIds", "features", "engines", "release", "components"), keys(json));
         assertEquals("core", json.get("id").asText());
         assertEquals("Core", json.get("displayName").asText());
         for (String array : List.of("consoleViews", "frankOwnedPaths", "deidentificationStrategyIds")) {
@@ -100,6 +100,23 @@ class PackJsonTest {
         String expected = MAPPER.writeValueAsString(CoreEngines.versions());
         assertEquals(expected, parse(new CorePack()).get("engines").toString());
         assertEquals(expected, parse(new HealthValuesPack()).get("engines").toString());
+    }
+
+    @Test
+    void withoutAManifestReleaseIsNullAndComponentsEmpty() throws Exception {
+        JsonNode json = MAPPER.readTree(PackJson.of(new HealthValuesPack(), ComponentManifest.NONE));
+        assertTrue(json.get("release").isNull(), "release is JSON null");
+        assertEquals("[]", json.get("components").toString());
+    }
+
+    @Test
+    void theManifestIsReportedVerbatim() throws Exception {
+        ComponentManifest manifest = ComponentManifest.parse(List.of(
+                "release=1.0.0", "component=store war 1.0.0", "component=pack-health overlay 1.0.0"));
+        JsonNode json = MAPPER.readTree(PackJson.of(new HealthValuesPack(), manifest));
+        assertEquals("1.0.0", json.get("release").asText());
+        assertEquals("[{\"id\":\"store\",\"kind\":\"war\",\"version\":\"1.0.0\"},"
+                + "{\"id\":\"pack-health\",\"kind\":\"overlay\",\"version\":\"1.0.0\"}]", json.get("components").toString());
     }
 
     @Test
