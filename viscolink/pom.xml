@@ -305,6 +305,7 @@
 				<configuration>
 					<systemPropertyVariables>
 						<log.dir>${project.build.directory}/logs</log.dir>
+						<frankframework.version>${frankframework.version}</frankframework.version>
 					</systemPropertyVariables>
 				</configuration>
 			</plugin>

@@ -162,6 +162,13 @@
       <span class="card-arrow">Open tester →</span>
     </a>
 
+    <a class="card" id="card-console" href="/console/ui/" hidden>
+      <span class="card-label">Operator console</span>
+      <h2 data-brand-name="forge">ViscoForge</h2>
+      <p>Flows, journeys, hosted pages and the audit log of this instance.</p>
+      <span class="card-arrow">Open console →</span>
+    </a>
+
   </div>
 
   <footer><span data-product-name>ViscoSuite</span> &mdash; <span data-brand-name="company">Viscosiety B.V.</span><span data-pack-stamp></span>%%BUILD_TIMESTAMP%%</footer>
@@ -228,6 +235,7 @@
           var stamp = [];
           if (c.release) stamp.push('release ' + c.release);
           (c.components || []).forEach(function (comp) {
+            if (comp.id === 'console') document.getElementById('card-console').removeAttribute('hidden');
             var w = words[comp.id];
             if (!w) return;
             document.querySelector('[data-pack-tagline]').textContent = w.tagline;
