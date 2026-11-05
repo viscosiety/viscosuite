@@ -17,6 +17,7 @@
 package com.viscosiety.pack.health;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 import org.junit.jupiter.api.Test;
 
@@ -25,7 +26,11 @@ class PackVersionTest {
     @Test
     void versionIsTheMavenProjectVersion() {
         // pack-version.properties is filtered at build time; a module that forgets the filter
-        // would ship the literal placeholder, which this catches.
-        assertEquals("1.0.0-SNAPSHOT", PackVersion.get());
+        // would ship the literal placeholder, which this catches. The expected value comes from
+        // surefire (project.version in the pom), so the test survives a version bump and CI's
+        // versions:set alike.
+        String expected = System.getProperty("project.version");
+        assertNotNull(expected, "surefire must pass project.version (see packs/health/pom.xml)");
+        assertEquals(expected, PackVersion.get());
     }
 }
