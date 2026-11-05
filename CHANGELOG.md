@@ -7,6 +7,15 @@ major version).
 
 ## [Unreleased]
 
+### Fixed
+- **CI: a tag and a main pipeline on the same commit no longer break each other.** The per-arch
+  image intermediates are named `<sha>-<pipeline id>-amd64` / `-arm64` (were `<sha>-amd64`), so one
+  pipeline's `cleanup:arch-tags` cannot delete the halves the other is still assembling (the v1.0.0
+  tag pipeline lost its amd64 images to the main pipeline's cleanup).
+- **`PackVersionTest` follows the pom.** It compared the filtered `pack-version.properties` with a
+  literal `1.0.0-SNAPSHOT`; surefire now passes `project.version`, so a version bump does not fail
+  the test stage.
+
 ## [1.0.0] — 2026-11-04
 
 ### Added
