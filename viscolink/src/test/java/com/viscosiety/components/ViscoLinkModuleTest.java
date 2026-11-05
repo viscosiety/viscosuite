@@ -17,6 +17,7 @@ package com.viscosiety.components;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
@@ -58,4 +59,17 @@ class ViscoLinkModuleTest {
 		assertEquals(ViscoLinkModule.IMPLEMENTATION_VERSION,
 				new ViscoLinkModule().getModuleInformation().getVersion(), "the manifest carries the same version");
 	}
+
+    @Test
+    void theVersionPropertiesCarryTheFrankFrameworkVersion() throws Exception {
+        Properties p = new Properties();
+        try (InputStream in = ViscoLinkModuleTest.class.getResourceAsStream("/META-INF/viscolink-version.properties")) {
+            assertNotNull(in, "the filtered properties file is on the class path");
+            p.load(in);
+        }
+        String expected = System.getProperty("frankframework.version");
+        assertNotNull(expected, "surefire passes frankframework.version (viscolink/pom.xml)");
+        assertEquals(expected, p.getProperty("frankframework.version"),
+            "viscoForge's build compares its own F!F pin with this value (component model M2)");
+    }
 }

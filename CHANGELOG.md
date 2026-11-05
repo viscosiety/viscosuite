@@ -7,6 +7,13 @@ major version).
 
 ## [Unreleased]
 
+### Added
+- **`viscobase` knows the ViscoForge console's paths.** The rule set aliases `/viscoforge` to
+  `/console` like `/viscolink` → `/runtime` (a 404 on a runtime without the console), the
+  landing page shows an "Open console" card when `components.json` lists `console`, and
+  `META-INF/viscolink-version.properties` names the Frank!Framework version the core was built
+  against, so viscoForge's build can check its own pin (component model M2).
+
 ### Fixed
 - **CI: a tag and a main pipeline on the same commit no longer break each other.** The per-arch
   image intermediates are named `<sha>-<pipeline id>-amd64` / `-arm64` (were `<sha>-amd64`), so one

@@ -359,4 +359,16 @@ class DockerfileContractTest {
         org.junit.jupiter.api.Assertions.assertEquals(
             lemmaEngineVersion(read("../viscolink/pom.xml")), lemmaEngineVersion(read("pom.xml")));
     }
+
+    @Test
+    void theRuleSetAliasesEveryLegacyPathIncludingTheConsole() throws Exception {
+        String rules = read("conf/Catalina/localhost/rewrite.config");
+        for (String[] alias : new String[][] {{"viscolink", "runtime"}, {"viscostore", "fhir-store"}, {"viscoforge", "console"}}) {
+            String legacy = alias[0], ctx = alias[1];
+            assertTrue(rules.contains("RewriteRule ^/" + legacy + "/(.*)$ /" + ctx + "/$1 [R=302,L]"), legacy + ": browser GET redirects");
+            assertTrue(rules.contains("RewriteRule ^/" + legacy + "$ /" + ctx + "/ [R=302,L]"), legacy + ": bare path redirects");
+            assertTrue(rules.contains("RewriteRule ^/" + legacy + "$ /" + ctx + "/ [L]"), legacy + ": bare path rewritten in place");
+            assertTrue(rules.contains("RewriteRule ^/" + legacy + "/(.*)$ /" + ctx + "/$1 [L]"), legacy + ": every other request rewritten in place");
+        }
+    }
 }
