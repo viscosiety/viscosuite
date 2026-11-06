@@ -125,23 +125,34 @@ class CiScriptsTest {
 	}
 
 	private Run publishedShaWithFakeCurl(long recordedSize, byte[] served) throws Exception {
+		return publishedShaWithFakeCurl(recordedSize, served, "ok");
+	}
+
+	private Run publishedShaWithFakeCurl(long recordedSize, byte[] served, String mode) throws Exception {
+		return publishedShaWithFakeCurl(recordedSize, served, mode, "x", null);
+	}
+
+	private Run publishedShaWithFakeCurl(long recordedSize, byte[] served, String mode, String token, Path argvLog) throws Exception {
 		Path dir = Files.createTempDirectory("fakecurl");
 		Path fixture = dir.resolve("fixture.bin");
 		Files.write(fixture, served);
 		Path curl = dir.resolve("curl");
 		Files.writeString(curl, "#!/bin/sh\n"
 				+ "out=''; url=''\n"
-				+ "while [ $# -gt 0 ]; do case \"$1\" in --output) out=$2; shift 2 ;; --header) shift 2 ;; -*) shift ;; *) url=$1; shift ;; esac; done\n"
+				+ "[ -z \"${CURL_ARGV_LOG:-}\" ] || for a in \"$@\"; do printf '%s\\n' \"$a\" >> \"$CURL_ARGV_LOG\"; done\n"
+				+ "while [ $# -gt 0 ]; do case \"$1\" in --output) out=$2; shift 2 ;; --header|--config) shift 2 ;; -*) shift ;; *) url=$1; shift ;; esac; done\n"
+				+ "emit() { if [ -n \"$out\" ]; then printf '%s\\n' \"$1\" > \"$out\"; else printf '%s\\n' \"$1\"; fi; }\n"
 				+ "case \"$url\" in\n"
-				+ "  */packages\\?*) echo '[{\"id\":7,\"name\":\"com/visco/viscostore\",\"version\":\"1.0.0-1\"}]' ;;\n"
-				+ "  */packages/7/package_files*) echo '[{\"file_name\":\"viscostore-1.0.0-1.war\",\"size\":" + recordedSize + ",\"file_sha256\":null}]' ;;\n"
+				+ "  */packages\\?*) " + ("fail-listing".equals(mode) ? "exit 22" : "not-json".equals(mode) ? "emit 'not json'" : "other-version".equals(mode) ? "emit '[{\"id\":7,\"name\":\"viscolink\",\"version\":\"9.9.9\"}]'" : "newline".equals(mode) ? "emit ''" : "empty".equals(mode) ? ": > \"$out\"" : "non-array".equals(mode) ? "emit '{}'" : "emit '[{\"id\":7,\"name\":\"com/visco/viscostore\",\"version\":\"1.0.0-1\"}]'") + " ;;\n"
+				+ "  */packages/7/package_files*) " + ("fail-files".equals(mode) ? "exit 22" : "emit '[{\"file_name\":\"viscostore-1.0.0-1.war\",\"size\":" + recordedSize + ",\"file_sha256\":null}]'") + " ;;\n"
 				+ "  */packages/maven/*) cp '" + fixture + "' \"$out\" ;;\n"
 				+ "  *) echo \"unexpected $url\" >&2; exit 22 ;;\n"
 				+ "esac\n");
 		assertTrue(curl.toFile().setExecutable(true));
 		String lib = REPO.resolve("scripts/ci/lib/packages.sh").toString();
-		Map<String, String> env = Map.of("PATH", dir + ":" + System.getenv("PATH"),
-				"CI_API_V4_URL", "https://example.invalid/api/v4", "CI_PROJECT_ID", "2", "CI_JOB_TOKEN", "x", "VERSION", "1.0.0-1");
+		Map<String, String> env = new java.util.HashMap<>(Map.of("PATH", dir + ":" + System.getenv("PATH"),
+				"CI_API_V4_URL", "https://example.invalid/api/v4", "CI_PROJECT_ID", "2", "CI_JOB_TOKEN", token, "VERSION", "1.0.0-1"));
+		if (argvLog != null) env.put("CURL_ARGV_LOG", argvLog.toString());
 		return sh(REPO, env, "/bin/sh", "-c", ". " + lib + "; published_sha com/visco/viscostore viscostore-1.0.0-1.war");
 	}
 
@@ -155,5 +166,72 @@ class CiScriptsTest {
 		Run bad = publishedShaWithFakeCurl(bytes.length + 1, bytes);
 		assertNotEquals(0, bad.exit());
 		assertTrue(bad.err().contains("registry records"), bad.err());
+	}
+
+	@Test
+	void aFailingPackageListingIsAnErrorNotNotPublished() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "fail-listing");
+		assertNotEquals(0, r.exit(), "an API failure must not read as 'not published'");
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("cannot list packages"), r.err());
+	}
+
+	@Test
+	void aNonJsonPackageListingIsAnError() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "not-json");
+		assertNotEquals(0, r.exit());
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("cannot read the package listing"), r.err());
+	}
+
+	@Test
+	void aFailingFileListingIsAnError() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "fail-files");
+		assertNotEquals(0, r.exit());
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("cannot list files"), r.err());
+	}
+
+	@Test
+	void anEmptyPackageListingIsAnError() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "empty");
+		assertNotEquals(0, r.exit());
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("empty package listing"), r.err());
+	}
+
+	@Test
+	void aNonArrayPackageListingIsAnError() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "non-array");
+		assertNotEquals(0, r.exit());
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("cannot read the package listing"), r.err());
+	}
+
+	@Test
+	void theTokenIsNotOnCurlsCommandLine() throws Exception {
+		byte[] bytes = "served war bytes".getBytes(StandardCharsets.UTF_8);
+		Path log = Files.createTempFile("argv", ".log");
+		Run r = publishedShaWithFakeCurl(bytes.length, bytes, "ok", "tok-secret-xyz", log);
+		assertEquals(0, r.exit(), r.err());
+		String argv = Files.readString(log);
+		assertFalse(argv.contains("tok-secret-xyz"), argv);
+		assertTrue(argv.contains("--config"), argv);
+	}
+
+	@Test
+	void aWhitespaceOnlyPackageListingIsAnError() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "newline");
+		assertNotEquals(0, r.exit());
+		assertEquals("", r.out());
+		assertTrue(r.err().contains("cannot read the package listing"), r.err());
+	}
+
+	@Test
+	void aListingWithoutTheVersionMeansNotPublished() throws Exception {
+		Run r = publishedShaWithFakeCurl(1, new byte[] {1}, "other-version");
+		assertEquals(0, r.exit(), r.err());
+		assertEquals("", r.out());
+		assertEquals("", r.err());
 	}
 }
