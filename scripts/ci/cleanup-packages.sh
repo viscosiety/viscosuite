@@ -21,16 +21,17 @@ if [ -n "${CLEANUP_DECIDE_ONLY:-}" ]; then
 fi
 
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
-auth="JOB-TOKEN: ${CI_JOB_TOKEN:?}"
+. "$(dirname "$0")/lib/packages.sh"
+token_cfg_init
 for name in com/visco/viscolink com/visco/viscolink-pack-health com/visco/viscostore com/visco/viscosuite-release; do
-  curl --fail --silent --show-error --header "$auth" \
+  curl --fail --silent --show-error --config "$_VF_TOKEN_CFG" \
     "$API/packages?package_type=maven&package_name=$name&order_by=created_at&sort=desc&per_page=100" \
     | jq -r --arg n "$name" '.[] | select(.name == $n) | [.created_at, .version, .id] | @tsv' \
     | decide \
     | while read -r action id version _rest; do
         echo "$name $version: $action"
         if [ "$action" = delete ]; then
-          curl --fail --silent --show-error --header "$auth" --request DELETE "$API/packages/$id" > /dev/null
+          curl --fail --silent --show-error --config "$_VF_TOKEN_CFG" --request DELETE "$API/packages/$id" > /dev/null
         fi
       done
 done

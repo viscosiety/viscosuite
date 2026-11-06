@@ -22,6 +22,11 @@ major version).
 - **`PackVersionTest` follows the pom.** It compared the filtered `pack-version.properties` with a
   literal `1.0.0-SNAPSHOT`; surefire now passes `project.version`, so a version bump does not fail
   the test stage.
+- **CI publish fails closed.** `published_sha` lost curl's exit status in a pipeline, so a registry or network
+  error read as "not published" and the publish lost the conflict check (the registry still refused a duplicate
+  with duplicates off); it now tests each call's own status. In the CI scripts (`scripts/ci/`) the job token
+  reaches curl through a 0600 config file, never the command line (`write-release-bom.sh`,
+  `cleanup-packages.sh`). Found while building viscoForge's copy of these scripts (component model M2).
 
 ## [1.0.0] — 2026-11-04
 

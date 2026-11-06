@@ -12,12 +12,12 @@
 set -eu
 VERSION="${1:?usage: write-release-bom.sh <version>}"
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
-auth="JOB-TOKEN: ${CI_JOB_TOKEN:?}"
 out="viscorunner/target/viscosuite-release-${VERSION}.json"
 mkdir -p "$(dirname "$out")"
 . "$(dirname "$0")/lib/packages.sh"
+token_cfg_init
 
-api() { curl --fail --silent --show-error --header "$auth" "$@"; }
+api() { curl --fail --silent --show-error --config "$_VF_TOKEN_CFG" "$@"; }
 
 SHA_STORE=$(published_sha com/visco/viscostore "viscostore-${VERSION}.war") || { echo "write-release-bom: cannot read the viscostore package" >&2; exit 1; }
 SHA_PACK_HEALTH=$(published_sha com/visco/viscolink-pack-health "viscolink-pack-health-${VERSION}-overlay.zip") || { echo "write-release-bom: cannot read the pack-health package" >&2; exit 1; }
@@ -44,7 +44,7 @@ case $(upload_decision "$bom_have" "$(sha256sum "$out" | cut -d' ' -f1)") in
   skip) echo "write-release-bom: $url already published with the same sha256, skipping the upload" ;;
   conflict) echo "write-release-bom: viscosuite-release-$VERSION.json is already published with another content; delete it first" >&2; exit 1 ;;
   *)
-    curl --fail --silent --show-error --header "$auth" --upload-file "$out" "$url" > /dev/null
+    curl --fail --silent --show-error --config "$_VF_TOKEN_CFG" --upload-file "$out" "$url" > /dev/null
     echo "write-release-bom: uploaded $url" ;;
 esac
 
