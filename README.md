@@ -306,8 +306,7 @@ general. Other combinations, such as Core with ViscoStore, are not published as 
 
 `<sha>` is the commit and `<version>` the release: a tag `vA.B.C` publishes `A.B.C`, a `main`
 commit publishes `A.B.C-<pipeline id>`, so an image can be pinned to a release. The unsuffixed
-tags keep their long-standing meaning
-(the healthcare images) and `-health` is the explicit spelling. `-core` is the market-neutral
+tags are the healthcare images. `-core` is the market-neutral
 integration platform: Frank!Framework, the console with OIDC, ViscoFlow and Ladybug, with no FHIR
 servlets, no MLLP, no HL7v2 pipes and no HAPI FHIR libraries. Its subject identifier is a neutral
 "Subject" instead of "Patient", the pack descriptor endpoint (`GET /runtime/api-service/pack`)
@@ -323,7 +322,7 @@ The latest release is **v0.20.0** (2026-09-25); **v1.0.0 lands together with Fra
 10.3 GA**. Until then the builds run on a Frank!Framework 10.3 pre-release (nightly) build, and
 each release documents the version it builds on in the
 [changelog](https://github.com/viscosiety/viscosuite/blob/main/CHANGELOG.md). The pack
-structure and the `-core` and `-health` images described here are on `main` and in the
+structure and the `-core` images described here are on `main` and in the
 `latest*` images; they are not part of v0.20.0 and arrive with the next release.
 
 ## Community
