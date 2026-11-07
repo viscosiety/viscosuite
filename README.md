@@ -296,8 +296,8 @@ pulls. The published images:
 | Image | Contents | Tags |
 |---|---|---|
 | `viscobase` | no pack, no store: the bare runtime and the fetcher | `<sha>`, `<version>`, `latest` |
-| `viscorunner` | Healthcare pack + ViscoStore (the full suite) | `<sha>`, `<version>`, `latest`, `<sha>-health`, `latest-health` |
-| `viscolink` | Healthcare pack, no store (ViscoLink only) | `<sha>`, `<version>`, `latest`, `<sha>-health`, `latest-health` |
+| `viscorunner` | Healthcare pack + ViscoStore (the full suite) | `<sha>`, `<version>`, `latest` |
+| `viscolink` | Healthcare pack, no store (ViscoLink only) | `<sha>`, `<version>`, `latest` |
 | `viscolink` | Core: `viscobase` under another name | `<sha>-core`, `<version>-core`, `latest-core` |
 | `viscostore` | the standalone FHIR server | `<sha>`, `<version>`, `latest` |
 

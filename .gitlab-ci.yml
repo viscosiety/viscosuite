@@ -25,9 +25,8 @@
 #   viscorunner  fat        store + pack-health                :<sha> :<version> :latest
 #   viscolink    fat        pack-health                        :<sha> :<version> :latest
 #   viscostore   -          -                                  :<sha> :<version> :latest  (viscorunner/Dockerfile.viscostore)
-# Per-arch build intermediates are
-# <sha>-<pipeline id>-amd64 / -arm64: keyed by PIPELINE, because a tag and a main pipeline run on the same
-# commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
+# Per-arch build intermediates are <sha>-<pipeline id>-amd64 / -arm64: keyed by PIPELINE, because a tag and a main
+# pipeline run on the same commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
 # amd64 halves to the main pipeline's cleanup, 2026-11-04).
 
 stages:
