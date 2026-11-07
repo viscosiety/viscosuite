@@ -22,12 +22,11 @@
 # Images (viscorunner/Dockerfile, two stages; the component model, viscoFoundry design 2026-11-04):
 #   image        stage      components fetched at build        tags (all multi-arch)
 #   viscobase    viscobase  none                               :<sha> :<version> :latest  (+ viscolink:<sha>-core, :<version>-core, :latest-core)
-#   viscorunner  fat        store + pack-health                :<sha> :<version> :latest  :<sha>-health :latest-health
-#   viscolink    fat        pack-health                        :<sha> :<version> :latest  :<sha>-health :latest-health
+#   viscorunner  fat        store + pack-health                :<sha> :<version> :latest
+#   viscolink    fat        pack-health                        :<sha> :<version> :latest
 #   viscostore   -          -                                  :<sha> :<version> :latest  (viscorunner/Dockerfile.viscostore)
-# The -health aliases stay until M4 of the component model. Per-arch build intermediates are
-# <sha>-<pipeline id>-amd64 / -arm64: keyed by PIPELINE, because a tag and a main pipeline run on the same
-# commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
+# Per-arch build intermediates are <sha>-<pipeline id>-amd64 / -arm64: keyed by PIPELINE, because a tag and a main
+# pipeline run on the same commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
 # amd64 halves to the main pipeline's cleanup, 2026-11-04).
 
 stages:
@@ -308,7 +307,6 @@ manifest:viscosuite:
     - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
         -t "$IMAGE:$CI_COMMIT_SHA" -t "$IMAGE:$VERSION" -t "$IMAGE:latest"
-        -t "$IMAGE:$CI_COMMIT_SHA-health" -t "$IMAGE:latest-health"
         "$IMAGE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
         "$IMAGE:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 
@@ -321,7 +319,6 @@ manifest:viscolink:
     - VERSION=$(sh scripts/ci/version.sh)
     - docker buildx imagetools create
         -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA" -t "$IMAGE_VISCOLINK:$VERSION" -t "$IMAGE_VISCOLINK:latest"
-        -t "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-health" -t "$IMAGE_VISCOLINK:latest-health"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-$CI_PIPELINE_ID-amd64"
         "$IMAGE_VISCOLINK:$CI_COMMIT_SHA-$CI_PIPELINE_ID-arm64"
 

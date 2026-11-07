@@ -14,6 +14,11 @@ major version).
   `META-INF/viscolink-version.properties` names the Frank!Framework version the core was built
   against, so viscoForge's build can check its own pin (component model M2).
 
+### Removed
+- **The `-health` image tag aliases** (`<sha>-health`, `latest-health`) of viscorunner and viscolink;
+  nothing reads them since the ViscoFoundry portal runs releases (component model M4). The images and
+  their `<sha>`, `<version>`, `latest` tags are unchanged.
+
 ### Fixed
 - **CI: a tag and a main pipeline on the same commit no longer break each other.** The per-arch
   image intermediates are named `<sha>-<pipeline id>-amd64` / `-arm64` (were `<sha>-amd64`), so one
