@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<Context>
+<!--
+  Session cookie (2026-11-08): the /runtime session cookie covers the whole site (Path=/) under its own
+  name. The old /viscolink paths are served in place by the Host's RewriteValve (rewrite.config), but a
+  browser only sends a cookie to paths under the cookie's Path: with Path=/runtime, a signed-in hosted
+  page that called /viscolink/api/... (written before the move, 2026-10-28) arrived without its session
+  and got 401. RUNTIMESESSIONID, not JSESSIONID: the other webapps (/console, /fhir-store) keep their own
+  JSESSIONID under their own path, and a site-wide cookie with that name would travel next to theirs.
+  Proven by RuntimeSessionCookieScopeTest.
+-->
+<Context sessionCookiePath="/" sessionCookieName="RUNTIMESESSIONID">
   <!--
     Extra web resources injected without pre-creating webapps/viscolink/.
     Files placed in /opt/frank/webapp-overlay/viscolink/ are served as
