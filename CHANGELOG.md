@@ -20,6 +20,14 @@ major version).
   their `<sha>`, `<version>`, `latest` tags are unchanged.
 
 ### Fixed
+- **A signed-in page that calls the API by its old `/viscolink` path gets its session again.** Since
+  the move to `/runtime` (2026-10-28) the session cookie was scoped to `Path=/runtime`, so a browser
+  never sent it to `/viscolink/...`; the rewrite served such a call in place at `/runtime/api/...`
+  without a session and the API answered 401 (found live: a configuration's hosted page fetching
+  `/viscolink/api/...`). The `/runtime` context now sets its session cookie site-wide (`Path=/`) under
+  its own name, `RUNTIMESESSIONID`, so it never travels next to the other webapps' `JSESSIONID`.
+  Everyone signed in to the runtime signs in once more after the update. `RuntimeSessionCookieScopeTest`
+  runs a real Tomcat with the image's rewrite rules and context settings and a path-aware cookie jar.
 - **CI: a tag and a main pipeline on the same commit no longer break each other.** The per-arch
   image intermediates are named `<sha>-<pipeline id>-amd64` / `-arm64` (were `<sha>-amd64`), so one
   pipeline's `cleanup:arch-tags` cannot delete the halves the other is still assembling (the v1.0.0
