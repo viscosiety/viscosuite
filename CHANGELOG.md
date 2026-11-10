@@ -14,6 +14,12 @@ major version).
   `META-INF/viscolink-version.properties` names the Frank!Framework version the core was built
   against, so viscoForge's build can check its own pin (component model M2).
 
+### Changed
+- **The images run on Java 25** (`tomcat:11.0.14-jre25`; was `-jre21`, same Tomcat). Frank!Framework
+  10.3.0 itself ships and is tested on Java 25. The pipeline builds and tests on JDK 25 too, so the
+  tests run on the Java the images run. The artifacts are still compiled for Java 21
+  (`maven.compiler.release` unchanged), so they keep running on a Java 21 runtime.
+
 ### Removed
 - **The `-health` image tag aliases** (`<sha>-health`, `latest-health`) of viscorunner and viscolink;
   nothing reads them since the ViscoFoundry portal runs releases (component model M4). The images and

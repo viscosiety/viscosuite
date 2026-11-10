@@ -1,11 +1,11 @@
 # ONE Dockerfile, two stages (viscoFoundry design 2026-11-04, the component model):
-#   viscobase  Tomcat 11 / JRE 21 + the Frank!Framework WAR at /runtime + the component fetcher.
+#   viscobase  Tomcat 11 / JRE 25 + the Frank!Framework WAR at /runtime + the component fetcher.
 #              Nothing variant-specific: no pack, no store. The commercial runner IS this image
 #              (components fetched at pod start) and viscolink:<tag>-core is this image under another name.
 #   fat        FROM viscobase; runs the fetcher at BUILD time against a components list (file:// URLs
 #              into target/components/ from the Maven staging for local builds; registry URLs in CI)
 #              and places the result: the published viscorunner (health + store) and viscolink (health).
-FROM tomcat:11.0.14-jre21 AS viscobase
+FROM tomcat:11.0.14-jre25 AS viscobase
 
 ARG GID=2000
 ARG UID=2000
