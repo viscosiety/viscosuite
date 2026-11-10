@@ -4,6 +4,10 @@ FROM tomcat:11.0.14-jre25
 ARG GID=2000
 ARG UID=2000
 
+# curl for the HEALTHCHECK: the Java 25 base image does not ship it (the Java 21 one did).
+# Installed BEFORE the hardening below (apt cannot run after it).
+RUN apt-get update && apt-get install -y --no-install-recommends curl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Harden file permissions (CIS-DI-0008)
 RUN chmod -R 751 /usr/bin /usr/sbin
 

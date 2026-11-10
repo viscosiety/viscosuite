@@ -10,9 +10,10 @@ FROM tomcat:11.0.14-jre25 AS viscobase
 ARG GID=2000
 ARG UID=2000
 
-# unzip for the fetcher's overlay zips; curl and ca-certificates come with the base image.
-# Installed BEFORE the hardening below (apt cannot run after it), which then covers unzip too.
-RUN apt-get update && apt-get install -y --no-install-recommends unzip && rm -rf /var/lib/apt/lists/*
+# unzip for the fetcher's overlay zips; curl and ca-certificates for the fetcher, the HEALTHCHECK and the
+# smoke test. The Java 21 base image shipped curl, the Java 25 one does not, so it is installed here.
+# Installed BEFORE the hardening below (apt cannot run after it), which then covers them too.
+RUN apt-get update && apt-get install -y --no-install-recommends unzip curl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Harden file permissions (CIS-DI-0008)
 RUN chmod -R 751 /usr/bin /usr/sbin

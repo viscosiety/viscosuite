@@ -19,6 +19,8 @@ major version).
   10.3.0 itself ships and is tested on Java 25. The pipeline builds and tests on JDK 25 too, so the
   tests run on the Java the images run. The artifacts are still compiled for Java 21
   (`maven.compiler.release` unchanged), so they keep running on a Java 21 runtime.
+  The Java 25 base image ships no `curl` (the Java 21 one did), so both images install it: the
+  component fetcher, the health checks and the image smoke test call it.
 
 ### Removed
 - **The `-health` image tag aliases** (`<sha>-health`, `latest-health`) of viscorunner and viscolink;
