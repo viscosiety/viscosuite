@@ -131,6 +131,8 @@ class DockerfileContractTest {
             if (base.get(i).equals("USER tomcat")) user = i;
         }
         assertTrue(unzip >= 0 && user > unzip, "unzip is installed as root, before USER tomcat");
+        assertTrue(base.get(unzip).contains(" curl ") && base.get(unzip).contains(" ca-certificates "),
+            "curl is installed with it: the fetcher, the HEALTHCHECK and the smoke test call it, and the Java 25 base image does not ship it");
         assertTrue(read("src/scripts/entrypoint.sh").contains("/opt/frank/bin/place-components"), "the entrypoint places the components at every start");
         assertTrue(Files.isExecutable(MODULE.resolve("src/scripts/fetch-components")) && Files.isExecutable(MODULE.resolve("src/scripts/place-components")),
             "both scripts are executable in git");
