@@ -105,7 +105,7 @@ A `<packaging>jar</packaging>` module (it shades the Kubernetes event-publisher 
 1. Copies both WARs (version-stripped) to `target/`
 2. Copies JDBC drivers (postgresql, h2) to `target/drivers/` — placed at Tomcat's `common.loader` so both WARs share them without bundling drivers inside either WAR
 3. Unpacks the health pack's overlay zip to `target/packs/health/` (for the launcher ITs), stages the demo sets `target/demo/{health,core}/`, the component files `target/components/` and the two local components lists
-4. Builds Tomcat 11 / JRE 21 Docker images from ONE two-stage `Dockerfile`: stage `viscobase` (Tomcat + `runtime.war` + the fetcher; no pack, no store — the commercial runner and `viscolink:…-core`) and stage `fat` (`viscobase` + the components a list names, fetched and placed at build time: `viscorunner` = store + health pack, `viscolink` = health pack). `--target fat --build-arg COMPONENTS_LIST=target/components-suite.list`
+4. Builds Tomcat 11 / JRE 25 Docker images from ONE two-stage `Dockerfile`: stage `viscobase` (Tomcat + `runtime.war` + the fetcher; no pack, no store — the commercial runner and `viscolink:…-core`) and stage `fat` (`viscobase` + the components a list names, fetched and placed at build time: `viscorunner` = store + health pack, `viscolink` = health pack). `--target fat --build-arg COMPONENTS_LIST=target/components-suite.list`
 
 **Key runtime directories inside the container:**
 

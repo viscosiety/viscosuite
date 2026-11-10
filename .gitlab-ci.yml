@@ -92,7 +92,7 @@ variables:
 # ---------------------------------------------------------------------------
 test:
   stage: test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9-eclipse-temurin-25
   <<: *maven-cache
   before_script: *maven-before
   tags: [docker]
@@ -112,7 +112,7 @@ test:
 # ---------------------------------------------------------------------------
 package:
   stage: package
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9-eclipse-temurin-25
   <<: *maven-cache-push
   before_script: *maven-before
   tags: [docker]
@@ -147,7 +147,7 @@ package:
 # ---------------------------------------------------------------------------
 integration-test:
   stage: integration-test
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9-eclipse-temurin-25
   <<: *maven-cache
   before_script: *maven-before
   tags: [docker]
@@ -164,7 +164,7 @@ integration-test:
 # ---------------------------------------------------------------------------
 publish:
   stage: publish
-  image: maven:3.9-eclipse-temurin-21
+  image: maven:3.9-eclipse-temurin-25
   <<: *maven-cache
   before_script: *maven-before
   tags: [docker]

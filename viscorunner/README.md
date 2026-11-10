@@ -20,7 +20,7 @@ One `Dockerfile`, two stages:
 
 | Stage | Content | Published as |
 |---|---|---|
-| `viscobase` | Tomcat 11 / JRE 21, the Frank!Framework webapp at `/runtime`, the drivers, the Lemma native, both demo sets, the component fetcher. No pack, no store. | `viscobase`, and `viscolink:…-core` (the core is the absence of a pack) |
+| `viscobase` | Tomcat 11 / JRE 25, the Frank!Framework webapp at `/runtime`, the drivers, the Lemma native, both demo sets, the component fetcher. No pack, no store. | `viscobase`, and `viscolink:…-core` (the core is the absence of a pack) |
 | `fat` | `viscobase` plus the components a list names, fetched and placed at build time | `viscorunner` (store + health pack), `viscolink` (health pack) |
 
 A **components list** has one header `release <version>` and one line per component, `<id> <kind> <version> <url> <sha256> <deployAs>`. The Maven build writes two local lists (`target/components-suite.list`, `target/components-viscolink.list`) with `file://` URLs into `target/components/`; CI writes the same lists with registry URLs. `/opt/frank/bin/fetch-components` verifies every byte against the sha256 before it keeps anything and writes `/opt/frank/components/MANIFEST`; `place-components` copies WARs into `webapps/` and overlays into `/opt/frank/webapp-overlay/<context>/` (the `runtime` overlay keeps the dir name `viscolink` for now).

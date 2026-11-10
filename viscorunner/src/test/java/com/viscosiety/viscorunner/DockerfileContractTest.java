@@ -93,7 +93,7 @@ class DockerfileContractTest {
     @Test
     void oneDockerfileTwoStages() throws IOException {
         List<String> lines = dockerfileInstructions();
-        assertTrue(hasLine(lines, "FROM tomcat:11.0.14-jre21 AS viscobase"), "stage viscobase on the Frank!Framework base image");
+        assertTrue(hasLine(lines, "FROM tomcat:11.0.14-jre25 AS viscobase"), "stage viscobase on the Frank!Framework base image");
         assertTrue(hasLine(lines, "FROM viscobase AS fat"), "stage fat builds on viscobase");
         assertTrue(lines.stream().noneMatch(l -> l.contains("${PACK}") || l.contains("${STORE}") || l.startsWith("ARG PACK") || l.startsWith("ARG STORE")),
             "no PACK/STORE variants: composition is a components list");
@@ -101,7 +101,7 @@ class DockerfileContractTest {
 
     @Test
     void viscobaseHoldsNoComponent() throws IOException {
-        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre25 AS viscobase", "FROM viscobase AS fat");
         for (String forbidden : List.of("target/packs/", "target/store/", "fhir-store.war", "webapp-overlay/viscolink/WEB-INF", "components.list")) {
             assertTrue(base.stream().noneMatch(l -> l.contains(forbidden)), "viscobase never copies " + forbidden);
         }
@@ -123,7 +123,7 @@ class DockerfileContractTest {
     @Test
     void theFetcherAndThePlacerShipInViscobase() throws IOException {
         List<String> lines = dockerfileInstructions();
-        List<String> base = stage(lines, "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        List<String> base = stage(lines, "FROM tomcat:11.0.14-jre25 AS viscobase", "FROM viscobase AS fat");
         assertTrue(hasLine(base, "COPY --chown=tomcat src/scripts/fetch-components src/scripts/place-components /opt/frank/bin/"), "the two scripts");
         int unzip = -1, user = -1;
         for (int i = 0; i < base.size(); i++) {
@@ -160,7 +160,7 @@ class DockerfileContractTest {
 
     @Test
     void theDemoSetsOfBothPacksShipInViscobase() throws IOException {
-        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre21 AS viscobase", "FROM viscobase AS fat");
+        List<String> base = stage(dockerfileInstructions(), "FROM tomcat:11.0.14-jre25 AS viscobase", "FROM viscobase AS fat");
         assertTrue(hasLine(base, "COPY --chown=tomcat target/demo/health/ /opt/frank/demo-configurations/health/"), "the health demo set");
         assertTrue(hasLine(base, "COPY --chown=tomcat target/demo/core/ /opt/frank/demo-configurations/core/"), "the core demo set");
     }
