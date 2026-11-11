@@ -317,13 +317,11 @@ that keep their own licences (see License).
 
 ## Versioning and compatibility
 
-ViscoSuite follows semantic versioning (pre-1.0: breaking changes bump the minor version).
-The latest release is **v0.20.0** (2026-09-25); **v1.0.0 lands together with Frank!Framework
-10.3 GA**. Until then the builds run on a Frank!Framework 10.3 pre-release (nightly) build, and
-each release documents the version it builds on in the
-[changelog](https://github.com/viscosiety/viscosuite/blob/main/CHANGELOG.md). The pack
-structure and the `-core` images described here are on `main` and in the
-`latest*` images; they are not part of v0.20.0 and arrive with the next release.
+ViscoSuite follows semantic versioning (from 1.0.0: breaking changes bump the major version).
+The latest release is **v1.0.0** (2026-11-04). Each release documents what changed in the
+[changelog](https://github.com/viscosiety/viscosuite/blob/main/CHANGELOG.md); every version there starts
+with a short plain-language summary ("In short"). The changelog is also published with each release as its
+release notes (`viscosuite-release-<version>-notes.md` beside the release's component list).
 
 ## Community
 
