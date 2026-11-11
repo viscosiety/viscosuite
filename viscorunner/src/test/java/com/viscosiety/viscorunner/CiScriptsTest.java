@@ -234,4 +234,74 @@ class CiScriptsTest {
 		assertEquals("", r.out());
 		assertEquals("", r.err());
 	}
+
+	static final String CHECK_CHANGELOG_SH = REPO.resolve("scripts/ci/check-changelog.sh").toString();
+
+	static Run checkChangelog(String content, String tag) throws Exception {
+		Path dir = Files.createTempDirectory("changelog");
+		Files.writeString(dir.resolve("CHANGELOG.md"), content);
+		Map<String, String> env = tag == null ? Map.of() : Map.of("CI_COMMIT_TAG", tag);
+		return sh(dir, env, "/bin/sh", CHECK_CHANGELOG_SH);
+	}
+
+	static final String GOOD_CHANGELOG = "# Changelog\n\nIntro.\n\n## [Unreleased]\n\n"
+			+ "## [1.1.0] — 2026-11-12\n\n### In short\nThe images run on Java 25. Nothing to do.\n\n### Changed\n- detail\n\n"
+			+ "## [1.0.0] - 2026-11-04\n\n### Added\n- old\n";
+
+	@Test
+	void aChangelogWithGoodHeadingsPassesOnMain() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, null);
+		assertEquals(0, r.exit(), r.err());
+	}
+
+	@Test
+	void aVersionHeadingInAnotherShapeIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("## [1.0.0] - 2026-11-04", "## 1.0.0 (2026-11-04)"), null);
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("check-changelog: version heading"), r.err());
+		assertTrue(r.err().contains("## 1.0.0 (2026-11-04)"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithItsSummaryPasses() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.1.0");
+		assertEquals(0, r.exit(), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithoutItsSectionIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.2.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("no section ## [1.2.0]"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithoutASummaryIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.0.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("must start with ### In short"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithAnEmptySummaryIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("The images run on Java 25. Nothing to do.\n", ""), "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("### In short of [1.1.0] is empty"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithUnreleasedContentIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("## [Unreleased]\n\n", "## [Unreleased]\n\n### Fixed\n- late\n\n"), "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("## [Unreleased] still has content"), r.err());
+	}
+
+	@Test
+	void aSummaryThatIsNotTheFirstSubsectionIsRefused() throws Exception {
+		String moved = GOOD_CHANGELOG.replace("### In short\nThe images run on Java 25. Nothing to do.\n\n### Changed\n- detail\n",
+				"### Changed\n- detail\n\n### In short\nThe images run on Java 25. Nothing to do.\n");
+		Run r = checkChangelog(moved, "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("must start with ### In short"), r.err());
+	}
 }
