@@ -359,6 +359,7 @@ release:bom:
   artifacts:
     paths:
       - viscorunner/target/viscosuite-release-*.json
+      - viscorunner/target/viscosuite-release-*-notes.md
     expire_in: 1 week
   <<: *on-main-or-release
 
