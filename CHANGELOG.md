@@ -12,6 +12,8 @@ major version).
   this release.
 - A page of your own that calls the instance's API through the old `/viscolink` address works again when you
   are signed in. Everyone signs in to the runtime once more after the update.
+- Image tags ending in `-health` are no longer published; pull the same image by its version or `latest` tag
+  instead.
 - Each release now comes with release notes that start with a short summary like this one.
 
 ### Added
