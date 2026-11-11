@@ -16,11 +16,9 @@ if [ -n "$bad" ]; then
   exit 1
 fi
 
-tag="${CI_COMMIT_TAG:-}"
-case "$tag" in
-  v[0-9]*.[0-9]*.[0-9]*) version="${tag#v}" ;;
-  *) echo "check-changelog: $file is well-formed"; exit 0 ;;
-esac
+# Only a release tag (exactly vA.B.C, what the release jobs publish) gets the strict check.
+version=$(printf '%s' "${CI_COMMIT_TAG:-}" | sed -n 's/^v\([0-9][0-9]*\.[0-9][0-9]*\.[0-9][0-9]*\)$/\1/p')
+[ -n "$version" ] || { echo "check-changelog: $file is well-formed"; exit 0; }
 
 problem=$(awk -v v="$version" '
   /^## / {
