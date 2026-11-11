@@ -7,6 +7,8 @@ major version).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-11-11
+
 ### In short
 - The runtime now runs on Java 25. You do not have to change anything; an instance gets it when it moves to
   this release.
