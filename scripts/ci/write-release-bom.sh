@@ -9,6 +9,8 @@
 #   POSTGRES_DIGEST  docker buildx imagetools inspect of postgres:16 at release time
 # Then proves anonymous pull (a public project; the Standard edition fetches without a token): one
 # package file is fetched WITHOUT a token and must answer 200 with the pinned sha256.
+# Last, CHANGELOG.md is uploaded beside the BOM as viscosuite-release-<version>-notes.md (the release notes
+# the ViscoFoundry portal shows) and read back without a token.
 set -eu
 VERSION="${1:?usage: write-release-bom.sh <version>}"
 API="${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}"
@@ -55,4 +57,16 @@ curl --fail --silent --show-error --location --output "$tmp" "$anon" || { echo "
 got=$(sha256sum "$tmp" | cut -d' ' -f1); rm -f "$tmp"
 [ "$got" = "$SHA_STORE" ] || { echo "write-release-bom: anonymous pull served sha256 $got, the registry reports $SHA_STORE" >&2; exit 1; }
 echo "write-release-bom: anonymous pull OK ($anon)"
+
+# The release notes: the changelog as it is at this commit, beside the BOM.
+notes_name="viscosuite-release-$VERSION-notes.md"
+notes="viscorunner/target/$notes_name"
+cp CHANGELOG.md "$notes"
+upload_file_once com/visco/viscosuite-release "$notes_name" "$notes" || exit 1
+tmp=$(mktemp)
+curl --fail --silent --show-error --location --output "$tmp" "$API/packages/maven/com/visco/viscosuite-release/$VERSION/$notes_name" \
+  || { rm -f "$tmp"; echo "write-release-bom: anonymous read of $notes_name failed" >&2; exit 1; }
+cmp -s "$tmp" "$notes" || { rm -f "$tmp"; echo "write-release-bom: $notes_name reads back with other bytes" >&2; exit 1; }
+rm -f "$tmp"
+echo "write-release-bom: release notes published ($notes_name)"
 cat "$out"

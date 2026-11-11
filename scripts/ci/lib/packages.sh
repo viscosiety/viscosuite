@@ -3,6 +3,7 @@
 # same version again; with Maven duplicates off the registry answers 4xx, so each upload first asks what
 # is already there.
 #   published_sha <package_name> <file_name>      sha256 of that file at $VERSION, or nothing
+#   upload_file_once <package_name> <file_name> <local file>   raw upload of one file into $VERSION, idempotent
 #   upload_decision <published_sha> <staged_sha>  prints skip (same bytes), upload (nothing there) or
 #                                                 conflict (other bytes: never overwrite silently)
 # Needs CI_API_V4_URL, CI_PROJECT_ID, CI_JOB_TOKEN, VERSION, curl and jq.
@@ -59,4 +60,21 @@ published_sha() {
   fi
   sha256sum "$_tmp" | cut -d' ' -f1
   rm -f "$_tmp"
+}
+
+# upload_file_once <package_name> <file_name> <local file>: one raw PUT into $VERSION of that package (the
+# release documents: the BOM's companions such as the release notes). Same bytes already there: skip. Other
+# bytes: stop (a published version never changes). Returns 1 on any failed call.
+upload_file_once() {
+  _have=$(published_sha "$1" "$2") || { echo "upload_file_once: cannot ask the registry about $2" >&2; return 1; }
+  token_cfg_init || return 1
+  case $(upload_decision "$_have" "$(sha256sum "$3" | cut -d' ' -f1)") in
+    skip) echo "upload_file_once: $2 already published with the same sha256, skipping" ;;
+    conflict) echo "upload_file_once: $2 is already published with another content; delete it first" >&2; return 1 ;;
+    *)
+      curl --fail --silent --show-error --config "$_VF_TOKEN_CFG" --upload-file "$3" \
+          "${CI_API_V4_URL:?}/projects/${CI_PROJECT_ID:?}/packages/maven/$1/${VERSION:?}/$2" > /dev/null \
+        || { echo "upload_file_once: upload of $2 failed" >&2; return 1; }
+      echo "upload_file_once: uploaded $2" ;;
+  esac
 }

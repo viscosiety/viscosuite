@@ -97,6 +97,7 @@ test:
   before_script: *maven-before
   tags: [docker]
   script:
+    - sh scripts/ci/check-changelog.sh
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
@@ -358,6 +359,7 @@ release:bom:
   artifacts:
     paths:
       - viscorunner/target/viscosuite-release-*.json
+      - viscorunner/target/viscosuite-release-*-notes.md
     expire_in: 1 week
   <<: *on-main-or-release
 

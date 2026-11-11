@@ -7,12 +7,25 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- The runtime now runs on Java 25. You do not have to change anything; an instance gets it when it moves to
+  this release.
+- A page of your own that calls the instance's API through the old `/viscolink` address works again when you
+  are signed in. Everyone signs in to the runtime once more after the update.
+- Image tags ending in `-health` are no longer published; pull the same image by its version or `latest` tag
+  instead.
+- Each release now comes with release notes that start with a short summary like this one.
+
 ### Added
 - **`viscobase` knows the ViscoForge console's paths.** The rule set aliases `/viscoforge` to
   `/console` like `/viscolink` → `/runtime` (a 404 on a runtime without the console), the
   landing page shows an "Open console" card when `components.json` lists `console`, and
   `META-INF/viscolink-version.properties` names the Frank!Framework version the core was built
   against, so viscoForge's build can check its own pin (component model M2).
+- **Release notes travel with the release.** `CHANGELOG.md` is published as
+  `viscosuite-release-<version>-notes.md` beside the release's component list, and each version section
+  starts with `### In short`, a plain-language summary. `scripts/ci/check-changelog.sh` checks the headings
+  on every pipeline and, on a release tag, that the tagged version has its summary and `[Unreleased]` is empty.
 
 ### Changed
 - **The images run on Java 25** (`tomcat:11.0.14-jre25`; was `-jre21`, same Tomcat). Frank!Framework
@@ -50,6 +63,14 @@ major version).
   `cleanup-packages.sh`). Found while building viscoForge's copy of these scripts (component model M2).
 
 ## [1.0.0] — 2026-11-04
+
+### In short
+- ViscoSuite is delivered as a base runtime plus separately versioned components (the healthcare pack, the
+  FHIR store). A release is a fixed, checked set of them, so two installations of one release run exactly
+  the same software.
+- A platform can now see when a running instance really serves: each configuration reports when it has
+  started or closed.
+- Hosted pages that you make public no longer ask for a login.
 
 ### Added
 - **Components and releases.** Every Java component of ViscoSuite is a versioned Maven artifact in

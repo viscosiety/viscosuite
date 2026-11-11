@@ -53,3 +53,9 @@ Community support in issues is best-effort, by a small team, around real work.
 Bug reports with clear reproductions get priority. For guaranteed response
 times, implementation help, or advice specific to your environment, see the
 commercial support options in the [README](README.md#support--services).
+
+## Changelog
+
+Add your change to `CHANGELOG.md` under `## [Unreleased]`. If a user of ViscoSuite would notice it, also
+add or adjust a line in that section's `### In short` list, in plain language: what changes and whether
+they must do anything.

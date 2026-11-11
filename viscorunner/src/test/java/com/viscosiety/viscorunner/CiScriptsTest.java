@@ -234,4 +234,132 @@ class CiScriptsTest {
 		assertEquals("", r.out());
 		assertEquals("", r.err());
 	}
+
+	static final String CHECK_CHANGELOG_SH = REPO.resolve("scripts/ci/check-changelog.sh").toString();
+
+	static Run checkChangelog(String content, String tag) throws Exception {
+		Path dir = Files.createTempDirectory("changelog");
+		Files.writeString(dir.resolve("CHANGELOG.md"), content);
+		Map<String, String> env = tag == null ? Map.of() : Map.of("CI_COMMIT_TAG", tag);
+		return sh(dir, env, "/bin/sh", CHECK_CHANGELOG_SH);
+	}
+
+	static final String GOOD_CHANGELOG = "# Changelog\n\nIntro.\n\n## [Unreleased]\n\n"
+			+ "## [1.1.0] — 2026-11-12\n\n### In short\nThe images run on Java 25. Nothing to do.\n\n### Changed\n- detail\n\n"
+			+ "## [1.0.0] - 2026-11-04\n\n### Added\n- old\n";
+
+	@Test
+	void aChangelogWithGoodHeadingsPassesOnMain() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, null);
+		assertEquals(0, r.exit(), r.err());
+	}
+
+	@Test
+	void aVersionHeadingInAnotherShapeIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("## [1.0.0] - 2026-11-04", "## 1.0.0 (2026-11-04)"), null);
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("check-changelog: version heading"), r.err());
+		assertTrue(r.err().contains("## 1.0.0 (2026-11-04)"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithItsSummaryPasses() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.1.0");
+		assertEquals(0, r.exit(), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithoutItsSectionIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.2.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("no section ## [1.2.0]"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithoutASummaryIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG, "v1.0.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("must start with ### In short"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithAnEmptySummaryIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("The images run on Java 25. Nothing to do.\n", ""), "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("### In short of [1.1.0] is empty"), r.err());
+	}
+
+	@Test
+	void aReleaseTagWithUnreleasedContentIsRefused() throws Exception {
+		Run r = checkChangelog(GOOD_CHANGELOG.replace("## [Unreleased]\n\n", "## [Unreleased]\n\n### Fixed\n- late\n\n"), "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("## [Unreleased] still has content"), r.err());
+	}
+
+	@Test
+	void aSummaryThatIsNotTheFirstSubsectionIsRefused() throws Exception {
+		String moved = GOOD_CHANGELOG.replace("### In short\nThe images run on Java 25. Nothing to do.\n\n### Changed\n- detail\n",
+				"### Changed\n- detail\n\n### In short\nThe images run on Java 25. Nothing to do.\n");
+		Run r = checkChangelog(moved, "v1.1.0");
+		assertEquals(1, r.exit());
+		assertTrue(r.err().contains("must start with ### In short"), r.err());
+	}
+
+	/** A fake curl for upload_file_once: lists the package (empty, or holding the notes file), serves bytes, logs uploads. */
+	private Run uploadFileOnceWithFakeCurl(String listed, byte[] served, byte[] local, Path uploadLog) throws Exception {
+		Path dir = Files.createTempDirectory("fakecurl-upload");
+		Path fixture = dir.resolve("served.bin");
+		Files.write(fixture, served);
+		Path localFile = dir.resolve("CHANGELOG.md");
+		Files.write(localFile, local);
+		Path curl = dir.resolve("curl");
+		Files.writeString(curl, "#!/bin/sh\n"
+				+ "out=''; url=''; upload=''\n"
+				+ "while [ $# -gt 0 ]; do case \"$1\" in --output) out=$2; shift 2 ;; --upload-file) upload=$2; shift 2 ;; --header|--config) shift 2 ;; -*) shift ;; *) url=$1; shift ;; esac; done\n"
+				+ "emit() { if [ -n \"$out\" ]; then printf '%s\\n' \"$1\" > \"$out\"; else printf '%s\\n' \"$1\"; fi; }\n"
+				+ "if [ -n \"$upload\" ]; then printf '%s %s\\n' \"$upload\" \"$url\" >> '" + uploadLog + "'; exit 0; fi\n"
+				+ "case \"$url\" in\n"
+				+ "  */packages\\?*) emit '" + ("none".equals(listed) ? "[]" : "[{\"id\":7,\"name\":\"com/visco/viscosuite-release\",\"version\":\"1.1.0-9\"}]") + "' ;;\n"
+				+ "  */packages/7/package_files*) emit '[{\"file_name\":\"viscosuite-release-1.1.0-9-notes.md\",\"size\":" + served.length + ",\"file_sha256\":null}]' ;;\n"
+				+ "  */packages/maven/*) cp '" + fixture + "' \"$out\" ;;\n"
+				+ "  *) echo \"unexpected $url\" >&2; exit 22 ;;\n"
+				+ "esac\n");
+		assertTrue(curl.toFile().setExecutable(true));
+		String lib = REPO.resolve("scripts/ci/lib/packages.sh").toString();
+		Map<String, String> env = Map.of("PATH", dir + ":" + System.getenv("PATH"),
+				"CI_API_V4_URL", "https://example.invalid/api/v4", "CI_PROJECT_ID", "2", "CI_JOB_TOKEN", "x", "VERSION", "1.1.0-9");
+		return sh(REPO, env, "/bin/sh", "-c", ". " + lib + "; upload_file_once com/visco/viscosuite-release viscosuite-release-1.1.0-9-notes.md '" + localFile + "'");
+	}
+
+	@Test
+	void aNotesFileThatIsNotThereIsUploaded() throws Exception {
+		Path log = Files.createTempFile("uploads", ".log");
+		byte[] notes = "# Changelog\n".getBytes(StandardCharsets.UTF_8);
+		Run r = uploadFileOnceWithFakeCurl("none", notes, notes, log);
+		assertEquals(0, r.exit(), r.err());
+		List<String> uploads = Files.readAllLines(log);
+		assertEquals(1, uploads.size(), uploads.toString());
+		assertTrue(uploads.get(0).endsWith(
+				" https://example.invalid/api/v4/projects/2/packages/maven/com/visco/viscosuite-release/1.1.0-9/viscosuite-release-1.1.0-9-notes.md"),
+				uploads.get(0));
+	}
+
+	@Test
+	void aNotesFileWithTheSameBytesIsSkipped() throws Exception {
+		Path log = Files.createTempFile("uploads", ".log");
+		byte[] notes = "# Changelog\n".getBytes(StandardCharsets.UTF_8);
+		Run r = uploadFileOnceWithFakeCurl("there", notes, notes, log);
+		assertEquals(0, r.exit(), r.err());
+		assertTrue(r.out().contains("skipping"), r.out());
+		assertEquals(0, Files.readAllLines(log).size());
+	}
+
+	@Test
+	void aNotesFileWithOtherBytesStopsThePublish() throws Exception {
+		Path log = Files.createTempFile("uploads", ".log");
+		Run r = uploadFileOnceWithFakeCurl("there", "old".getBytes(StandardCharsets.UTF_8), "new".getBytes(StandardCharsets.UTF_8), log);
+		assertNotEquals(0, r.exit());
+		assertTrue(r.err().contains("already published with another content"), r.err());
+		assertEquals(0, Files.readAllLines(log).size());
+	}
 }
