@@ -97,6 +97,7 @@ test:
   before_script: *maven-before
   tags: [docker]
   script:
+    - sh scripts/ci/check-changelog.sh
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
