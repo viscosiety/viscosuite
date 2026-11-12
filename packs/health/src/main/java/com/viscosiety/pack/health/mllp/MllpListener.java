@@ -55,6 +55,20 @@ import org.frankframework.stream.Message;
  * {@code Hl7v2ToXmlPipe} at the pipeline entry and {@code XmlToHl7v2Pipe} when building
  * the ACK. This allows per-port HL7v2 version configuration.</p>
  *
+ * <p><b>Message id and correlation id.</b> Every delivery gets a new technical message id (a UUID, session key
+ * {@code mid}). The message's MSH-10 (message control id) is passed as its correlation id, so the Receiver puts it
+ * in session key {@code cid} and the error store and Ladybug show it as the correlation id. A message without
+ * MSH-10 gets no correlation id (the Receiver then falls back to the technical id).</p>
+ *
+ * <p><b>Duplicates.</b> A sender may send the same MSH-10 again, for instance after an acknowledgement got lost.
+ * Each such message is processed and acknowledged like any other; HL7v2 leaves duplicate handling to the
+ * application, so a pipeline that must not process a message twice checks {@code cid} itself. (The control id
+ * is deliberately not the technical message id: the Receiver counts deliveries per message id and would reject
+ * the second one as a redelivery.)</p>
+ *
+ * <p>When the pipeline fails, or returns no content, the listener logs it and closes the connection without a
+ * reply: an empty frame is not an acknowledgement, and a closed connection makes the sender retry.</p>
+ *
  * <p>Usage:</p>
  * <pre>{@code
  * <Receiver name="MllpReceiver">
@@ -167,16 +181,22 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
                 byte[] rawBytes = readMllpMessage(in);
                 if (rawBytes == null) break;
 
-                String rawHl7     = new String(rawBytes, java.nio.charset.Charset.forName(charset));
-                String messageId  = extractControlId(rawHl7);
+                String rawHl7    = new String(rawBytes, java.nio.charset.Charset.forName(charset));
+                String controlId = extractControlId(rawHl7);
 
                 try (PipeLineSession session = new PipeLineSession()) {
-                    MessageWrapper<String> wrapper = new MessageWrapper<>(new Message(rawHl7), messageId, null);
-                    String ack = handler.processRequest(this, wrapper, session).asString();
+                    MessageWrapper<String> wrapper = new MessageWrapper<>(new Message(rawHl7), newMessageId(), controlId);
+                    Message result = handler.processRequest(this, wrapper, session);
+                    String ack = result == null ? null : result.asString();
+                    if (ack == null || ack.isEmpty()) {
+                        log.warn("{} Pipeline returned no acknowledgement for message with control id [{}]; closing the connection without a reply",
+                                getLogPrefix(), controlId);
+                        break; // an empty frame is not an acknowledgement; a closed connection makes the sender retry
+                    }
                     writeMllpMessage(out, ack, charset);
 
                 } catch (ListenerException e) {
-                    log.error("{} Pipeline error for message {}: {}", getLogPrefix(), messageId, e.getMessage(), e);
+                    log.error("{} Pipeline error for message with control id [{}]: {}", getLogPrefix(), controlId, e.getMessage(), e);
                     if (exceptionListener != null) {
                         exceptionListener.exceptionThrown(this, e);
                     }
@@ -235,7 +255,7 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
 
     @Override
     public RawMessageWrapper<String> wrapRawMessage(String rawMessage, PipeLineSession session) throws ListenerException {
-        return new RawMessageWrapper<>(rawMessage, extractControlId(rawMessage), null);
+        return new RawMessageWrapper<>(rawMessage, newMessageId(), extractControlId(rawMessage));
     }
 
     @Override
@@ -248,11 +268,22 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
         // ACK is sent synchronously inside handleConnection(); nothing to do here.
     }
 
-    private String extractControlId(String hl7) {
+    /**
+     * The technical message id of one delivery. Always new: the Receiver counts deliveries per message id, and a
+     * sender may send the same MSH-10 again.
+     */
+    private static String newMessageId() {
+        return UUID.randomUUID().toString();
+    }
+
+    /** MSH-10 (message control id), or {@code null} when the message has none. */
+    private static String extractControlId(String hl7) {
         String[] segs = hl7.split("\r");
-        if (segs.length == 0) return UUID.randomUUID().toString();
+        if (segs.length == 0) return null;
         String[] fields = segs[0].split("\\|", -1);
-        return fields.length > 9 ? fields[9] : UUID.randomUUID().toString();
+        if (fields.length <= 9) return null;
+        String controlId = fields[9].trim();
+        return controlId.isEmpty() ? null : controlId;
     }
 
 }

@@ -7,6 +7,24 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- A hospital system that sends an HL7v2 message over MLLP again with the same message control id,
+  for instance because an acknowledgement got lost, now gets that message processed and acknowledged again.
+  Before, the second message was refused and the sender got an empty reply. You do not have to change
+  anything; a pipeline that must not process a message twice can check the control id itself.
+
+### Fixed
+- **`MllpListener` no longer rejects a resent message control id.** It passed MSH-10 as the technical
+  message id, and the Frank!Framework Receiver counts deliveries per message id in its process status
+  cache (also after a successful delivery); with `maxRetries` forced to 0 for a listener that cannot
+  redeliver, the second message with the same MSH-10 was treated as a redelivery ("has a problematic
+  history; aborting processing") and no pipeline ran. Each delivery now gets its own technical id (a UUID,
+  session key `mid`) and MSH-10 is the correlation id (session key `cid`, the correlation id in the error
+  store and Ladybug). A message without MSH-10 gets no correlation id.
+- **`MllpListener` never answers with an empty frame.** When the pipeline returns no content it logs a
+  warning with the control id and closes the connection without a reply, as it already did on a pipeline
+  error; a sender then retries.
+
 ## [1.1.0] — 2026-11-11
 
 ### In short
