@@ -45,6 +45,7 @@ import org.frankframework.core.IListener;
 import org.frankframework.core.IMessageHandler;
 import org.frankframework.core.IPushingListener;
 import org.frankframework.core.ListenerException;
+import org.frankframework.core.PipeLine.ExitState;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.receivers.MessageWrapper;
 import org.frankframework.receivers.RawMessageWrapper;
@@ -172,5 +173,79 @@ class MllpListenerTest {
             assertTrue(blank.getId().length() > 10);
         }
         listener = null;
+    }
+
+    @Test
+    void aVeryLongControlIdIsCutAt199Characters() {
+        String id = "A".repeat(10_000);
+        String controlId = MllpListener.extractControlId(adt(id));
+        assertEquals(MllpListener.MAX_CONTROL_ID_LENGTH, controlId.length());
+        assertEquals("A".repeat(199), controlId);
+    }
+
+    @Test
+    void controlCharactersInTheControlIdBecomeQuestionMarks() {
+        assertEquals("A?B?C?D?E", MllpListener.extractControlId(adt("A\nB\u001bC\tD\u007fE")));
+    }
+
+    @Test
+    void aBlankControlIdIsAbsent() {
+        assertNull(MllpListener.extractControlId(adt(" \t ")));
+        assertNull(MllpListener.extractControlId(adt("")));
+    }
+
+    @Test
+    void theCleanedControlIdIsTheCorrelationId() throws Exception {
+        RecordingHandler handler = start(request -> new Message("MSA|AA"));
+        try (Socket socket = connect(listener)) {
+            send(socket.getOutputStream(), adt("X\n2026-11-12 ERROR forged line"));
+            assertEquals("MSA|AA", payload(readFrame(socket.getInputStream())));
+        }
+        assertEquals("X?2026-11-12 ERROR forged line", handler.received.get(0).getCorrelationId());
+    }
+
+    @Test
+    void aDuplicateSkippedByTheReceiverGetsItsOwnWarning() throws Exception {
+        try (LogCapture logs = LogCapture.of(MllpListener.class)) {
+            listener = listenerOnFreePort();
+            listener.setHandler(new IMessageHandler<>() {
+                @Override
+                public Message processRequest(IPushingListener<String> origin, MessageWrapper<String> wrapper, PipeLineSession session) {
+                    session.setExitState(ExitState.SUCCESS, 304); // what Receiver.checkMessageHistory does for a duplicate
+                    return Message.nullMessage();
+                }
+
+                @Override
+                public void processRawMessage(IListener<String> origin, RawMessageWrapper<String> raw, PipeLineSession session, boolean checked) {
+                    throw new UnsupportedOperationException();
+                }
+            });
+            listener.configure();
+            listener.start();
+            try (Socket socket = connect(listener)) {
+                send(socket.getOutputStream(), adt("MSG00004"));
+                assertNull(readFrame(socket.getInputStream()));
+            }
+            listener.stop();
+            String warning = logs.waitForMessageContaining("MSG00004");
+            assertTrue(warning.contains("skipped"), warning);
+            assertTrue(warning.contains("checkForDuplicates"), warning);
+            assertFalse(warning.contains("PID|"), "never the message body");
+        }
+    }
+
+    @Test
+    void anEmptyResultWarningNamesBothCausesAndTheControlIdButNotTheBody() throws Exception {
+        try (LogCapture logs = LogCapture.of(MllpListener.class)) {
+            start(request -> Message.nullMessage());
+            try (Socket socket = connect(listener)) {
+                send(socket.getOutputStream(), adt("MSG\n00005"));
+                assertNull(readFrame(socket.getInputStream()));
+            }
+            listener.stop();
+            String warning = logs.waitForMessageContaining("MSG?00005");
+            assertTrue(warning.contains("the pipeline returned nothing, or the receiver skipped the message"), warning);
+            assertFalse(warning.contains("PID|"), "never the message body");
+        }
     }
 }
