@@ -55,6 +55,28 @@ import org.frankframework.stream.Message;
  * {@code Hl7v2ToXmlPipe} at the pipeline entry and {@code XmlToHl7v2Pipe} when building
  * the ACK. This allows per-port HL7v2 version configuration.</p>
  *
+ * <p><b>Message id and correlation id.</b> Every delivery gets a new technical message id (a UUID, session key
+ * {@code mid}). The message's MSH-10 (message control id) is passed as its correlation id, so the Receiver puts it
+ * in session key {@code cid} and the error store and Ladybug show it as the correlation id. A message without
+ * MSH-10 gets no correlation id (the Receiver then falls back to the technical id).</p>
+ *
+ * <p><b>Duplicates.</b> A sender may send the same MSH-10 again, for instance after an acknowledgement got lost.
+ * Each such message is processed and acknowledged like any other; HL7v2 leaves duplicate handling to the
+ * application, so a pipeline that must not process a message twice checks {@code cid} itself and still answers
+ * with an AA acknowledgement for the duplicate. (The control id is deliberately not the technical message id:
+ * the Receiver counts deliveries per message id and would reject the second one as a redelivery.)</p>
+ *
+ * <p><b>Do not set {@code checkForDuplicates} on an MLLP receiver.</b> The Receiver then skips a duplicate
+ * without running the pipeline, so nothing is returned: the sender never gets an acknowledgement and keeps
+ * sending the same message.</p>
+ *
+ * <p>The control id is cleaned before it is used: control characters (CR, LF, ESC, ...) become {@code ?}, it is
+ * cut at 199 characters (the HL7 v2.7 length of MSH-10), and a blank one counts as absent.</p>
+ *
+ * <p>When the pipeline fails, or there is no content to send back (the pipeline returned nothing, or the
+ * receiver skipped the message), the listener logs it with the control id and closes the connection without a
+ * reply: an empty frame is not an acknowledgement, and a closed connection makes the sender retry.</p>
+ *
  * <p>Usage:</p>
  * <pre>{@code
  * <Receiver name="MllpReceiver">
@@ -65,6 +87,12 @@ import org.frankframework.stream.Message;
 public class MllpListener extends MllpFacade implements IPushingListener<String> {
 
     private static final Logger log = LogManager.getLogger(MllpListener.class);
+
+    /** Longest message control id kept: the length of MSH-10 (ST) from HL7 v2.7. */
+    static final int MAX_CONTROL_ID_LENGTH = 199;
+
+    /** The exit code the Receiver sets when {@code checkForDuplicates} skips a message (stored as text). */
+    private static final String DUPLICATE_SKIPPED_EXIT_CODE = "304";
 
     static final byte START_BLOCK     = 0x0B;
     static final byte END_BLOCK       = 0x1C;
@@ -167,16 +195,28 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
                 byte[] rawBytes = readMllpMessage(in);
                 if (rawBytes == null) break;
 
-                String rawHl7     = new String(rawBytes, java.nio.charset.Charset.forName(charset));
-                String messageId  = extractControlId(rawHl7);
+                String rawHl7    = new String(rawBytes, java.nio.charset.Charset.forName(charset));
+                String controlId = extractControlId(rawHl7);
 
                 try (PipeLineSession session = new PipeLineSession()) {
-                    MessageWrapper<String> wrapper = new MessageWrapper<>(new Message(rawHl7), messageId, null);
-                    String ack = handler.processRequest(this, wrapper, session).asString();
+                    MessageWrapper<String> wrapper = new MessageWrapper<>(new Message(rawHl7), newMessageId(), controlId);
+                    Message result = handler.processRequest(this, wrapper, session);
+                    String ack = result == null ? null : result.asString();
+                    if (ack == null || ack.isEmpty()) {
+                        if (DUPLICATE_SKIPPED_EXIT_CODE.equals(session.get(PipeLineSession.EXIT_CODE_CONTEXT_KEY))) {
+                            log.warn("{} The receiver skipped message with control id [{}] as a duplicate (checkForDuplicates) without running "
+                                    + "the pipeline; it gets no acknowledgement and the sender will send it again. Closing the connection.",
+                                    getLogPrefix(), controlId);
+                        } else {
+                            log.warn("{} No acknowledgement to send for message with control id [{}] (the pipeline returned nothing, or the "
+                                    + "receiver skipped the message); closing the connection without a reply", getLogPrefix(), controlId);
+                        }
+                        break; // an empty frame is not an acknowledgement; a closed connection makes the sender retry
+                    }
                     writeMllpMessage(out, ack, charset);
 
                 } catch (ListenerException e) {
-                    log.error("{} Pipeline error for message {}: {}", getLogPrefix(), messageId, e.getMessage(), e);
+                    log.error("{} Pipeline error for message with control id [{}]: {}", getLogPrefix(), controlId, e.getMessage(), e);
                     if (exceptionListener != null) {
                         exceptionListener.exceptionThrown(this, e);
                     }
@@ -235,7 +275,7 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
 
     @Override
     public RawMessageWrapper<String> wrapRawMessage(String rawMessage, PipeLineSession session) throws ListenerException {
-        return new RawMessageWrapper<>(rawMessage, extractControlId(rawMessage), null);
+        return new RawMessageWrapper<>(rawMessage, newMessageId(), extractControlId(rawMessage));
     }
 
     @Override
@@ -248,11 +288,32 @@ public class MllpListener extends MllpFacade implements IPushingListener<String>
         // ACK is sent synchronously inside handleConnection(); nothing to do here.
     }
 
-    private String extractControlId(String hl7) {
+    /**
+     * The technical message id of one delivery. Always new: the Receiver counts deliveries per message id, and a
+     * sender may send the same MSH-10 again.
+     */
+    private static String newMessageId() {
+        return UUID.randomUUID().toString();
+    }
+
+    /**
+     * MSH-10 (message control id), or {@code null} when the message has none or it is blank. The value comes from
+     * the sender and ends up in logs, the session ({@code cid}) and Ladybug, so control characters (line breaks,
+     * ESC, ...) are replaced by {@code ?} and it is cut at {@value #MAX_CONTROL_ID_LENGTH} characters.
+     */
+    static String extractControlId(String hl7) {
         String[] segs = hl7.split("\r");
-        if (segs.length == 0) return UUID.randomUUID().toString();
+        if (segs.length == 0) return null;
         String[] fields = segs[0].split("\\|", -1);
-        return fields.length > 9 ? fields[9] : UUID.randomUUID().toString();
+        if (fields.length <= 9) return null;
+        String controlId = fields[9].strip();
+        if (controlId.isEmpty()) return null;
+        StringBuilder safe = new StringBuilder(Math.min(controlId.length(), MAX_CONTROL_ID_LENGTH));
+        controlId.codePoints()
+                .limit(MAX_CONTROL_ID_LENGTH)
+                .map(c -> Character.isISOControl(c) ? '?' : c)
+                .forEach(safe::appendCodePoint);
+        return safe.toString();
     }
 
 }

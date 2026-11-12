@@ -7,6 +7,35 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- A hospital system that sends an HL7v2 message over MLLP again with the same message control id,
+  for instance because an acknowledgement got lost, now gets that message processed and acknowledged again.
+  Before, the second message was refused and the sender got an empty reply.
+- Check two things in your MLLP configurations. If a pipeline used the message id (session key `mid`) as the
+  message control id, for instance to fill MSA-2 of the acknowledgement, use `cid` instead (or read MSH-10
+  from the message): `mid` is now a new id for every message. And do not use the receiver's
+  `checkForDuplicates` on an MLLP receiver: by message id it no longer catches a resend, and by correlation
+  id it skips the message without an acknowledgement, so the sender keeps sending it. A pipeline that must
+  not process a message twice checks `cid` itself and still answers with an AA acknowledgement.
+
+### Fixed
+- **`MllpListener` no longer rejects a resent message control id.** It passed MSH-10 as the technical
+  message id, and the Frank!Framework Receiver counts deliveries per message id in its process status
+  cache (also after a successful delivery); with `maxRetries` forced to 0 for a listener that cannot
+  redeliver, the second message with the same MSH-10 was treated as a redelivery ("has a problematic
+  history; aborting processing") and no pipeline ran. Each delivery now gets its own technical id (a UUID,
+  session key `mid`) and MSH-10 is the correlation id (session key `cid`, the correlation id in the error
+  store and Ladybug). A message without MSH-10 (also when MSH-10 is blank) gets no correlation id;
+  session key `cid` then holds the message id. `checkForDuplicates` with
+  `checkForDuplicatesMethod=MESSAGEID` no longer matches a resent message.
+- **The message control id is cleaned before use.** MSH-10 comes from the sender and reaches logs, the
+  session and Ladybug: control characters (CR, LF, ESC, ...) become `?` and it is cut at 199 characters,
+  the HL7 v2.7 length of MSH-10.
+- **`MllpListener` never answers with an empty frame.** When there is nothing to send back (the pipeline
+  returned nothing, or the receiver skipped the message) it logs a warning with the control id, never the
+  message, and closes the connection without a reply, as it already did on a pipeline error; a sender then
+  retries. A message the receiver skipped as a duplicate (`checkForDuplicates`) gets its own warning.
+
 ## [1.1.0] — 2026-11-11
 
 ### In short
