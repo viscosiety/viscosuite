@@ -69,9 +69,8 @@ class TunnelConnectorSpikeTest {
     @BeforeAll
     static void start() throws Exception {
         Path base = Files.createTempDirectory("tunnel-spike");
-        Path keystore = base.resolve("tunnel.p12");
-        generateKeystore(keystore);
-        Path[] pem = exportPem(keystore, base);
+        Path keystore = com.viscosiety.viscorunner.tunnel.TestCertificates.pkcs12(base, PASSWORD);
+        Path[] pem = com.viscosiety.viscorunner.tunnel.TestCertificates.pemPair(base, keystore, PASSWORD);
 
         publicPort = freePort();
         tunnelPort = freePort();
@@ -218,34 +217,6 @@ class TunnelConnectorSpikeTest {
         try (ServerSocket socket = new ServerSocket(0)) {
             return socket.getLocalPort();
         }
-    }
-
-    private static void generateKeystore(Path keystore) throws Exception {
-        String keytool = Path.of(System.getProperty("java.home"), "bin", "keytool").toString();
-        Process process = new ProcessBuilder(keytool, "-genkeypair", "-alias", "tunnel", "-keyalg", "RSA", "-keysize", "2048",
-                "-validity", "2", "-dname", "CN=localhost", "-ext", "SAN=dns:localhost,ip:127.0.0.1",
-                "-storetype", "PKCS12", "-keystore", keystore.toString(), "-storepass", PASSWORD, "-keypass", PASSWORD)
-                .redirectErrorStream(true).start();
-        String output = new String(process.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
-        if (!process.waitFor(60, TimeUnit.SECONDS) || process.exitValue() != 0) {
-            throw new IllegalStateException("keytool failed: " + output);
-        }
-    }
-
-    /** Writes the keystore's certificate and (unencrypted PKCS#8) key as PEM files. */
-    private static Path[] exportPem(Path keystore, Path dir) throws Exception {
-        KeyStore store = KeyStore.getInstance("PKCS12");
-        try (InputStream in = Files.newInputStream(keystore)) {
-            store.load(in, PASSWORD.toCharArray());
-        }
-        Certificate certificate = store.getCertificate("tunnel");
-        Key key = store.getKey("tunnel", PASSWORD.toCharArray());
-        Base64.Encoder encoder = Base64.getMimeEncoder(64, "\n".getBytes(StandardCharsets.US_ASCII));
-        Path cert = dir.resolve("tunnel.crt");
-        Path keyFile = dir.resolve("tunnel.key");
-        Files.writeString(cert, "-----BEGIN CERTIFICATE-----\n" + encoder.encodeToString(certificate.getEncoded()) + "\n-----END CERTIFICATE-----\n");
-        Files.writeString(keyFile, "-----BEGIN PRIVATE KEY-----\n" + encoder.encodeToString(key.getEncoded()) + "\n-----END PRIVATE KEY-----\n");
-        return new Path[] {cert, keyFile};
     }
 
 }
