@@ -44,7 +44,7 @@ class ReleaseTemplateTest {
         assertEquals("${BASE_IMAGE}", base.get("image").asText());
         assertEquals("${BASE_DIGEST}", base.get("digest").asText());
         assertEquals("${VERSION}", base.get("version").asText());
-        assertEquals(List.of("ApiListenerServlet", "WebContentServlet", "configRef", "larvaRun", "agentApi", "pack"), strings(base.get("servlets")),
+        assertEquals(List.of("ApiListenerServlet", "WebContentServlet", "configRef", "larvaRun", "agentApi", "pack", "tunnelApi"), strings(base.get("servlets")),
             "the runtime's own servlets, PackServlet included (it lives in the core WAR, not in a pack)");
     }
 

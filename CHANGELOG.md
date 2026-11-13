@@ -7,6 +7,15 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- No change to how a runtime works. The release's component list now also names the servlet of the
+  tunnel API, so a platform that sets up logins per servlet from that list knows it exists.
+
+### Fixed
+- **The release BOM's `base.servlets` lists `tunnelApi`.** Release 1.2.0 added the servlet but not its name
+  in the list. A deployment that renders `servlet.<name>.*` settings for every listed servlet now renders
+  them for `tunnelApi` too; decide there which login it gets (see `docs/tunnel-api.md`).
+
 ## [1.2.0] — 2026-11-13
 
 ### In short
