@@ -2,7 +2,7 @@
 
 ## What it is
 
-A runtime can serve its REST endpoints over HTTPS on an extra port, a **tunnel port**, with its own certificate and its own login. An endpoint can be limited to that port: it then answers on the tunnel port only, and the public address answers 404 for it. Nothing changes for a runtime without the settings file: no extra port opens and port 8080 answers as before. The pack descriptor reports the feature name `tunnel-api`.
+A runtime can serve its REST endpoints over HTTPS on an extra port, a **tunnel port**, with its own certificate and its own login. An endpoint can be limited to that port: it then answers on the tunnel port only, and the public address answers 404 for it. Nothing changes for a runtime that uses the image's own `server.xml` and has no settings file: no extra port opens and port 8080 answers as before. Two things are new in every runtime, though: the routing rules treat every Tomcat port other than 8080 as a tunnel port (a runtime with its own `server.xml` and another HTTP port gets 404 on that port for everything but `/api`), and a servlet named `tunnelApi` is registered (it answers 404 to every request that did not arrive on a tunnel port). The pack descriptor reports the feature name `tunnel-api`.
 
 Three parts work together:
 
@@ -51,9 +51,13 @@ Mount the folder read-only. The runtime reads the file once, at start. A new cer
 
 ## What a bad entry does
 
-A bad entry is logged once as `tunnel-api: port <port> not opened: <reason>` (level SEVERE) and skipped. The other ports and the runtime still start. Bad means: a bad port number, a missing or unreadable file, a keystore that does not open with the password, a keystore without a private key, a port that is already in use or cannot be bound. The reason never contains a password or file content. The content of a PEM pair is checked by Tomcat when it starts the port, and Tomcat reports a problem in its own log line, not in ours. When a port opens, the log says `tunnel-api: HTTPS on port(s) <ports>`.
+A bad entry is logged once as `tunnel-api: port <port> not opened: <reason>` (level SEVERE) and skipped. The other ports and the runtime still start. Bad means: a bad port number, a port listed twice, a port that gives both a keystore and a PEM pair or neither, a bad keystore type, a missing or unreadable file, a keystore that does not open with the password, a keystore without a private key, a port that is already in use or cannot be bound. A settings file that cannot be read at all (also a malformed path in `visco.tunnel.api.connectors`) is logged as `tunnel-api: port * not opened: the settings file cannot be read` and opens nothing. The reason never contains a password or file content.
 
-The opened ports are published as the system property `visco.tunnel.api.ports`. Code that has to know whether a request came in on a tunnel port compares `request.getLocalPort()` with that list. It never uses `getServerPort()`: that one comes from the `Host` header.
+The content of a PEM pair, and a keystore whose key has another password than the store, are checked by Tomcat when it starts the port. Tomcat logs the problem in its own lines; after the start the listener logs `tunnel-api: port <port> not opened: the certificate or key could not be loaded (see the log lines above)` for each port that did not start. A PEM key must be unencrypted. A JKS or PKCS12 key must have the same password as the store.
+
+Once Tomcat has started, the log says `tunnel-api: HTTPS on port(s) <ports>` with the ports that really listen.
+
+The ports that really listen are published as the system property `visco.tunnel.api.ports` (at start the property names every port that was set up; a port that then fails to start is removed from it, and the property is cleared when none is left). Code that has to know whether a request came in on a tunnel port compares `request.getLocalPort()` with that list. It never uses `getServerPort()`: that one comes from the `Host` header.
 
 ## Addresses
 
@@ -61,11 +65,17 @@ On a tunnel port the address is `https://<name>:<port>/api/<uriPattern>`. The fo
 
 ## The servlet settings
 
+The tunnel servlet is secured only by its own `servlet.tunnelApi.*` settings; the console login (`application.security.console.authentication.*`) does not apply to it.
+
 Frank!Framework builds only the authenticators named in `application.security.http.authenticators=<comma list>`. Every authenticator that a `servlet.*.authenticator` line names must be in that list.
 
-The servlet is registered also when no `servlet.tunnelApi.*` setting exists, with Frank!Framework's default authenticator. It answers 404 to everything that did not arrive on a tunnel port, and with no tunnel port open that is every request. Without tunnel settings the safety of a runtime therefore rests on that check in the servlet, not on the authenticator.
+The servlet is registered also when no `servlet.tunnelApi.*` setting exists, with Frank!Framework's default authenticator. That default also applies when a tunnel port is set up but `servlet.tunnelApi.authenticator` is not: always set the authenticator explicitly. It answers 404 to everything that did not arrive on a tunnel port, and with no tunnel port open that is every request. Without tunnel settings the safety of a runtime therefore rests on that check in the servlet, not on the authenticator.
 
-Settings: `servlet.tunnelApi.authenticator`, `servlet.tunnelApi.securityRoles` and `servlet.tunnelApi.transportGuarantee` (leave it at the default; `CONFIDENTIAL` makes a request on a plain port answer 302 to HTTPS instead of 404).
+Settings: `servlet.tunnelApi.authenticator`, `servlet.tunnelApi.securityRoles` and `servlet.tunnelApi.transportGuarantee`.
+
+Set `servlet.tunnelApi.transportGuarantee=CONFIDENTIAL`. The image sets `application.security.http.transportGuarantee=NONE` for every servlet, because on the public side HTTPS ends before Tomcat; a tunnel port is HTTPS in Tomcat itself, so the tunnel servlet can demand it. On a plain port the setting makes a request to the servlet answer a redirect to HTTPS instead of 404; the image's routing already answers 404 on the public port for the tunnel servlet's path.
+
+All three blocks below need web security on: `application.security.http.authentication=true`. That is Frank!Framework's default when the setting is empty, except on stage `LOC`, where the default is off.
 
 **Tunnel side with a login.** Without the roles line the endpoints are open.
 
@@ -82,19 +92,23 @@ servlet.ApiListenerServlet.authenticator=publicBasic
 servlet.ApiListenerServlet.securityRoles=IbisTester
 servlet.tunnelApi.authenticator=tunnelBasic
 servlet.tunnelApi.securityRoles=IbisTester
+servlet.tunnelApi.transportGuarantee=CONFIDENTIAL
 ```
 
 A `YML` authenticator works the same way. The tunnel login and the public login are separate: a site login does not work on the public side and the other way round.
 
-**Tunnel side without a login.** Only for a tunnel that is trusted by itself. Leave out `servlet.tunnelApi.securityRoles`.
+**Tunnel side without a login.** Only for a tunnel that is trusted by itself. Leave out `servlet.tunnelApi.securityRoles`. A listener with `authenticationMethod="AUTHROLE"` then answers 401 to every caller on the tunnel side: the caller is anonymous and an anonymous caller is never in a role.
 
 ```
+application.security.http.authentication=true
 servlet.tunnelApi.authenticator=NONE
+servlet.tunnelApi.transportGuarantee=CONFIDENTIAL
 ```
 
 **Public side off.** Seal the public servlet with an authenticator of type `SEALED` and give it roles. Do not use `servlet.ApiListenerServlet.enabled=false` for this: that setting also switches off the servlet that the platform's own gateway forwards to.
 
 ```
+application.security.http.authentication=true
 application.security.http.authenticators=off,tunnelBasic
 application.security.http.authenticators.off.type=SEALED
 application.security.http.authenticators.tunnelBasic.type=IN_MEMORY
@@ -104,6 +118,7 @@ servlet.ApiListenerServlet.authenticator=off
 servlet.ApiListenerServlet.securityRoles=IbisTester
 servlet.tunnelApi.authenticator=tunnelBasic
 servlet.tunnelApi.securityRoles=IbisTester
+servlet.tunnelApi.transportGuarantee=CONFIDENTIAL
 ```
 
 ## The listener type
