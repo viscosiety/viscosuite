@@ -119,6 +119,35 @@ class TunnelPortListenerTest {
     }
 
     @Test
+    void aMalformedSettingsPathOpensNothingAndDoesNotThrow() {
+        System.setProperty(TunnelPortListener.PORTS_PROPERTY, "stale");
+        System.setProperty(TunnelPortSettings.FILE_PROPERTY, "bad\u0000path");
+        StandardServer server = server();
+        TunnelPortListener listener = new TunnelPortListener();
+        fire(listener, server);
+        assertEquals(0, listener.opened().size());
+        assertEquals(0, server.findServices()[0].findConnectors().length);
+        assertNull(System.getProperty(TunnelPortListener.PORTS_PROPERTY));
+    }
+
+    @Test
+    void aPortWhoseConnectorDidNotStartIsRemovedFromThePublishedList() throws Exception {
+        String password = java.util.UUID.randomUUID().toString();
+        Path keystore = TestCertificates.pkcs12(dir, password);
+        Files.writeString(dir.resolve("pw"), password);
+        Path file = dir.resolve("connectors.properties");
+        Files.writeString(file, "ports=18461\n18461.keystoreFile=" + keystore + "\n18461.keystorePasswordFile=" + dir.resolve("pw") + "\n");
+        System.setProperty(TunnelPortSettings.FILE_PROPERTY, file.toString());
+        StandardServer server = server();
+        TunnelPortListener listener = new TunnelPortListener();
+        fire(listener, server);
+        assertEquals("18461", System.getProperty(TunnelPortListener.PORTS_PROPERTY));
+        // The connector was never started (state NEW): after the server's start it is not reported as open.
+        listener.lifecycleEvent(new LifecycleEvent(server, Lifecycle.AFTER_START_EVENT, null));
+        assertNull(System.getProperty(TunnelPortListener.PORTS_PROPERTY));
+    }
+
+    @Test
     void portsWithoutAServiceOpenNothingAndDoNotFail() throws Exception {
         Path keystore = TestCertificates.pkcs12(dir, "secret");
         Files.writeString(dir.resolve("pw"), "secret\n");

@@ -43,7 +43,7 @@ class TunnelPortRoutingTest {
     private static final String PASSWORD = "routing-pass";
 
     /** A running embedded Tomcat plus what a test needs to call it. */
-    private record Running(Tomcat tomcat, int publicPort) {
+    private record Running(Tomcat tomcat, int publicPort, String publishedPorts) {
         void stop() throws Exception {
             tomcat.stop();
             tomcat.destroy();
@@ -113,8 +113,9 @@ class TunnelPortRoutingTest {
         tomcat.addContext("", new File(".").getAbsolutePath());
         tomcat.getHost().getPipeline().addValve(new RewriteValve());
         tomcat.start();
+        String published = System.getProperty(TunnelPortListener.PORTS_PROPERTY);
         System.clearProperty(TunnelPortListener.PORTS_PROPERTY);
-        return new Running(tomcat, publicPort);
+        return new Running(tomcat, publicPort, published);
     }
 
     private static void addEcho(Context context, String name, String mapping) {
@@ -253,6 +254,28 @@ class TunnelPortRoutingTest {
         try {
             assertEquals(2, running.tomcat().getService().findConnectors().length);
             assertTunnelEcho(get("https", good, "/runtime/api/x", "application/json"), "/x", "null");
+        } finally {
+            running.stop();
+        }
+    }
+
+    @Test
+    void aPortWhoseCertificateCannotBeLoadedIsNotReportedAsOpen() throws Exception {
+        Path dir = Files.createTempDirectory("tunnel-routing-garbage");
+        Files.writeString(dir.resolve("pw"), PASSWORD);
+        Path badCertificate = Files.writeString(dir.resolve("bad.crt"), "not a certificate\n");
+        Path badKey = Files.writeString(dir.resolve("bad.key"), "not a key\n");
+        int good = freePort();
+        int bad = freePort();
+        Path settings = dir.resolve("connectors.properties");
+        Files.writeString(settings, "ports=" + bad + "," + good + "\n"
+                + bad + ".certificateFile=" + badCertificate + "\n" + bad + ".certificateKeyFile=" + badKey + "\n"
+                + good + ".keystoreFile=" + keystore + "\n" + good + ".keystorePasswordFile=" + dir.resolve("pw") + "\n");
+        Running running = startTomcat(settings, false);
+        try {
+            assertTunnelEcho(get("https", good, "/runtime/api/x", "application/json"), "/x", "null");
+            assertEquals(String.valueOf(good), running.publishedPorts(), "only the port that really listens");
+            assertTrue(isFree(bad), "the bad port does not listen");
         } finally {
             running.stop();
         }

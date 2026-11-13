@@ -16,6 +16,7 @@
 
 package com.viscosiety.viscorunner.tunnel;
 
+import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -26,6 +27,7 @@ import java.util.logging.Logger;
 import org.apache.catalina.Lifecycle;
 import org.apache.catalina.LifecycleEvent;
 import org.apache.catalina.LifecycleListener;
+import org.apache.catalina.LifecycleState;
 import org.apache.catalina.Server;
 import org.apache.catalina.Service;
 import org.apache.catalina.connector.Connector;
@@ -35,8 +37,9 @@ import org.apache.tomcat.util.net.SSLHostConfigCertificate;
 /**
  * Server lifecycle listener that opens one HTTPS tunnel port per valid entry of the settings file, at
  * Server BEFORE_INIT so the port is bound with the rest of the Service. No settings file: nothing is
- * opened. Publishes the ports it opened as the system property {@link #PORTS_PROPERTY}. Uses only the
- * JDK and Tomcat (shared jar).
+ * opened. Publishes the ports it set up as the system property {@link #PORTS_PROPERTY}; at Server
+ * AFTER_START it removes each port whose connector did not start (Tomcat could not load its certificate or
+ * key) and logs the ports that really listen. Uses only the JDK and Tomcat (shared jar).
  */
 public class TunnelPortListener implements LifecycleListener {
 
@@ -44,11 +47,18 @@ public class TunnelPortListener implements LifecycleListener {
 
     private static final Logger LOG = Logger.getLogger(TunnelPortListener.class.getName());
 
+    /** Null when the configured path is malformed: then nothing opens. */
     private final Path file;
     private final List<Connector> opened = new ArrayList<>();
 
     public TunnelPortListener() {
-        this.file = Path.of(System.getProperty(TunnelPortSettings.FILE_PROPERTY, TunnelPortSettings.DEFAULT_FILE));
+        Path path;
+        try {
+            path = Path.of(System.getProperty(TunnelPortSettings.FILE_PROPERTY, TunnelPortSettings.DEFAULT_FILE));
+        } catch (InvalidPathException e) {
+            path = null;
+        }
+        this.file = path;
     }
 
     public List<Connector> opened() {
@@ -57,7 +67,20 @@ public class TunnelPortListener implements LifecycleListener {
 
     @Override
     public void lifecycleEvent(LifecycleEvent event) {
-        if (!Lifecycle.BEFORE_INIT_EVENT.equals(event.getType()) || !(event.getLifecycle() instanceof Server server)) {
+        if (!(event.getLifecycle() instanceof Server server)) {
+            return;
+        }
+        if (Lifecycle.BEFORE_INIT_EVENT.equals(event.getType())) {
+            setUp(server);
+        } else if (Lifecycle.AFTER_START_EVENT.equals(event.getType())) {
+            reportStarted();
+        }
+    }
+
+    private void setUp(Server server) {
+        if (file == null) {
+            LOG.log(Level.SEVERE, "tunnel-api: port * not opened: the settings file cannot be read");
+            System.clearProperty(PORTS_PROPERTY);
             return;
         }
         TunnelPortSettings.Result result = TunnelPortSettings.read(file);
@@ -90,6 +113,37 @@ public class TunnelPortListener implements LifecycleListener {
                             new Object[] {portText, e.getClass().getSimpleName()});
                 }
             }
+        }
+        // Published now, so the web applications see the list while they start; corrected after the start.
+        if (ports.length() > 0) {
+            System.setProperty(PORTS_PROPERTY, ports.toString());
+        } else {
+            System.clearProperty(PORTS_PROPERTY);
+        }
+    }
+
+    /**
+     * After the server's start: a connector whose init or start failed (Tomcat logged why, e.g. a PEM file it could
+     * not parse) does not listen. It is dropped from the published list; only the ports that really listen are
+     * logged as open.
+     */
+    private void reportStarted() {
+        if (opened.isEmpty()) {
+            return;
+        }
+        StringBuilder ports = new StringBuilder();
+        for (java.util.Iterator<Connector> it = opened.iterator(); it.hasNext();) {
+            Connector connector = it.next();
+            if (connector.getState() != LifecycleState.STARTED) {
+                LOG.log(Level.SEVERE, "tunnel-api: port {0} not opened: the certificate or key could not be loaded (see the log lines above)",
+                        String.valueOf(connector.getPort()));
+                it.remove();
+                continue;
+            }
+            if (ports.length() > 0) {
+                ports.append(',');
+            }
+            ports.append(connector.getPort());
         }
         if (ports.length() > 0) {
             System.setProperty(PORTS_PROPERTY, ports.toString());
