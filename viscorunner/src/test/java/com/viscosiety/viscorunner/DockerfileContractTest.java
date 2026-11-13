@@ -231,6 +231,17 @@ class DockerfileContractTest {
     }
 
     @Test
+    void theTunnelPortsAreOpenedAndRoutedByArrivalPort() throws IOException {
+        assertTrue(read("conf/server.xml").contains("com.viscosiety.viscorunner.tunnel.TunnelPortListener"),
+            "server.xml names the listener that opens the tunnel ports");
+        String rules = read("conf/Catalina/localhost/rewrite.config");
+        assertEquals("RewriteCond %{SERVER_PORT} !^8080$", rules.split("\n")[0], "the first rule routes by arrival port");
+        for (String line : rules.split("\n")) {
+            assertFalse(line.startsWith("#"), "no line of rewrite.config starts with #");
+        }
+    }
+
+    @Test
     void theHealthchecksUseTheNewPaths() throws IOException {
         assertTrue(read("Dockerfile").contains("http://localhost:8080/runtime/iaf/api/server/health"), "runner healthcheck");
         assertTrue(read("Dockerfile.viscostore").contains("http://localhost:8080/fhir-store/fhir/metadata"), "store healthcheck");

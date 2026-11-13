@@ -35,7 +35,8 @@ import org.frankframework.stream.Message;
  *
  * <p>This listener is the boundary: it refuses, before any pipeline runs, a request that did not arrive on a tunnel
  * port ({@code getLocalPort()}, which comes from the socket), unless it is a FORWARD dispatch (the platform's own
- * gateway servlet forwards to {@code /api}). A session without a servlet request is refused too. The public-side
+ * gateway servlet forwards to {@code /api}). The refusal happens after the servlet's login, content-type, ETag and
+ * body-reading steps and before any pipeline runs. A session without a servlet request is refused too. The public-side
  * filter ({@link TunnelOnlyApiFilter}) only makes the answer a clean 404 and keeps the OpenAPI document clean.
  */
 public class TunnelApiListener extends ApiListener {

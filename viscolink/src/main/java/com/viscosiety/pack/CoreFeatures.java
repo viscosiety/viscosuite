@@ -30,8 +30,9 @@ public final class CoreFeatures {
      * {@code lemma}: {@code com.viscosiety.pipes.LemmaPipe} is on the class path.
      * {@code lifecycle-events}: configurations report started / closed / failed to start as
      * Kubernetes Normal events.
+     * {@code tunnel-api}: HTTPS tunnel ports, the tunnel-side REST servlet and {@code TunnelApiListener} are present.
      */
-    public static final List<String> ALL = List.of("lemma", "lifecycle-events");
+    public static final List<String> ALL = List.of("lemma", "lifecycle-events", "tunnel-api");
 
     private CoreFeatures() {
     }

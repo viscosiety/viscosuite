@@ -17,7 +17,6 @@
 package com.viscosiety.tunnel;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
@@ -95,7 +94,6 @@ class TunnelApiListenerTest {
     @Test
     void aForwardOnThePublicPortIsProcessed() throws Exception {
         try (PipeLineSession session = sessionWith(8080, DispatcherType.FORWARD)) {
-            assertSame(TunnelApiListener.class, listener.getClass());
             assertEquals("done", listener.processRequest(new Message("ping"), session).asString());
         }
         verify(handler).processRequest(any(), any(), any());

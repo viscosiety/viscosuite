@@ -138,7 +138,8 @@ public class TunnelOnlyApiFilter implements Filter {
                 kept.add(method);
             }
         }
-        return String.join(", ", kept);
+        // Nothing left: null, so no empty header is written (Tomcat ignores a null value).
+        return kept.isEmpty() ? null : String.join(", ", kept);
     }
 
     /** Leaves the tunnel-only methods out of the {@code Allow} and {@code Access-Control-Allow-Methods} headers. */

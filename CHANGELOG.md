@@ -18,6 +18,18 @@ major version).
   id it skips the message without an acknowledgement, so the sender keeps sending it. A pipeline that must
   not process a message twice checks `cid` itself and still answers with an AA acknowledgement.
 
+- A runtime can serve its REST endpoints over HTTPS on an extra port, with its own certificate and its own
+  login, and individual endpoints can be limited to that port. Nothing changes without the settings file.
+  See `docs/tunnel-api.md`.
+
+### Added
+- **Tunnel API.** A settings file `/opt/frank/tunnel-api/connectors.properties` opens one HTTPS tunnel port per
+  entry (`TunnelPortListener`). The tunnel-side servlet `tunnelApi` is set with `servlet.tunnelApi.authenticator`,
+  `servlet.tunnelApi.securityRoles` and `servlet.tunnelApi.transportGuarantee`. The listener type
+  `com.viscosiety.tunnel.TunnelApiListener` limits an endpoint to a tunnel port; the public address answers 404
+  for it. The pack descriptor reports the feature `tunnel-api`. The image's rewrite rules route by arrival port.
+  The settings and their limits are in `docs/tunnel-api.md`.
+
 ### Fixed
 - **`MllpListener` no longer rejects a resent message control id.** It passed MSH-10 as the technical
   message id, and the Frank!Framework Receiver counts deliveries per message id in its process status

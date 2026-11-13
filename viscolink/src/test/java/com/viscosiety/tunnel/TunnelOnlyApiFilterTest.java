@@ -194,7 +194,7 @@ class TunnelOnlyApiFilterTest {
         Set<String> hidden = Set.of("POST");
         assertEquals("OPTIONS, GET", TunnelOnlyApiFilter.withoutMethods("OPTIONS, GET, POST", hidden));
         assertEquals("GET, PUT", TunnelOnlyApiFilter.withoutMethods("GET,post , PUT", hidden));
-        assertEquals("", TunnelOnlyApiFilter.withoutMethods("POST", hidden));
+        assertEquals(null, TunnelOnlyApiFilter.withoutMethods("POST", hidden));
         assertEquals(null, TunnelOnlyApiFilter.withoutMethods(null, hidden));
     }
 
