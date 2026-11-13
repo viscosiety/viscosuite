@@ -318,7 +318,7 @@ that keep their own licences (see License).
 ## Versioning and compatibility
 
 ViscoSuite follows semantic versioning (from 1.0.0: breaking changes bump the major version).
-The latest release is **v1.1.0** (2026-11-11). It builds on Frank!Framework 10.3.0 and runs on Java 25. Each release documents what changed in the
+The latest release is **v1.2.0** (2026-11-13). It builds on Frank!Framework 10.3.0 and runs on Java 25. Each release documents what changed in the
 [changelog](https://github.com/viscosiety/viscosuite/blob/main/CHANGELOG.md); every version there starts
 with a short plain-language summary ("In short"). The changelog is also published with each release as its
 release notes (`viscosuite-release-<version>-notes.md` beside the release's component list).

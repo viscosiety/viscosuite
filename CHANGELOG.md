@@ -7,7 +7,13 @@ major version).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-11-13
+
 ### In short
+- New: a runtime can serve its REST endpoints over HTTPS on an extra port, with its own certificate and its own
+  login, and individual endpoints can be limited to that port. This is meant for callers that reach the runtime
+  over a private network path instead of its public address. It is off until a certificate is configured; the
+  Tunnel API page of the documentation has the settings.
 - A hospital system that sends an HL7v2 message over MLLP again with the same message control id,
   for instance because an acknowledgement got lost, now gets that message processed and acknowledged again.
   Before, the second message was refused and the sender got an empty reply.
@@ -17,10 +23,8 @@ major version).
   `checkForDuplicates` on an MLLP receiver: by message id it no longer catches a resend, and by correlation
   id it skips the message without an acknowledgement, so the sender keeps sending it. A pipeline that must
   not process a message twice checks `cid` itself and still answers with an AA acknowledgement.
-
-- A runtime can serve its REST endpoints over HTTPS on an extra port, with its own certificate and its own
-  login, and individual endpoints can be limited to that port. Nothing changes for a runtime that uses the
-  image's own `server.xml` and has no settings file. See `docs/tunnel-api.md`.
+- When you upgrade: nothing changes if you run the image as it is. If you mounted your own Tomcat configuration
+  with a port other than 8080, read the upgrade notes below first.
 
 ### Upgrade notes
 - **Own `server.xml` with another port.** The image's routing rules now treat every Tomcat port other than 8080 as
