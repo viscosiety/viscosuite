@@ -54,12 +54,14 @@ final class TunnelApiLauncher {
 
     static final String PUBLIC_USER = "public-user";
     static final String SITE_USER = "site-user";
+    static final String CONSOLE_USER = "console-user";
 
     private static final Path LAUNCHER_LIBS = Paths.get("target/launcher-libs").toAbsolutePath();
     private static final long READY_LIMIT_MS = 180_000;
 
     final String publicPassword = UUID.randomUUID().toString();
     final String sitePassword = UUID.randomUUID().toString();
+    final String consolePassword = UUID.randomUUID().toString();
     private final String keystorePassword = UUID.randomUUID().toString();
     private final boolean withTunnelSettings;
     private final String tag;
@@ -102,6 +104,16 @@ final class TunnelApiLauncher {
                 "-Dservlet.tunnelApi.authenticator=tunnelBasic",
                 "-Dservlet.tunnelApi.securityRoles=IbisTester"));
         return args;
+    }
+
+    /** The arguments that turn on the console login (IN_MEMORY, its own user store) next to the given ones. */
+    List<String> withConsoleLogin(List<String> args) {
+        List<String> all = new ArrayList<>(args);
+        all.addAll(List.of(
+                "-Dapplication.security.console.authentication.type=IN_MEMORY",
+                "-Dapplication.security.console.authentication.username=" + CONSOLE_USER,
+                "-Dapplication.security.console.authentication.password=" + consolePassword));
+        return all;
     }
 
     /** Starts the launcher with the given security arguments; returns once it reported its public port. */
@@ -295,6 +307,26 @@ final class TunnelApiLauncher {
      * registrar's INFO never reaches stdout) and its ERROR line ("could not be registered") is in neither.
      */
     void assertPublicSideFilterRegistered() throws Exception {
+        List<String> lines = logLines();
+        boolean registered = lines.stream().anyMatch(line -> line.contains("tunnel-only endpoints answer 404 on the public servlet"));
+        boolean failed = lines.stream().anyMatch(line -> line.contains("public-side filter could not be registered")
+                || line.contains("tunnel-only endpoints are NOT hidden"));
+        if (failed) {
+            throw new AssertionError("the runtime logged that the public-side filter is not registered");
+        }
+        if (!registered) {
+            throw new AssertionError("the runtime's log has no line saying the public-side filter was registered");
+        }
+    }
+
+    /** Asserts that some line of the Frank!Framework log or the launcher output contains the text. */
+    void assertLogContains(String text) throws Exception {
+        if (logLines().stream().noneMatch(line -> line.contains(text))) {
+            throw new AssertionError("the runtime's log has no line containing: " + text);
+        }
+    }
+
+    private List<String> logLines() throws Exception {
         List<String> lines = new ArrayList<>();
         try (Stream<Path> walk = Files.walk(childTmp)) {
             for (Path log : walk.filter(p -> p.getFileName().toString().equals("viscolink.log")).toList()) {
@@ -307,15 +339,7 @@ final class TunnelApiLauncher {
         synchronized (output) {
             lines.addAll(output);
         }
-        boolean registered = lines.stream().anyMatch(line -> line.contains("tunnel-only endpoints answer 404 on the public servlet"));
-        boolean failed = lines.stream().anyMatch(line -> line.contains("public-side filter could not be registered")
-                || line.contains("tunnel-only endpoints are NOT hidden"));
-        if (failed) {
-            throw new AssertionError("the runtime logged that the public-side filter is not registered");
-        }
-        if (!registered) {
-            throw new AssertionError("the runtime's log has no line saying the public-side filter was registered");
-        }
+        return lines;
     }
 
     /** The launcher's output, with the generated passwords masked. */
@@ -323,7 +347,7 @@ final class TunnelApiLauncher {
         synchronized (output) {
             for (String line : output) {
                 String masked = line;
-                for (String secret : new String[] {publicPassword, sitePassword, keystorePassword}) {
+                for (String secret : new String[] {publicPassword, sitePassword, consolePassword, keystorePassword}) {
                     masked = masked.replace(secret, "[password]");
                 }
                 System.out.println("[launcher] " + masked);

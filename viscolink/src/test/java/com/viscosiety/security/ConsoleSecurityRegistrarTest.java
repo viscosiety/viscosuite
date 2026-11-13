@@ -89,6 +89,13 @@ class ConsoleSecurityRegistrarTest {
     }
 
     @Test
+    void tunnelApiPathIsFrankOwned() {
+        // The tunnel servlet is secured by servlet.tunnelApi.* alone: with NONE (a trusted tunnel) the console's
+        // tool-page filter must not demand a login on top.
+        assertTrue(ConsoleSecurityRegistrar.isFrankOwnedPath("/tunnel-api/open"));
+    }
+
+    @Test
     void toolPageIsNotFrankOwned() {
         assertFalse(ConsoleSecurityRegistrar.isFrankOwnedPath("/tools/some-tool"));
     }
