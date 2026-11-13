@@ -18,4 +18,7 @@
          tenant API chain's Basic challenge (ApiSessionAuthListener); external API callers are
          unaffected. -->
     <bean id="apiSessionAuthRegistrar" class="com.viscosiety.security.ApiSessionAuthRegistrar"/>
+    <!-- Endpoints of a TunnelApiListener answer on a tunnel port only: on the public /api they get
+         404, and /api/openapi.json leaves them out (TunnelOnlyApiFilter). -->
+    <bean id="tunnelOnlyApiFilterRegistrar" class="com.viscosiety.tunnel.TunnelOnlyApiFilterRegistrar"/>
 </beans>

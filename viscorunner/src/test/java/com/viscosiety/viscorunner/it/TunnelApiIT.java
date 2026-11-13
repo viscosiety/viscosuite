@@ -20,11 +20,14 @@ package com.viscosiety.viscorunner.it;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.net.ServerSocket;
+import java.net.Socket;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -235,6 +238,102 @@ class TunnelApiIT {
         assertEquals("mixed-post", posted.body().trim());
         assertEquals(200, got.statusCode());
         assertEquals("mixed-get", got.body().trim());
+    }
+
+    @Test
+    void tunnelOnlyListenerIsNotFoundOnThePublicSide() throws Exception {
+        HttpResponse<String> response = http.send(post(open("/viscolink/api/feed"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, response.statusCode());
+        assertEquals("", response.body());
+    }
+
+    @Test
+    void tunnelOnlyListenerAsksAnonymousCallersToLogInLikeAnyPath() throws Exception {
+        HttpResponse<String> response = http.send(post(open("/viscolink/api/feed"), null, null),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(401, response.statusCode());
+    }
+
+    @Test
+    void unknownPathAsksAnonymousCallersToLogIn() throws Exception {
+        HttpResponse<String> response = http.send(post(open("/viscolink/api/nothing-here"), null, null),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(401, response.statusCode());
+    }
+
+    @Test
+    void mixedPatternHidesOnlyItsTunnelMethodOnThePublicSide() throws Exception {
+        HttpResponse<String> posted = http.send(post(open("/viscolink/api/mixed"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> got = http.send(get(open("/viscolink/api/mixed"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(404, posted.statusCode());
+        assertEquals("", posted.body());
+        assertEquals(200, got.statusCode());
+        assertEquals("mixed-get", got.body().trim());
+    }
+
+    @Test
+    void publicOpenApiDocumentLeavesOutTunnelPatterns() throws Exception {
+        HttpResponse<String> response = http.send(get(open("/viscolink/api/openapi.json"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode());
+        String body = response.body();
+        assertTrue(body.contains("\"/open\""), body);
+        assertFalse(body.contains("\"/feed\""), body);
+        assertFalse(body.contains("\"/mixed\""), body);
+    }
+
+    @Test
+    void tunnelOpenApiDocumentListsEveryPattern() throws Exception {
+        HttpResponse<String> response = https.send(get(tunnel("/viscolink/tunnel-api/openapi.json"), "site-user", sitePassword),
+                HttpResponse.BodyHandlers.ofString());
+        assertEquals(200, response.statusCode());
+        String body = response.body();
+        assertTrue(body.contains("\"/open\""), body);
+        assertTrue(body.contains("\"/feed\""), body);
+        assertTrue(body.contains("\"/mixed\""), body);
+    }
+
+    @Test
+    void encodedAndTrailingSlashFormsOfATunnelPathAreNotFound() throws Exception {
+        int encoded = rawPublicStatus("POST", "/viscolink/api/%66eed", "public-user", publicPassword);
+        int trailing = rawPublicStatus("POST", "/viscolink/api/feed/", "public-user", publicPassword);
+        log("public POST /api/%66eed: " + encoded + ", /api/feed/: " + trailing);
+        assertEquals(404, encoded);
+        assertEquals(404, trailing);
+    }
+
+    @Test
+    void dotSegmentFormOfATunnelPathDoesNotReachIt() throws Exception {
+        int status = rawPublicStatus("POST", "/viscolink/api/x/../feed", "public-user", publicPassword);
+        log("public POST /api/x/../feed: " + status);
+        assertNotEquals(200, status);
+    }
+
+    /** Sends the request line exactly as given (no client-side normalisation) to the public port; returns the status. */
+    private int rawPublicStatus(String method, String rawPath, String user, String password) throws Exception {
+        String token = Base64.getEncoder().encodeToString((user + ":" + password).getBytes(StandardCharsets.UTF_8));
+        String request = method + " " + rawPath + " HTTP/1.1\r\n"
+                + "Host: localhost:" + publicPort + "\r\n"
+                + "Authorization: Basic " + token + "\r\n"
+                + "Content-Type: text/plain\r\n"
+                + "Content-Length: 4\r\n"
+                + "Connection: close\r\n\r\n"
+                + "ping";
+        try (Socket socket = new Socket("localhost", publicPort)) {
+            socket.setSoTimeout(30_000);
+            OutputStream out = socket.getOutputStream();
+            out.write(request.getBytes(StandardCharsets.US_ASCII));
+            out.flush();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(socket.getInputStream(), StandardCharsets.US_ASCII));
+            String statusLine = reader.readLine();
+            if (statusLine == null) {
+                throw new IllegalStateException("no answer for " + method + " " + rawPath);
+            }
+            return Integer.parseInt(statusLine.split(" ")[1]);
+        }
     }
 
     private URI tunnel(String path) {
