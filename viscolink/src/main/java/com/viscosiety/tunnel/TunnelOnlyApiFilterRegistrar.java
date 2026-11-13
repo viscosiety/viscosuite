@@ -30,7 +30,9 @@ import org.springframework.context.ApplicationContextAware;
 import org.springframework.web.context.WebApplicationContext;
 
 /**
- * Registers {@link TunnelOnlyApiFilter} on the public {@code /api/*} at boot, for the REQUEST dispatch only. Skipped on a
+ * Registers {@link TunnelOnlyApiFilter} on Frank!Framework's {@code ApiListenerServlet} (by servlet name, so a changed
+ * {@code servlet.ApiListenerServlet.urlMapping} is covered; the tunnel servlet has another name) at boot, for the
+ * REQUEST dispatch only. Skipped on a
  * configuration reload (the filter from the first boot stays in the already-initialised ServletContext) and never
  * allowed to fail the context refresh; a registration that fails is logged at ERROR, because without the filter
  * tunnel-only endpoints answer on the public side.
@@ -38,6 +40,8 @@ import org.springframework.web.context.WebApplicationContext;
 public class TunnelOnlyApiFilterRegistrar implements InitializingBean, ApplicationContextAware {
 
     static final String FILTER_NAME = "tunnelOnlyApi";
+    /** {@code AbstractHttpServlet.getName()}: the simple class name, which ServletManager registers it under. */
+    static final String API_SERVLET_NAME = "ApiListenerServlet";
     private static final Logger log = LogManager.getLogger(TunnelOnlyApiFilterRegistrar.class);
 
     private ApplicationContext applicationContext;
@@ -65,11 +69,10 @@ public class TunnelOnlyApiFilterRegistrar implements InitializingBean, Applicati
                 return;
             }
             registration.setAsyncSupported(true);
-            registration.addMappingForUrlPatterns(EnumSet.of(DispatcherType.REQUEST), false, "/api/*");
-            log.info("tunnel-api: tunnel-only endpoints answer 404 on the public /api");
+            registration.addMappingForServletNames(EnumSet.of(DispatcherType.REQUEST), false, API_SERVLET_NAME);
+            log.info("tunnel-api: tunnel-only endpoints answer 404 on the public servlet [{}]", API_SERVLET_NAME);
         } catch (IllegalStateException e) {
-            log.error("tunnel-api: the public-side filter could not be registered; tunnel-only endpoints are NOT hidden on /api ({})",
-                    e.getMessage());
+            log.error("tunnel-api: the public-side filter could not be registered; tunnel-only endpoints are NOT hidden on /api", e);
         }
     }
 

@@ -272,6 +272,57 @@ class TunnelApiIT {
         assertEquals("", posted.body());
         assertEquals(200, got.statusCode());
         assertEquals("mixed-get", got.body().trim());
+        String allow = got.headers().firstValue("Allow").orElse("");
+        log("public GET /api/mixed Allow: " + allow);
+        assertTrue(allow.contains("GET"), allow);
+        assertFalse(allow.contains("POST"), allow);
+
+        HttpResponse<String> withOrigin = http.send(withLogin(HttpRequest.newBuilder(open("/viscolink/api/mixed"))
+                .timeout(Duration.ofSeconds(30)).header("Origin", "https://elsewhere.example").GET(),
+                "public-user", publicPassword).build(), HttpResponse.BodyHandlers.ofString());
+        String corsMethods = withOrigin.headers().firstValue("Access-Control-Allow-Methods").orElse("");
+        log("public GET /api/mixed with Origin, Access-Control-Allow-Methods: " + corsMethods);
+        assertEquals(200, withOrigin.statusCode());
+        assertTrue(corsMethods.contains("GET"), corsMethods);
+        assertFalse(corsMethods.contains("POST"), corsMethods);
+    }
+
+    @Test
+    void publicPreflightOfAMixedPatternLeavesOutItsTunnelMethods() throws Exception {
+        HttpResponse<String> response = http.send(options(open("/viscolink/api/mixed"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        String methods = response.headers().firstValue("Access-Control-Allow-Methods").orElse("");
+        log("public OPTIONS /api/mixed: " + response.statusCode() + ", Access-Control-Allow-Methods: " + methods);
+        assertEquals(200, response.statusCode());
+        assertTrue(methods.contains("GET"), methods);
+        assertFalse(methods.contains("POST"), methods);
+    }
+
+    @Test
+    void tunnelSideStillListsEveryMethodOfAMixedPattern() throws Exception {
+        HttpResponse<String> preflight = https.send(options(tunnel("/viscolink/tunnel-api/mixed"), "site-user", sitePassword),
+                HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> got = https.send(get(tunnel("/viscolink/tunnel-api/mixed"), "site-user", sitePassword),
+                HttpResponse.BodyHandlers.ofString());
+        String methods = preflight.headers().firstValue("Access-Control-Allow-Methods").orElse("");
+        String allow = got.headers().firstValue("Allow").orElse("");
+        log("tunnel OPTIONS /mixed Access-Control-Allow-Methods: " + methods + "; GET Allow: " + allow);
+        assertTrue(methods.contains("POST"), methods);
+        assertTrue(allow.contains("POST"), allow);
+    }
+
+    @Test
+    void perPatternOpenApiOfATunnelPatternLooksLikeOneThatDoesNotExist() throws Exception {
+        HttpResponse<String> tunnelPattern = http.send(get(open("/viscolink/api/feed/openapi.json"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        HttpResponse<String> missing = http.send(get(open("/viscolink/api/nothing-here/openapi.json"), "public-user", publicPassword),
+                HttpResponse.BodyHandlers.ofString());
+        log("public /api/feed/openapi.json: " + tunnelPattern.statusCode() + " (" + tunnelPattern.body().length()
+                + " chars), /api/nothing-here/openapi.json: " + missing.statusCode() + " (" + missing.body().length() + " chars)");
+        assertEquals(404, missing.statusCode());
+        assertEquals(missing.statusCode(), tunnelPattern.statusCode());
+        assertEquals(missing.body(), tunnelPattern.body());
+        assertEquals(missing.headers().firstValue("Content-Type"), tunnelPattern.headers().firstValue("Content-Type"));
     }
 
     @Test
@@ -346,6 +397,12 @@ class TunnelApiIT {
 
     private static HttpRequest get(URI uri, String user, String password) {
         return withLogin(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30)).GET(), user, password).build();
+    }
+
+    private static HttpRequest options(URI uri, String user, String password) {
+        return withLogin(HttpRequest.newBuilder(uri).timeout(Duration.ofSeconds(30))
+                .header("Origin", "https://elsewhere.example")
+                .method("OPTIONS", HttpRequest.BodyPublishers.noBody()), user, password).build();
     }
 
     private static HttpRequest post(URI uri, String user, String password) {

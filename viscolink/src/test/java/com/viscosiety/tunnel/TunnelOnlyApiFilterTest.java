@@ -17,6 +17,7 @@
 package com.viscosiety.tunnel;
 
 import static com.viscosiety.tunnel.TunnelOnlyApiFilter.Decision.NOT_FOUND;
+import static com.viscosiety.tunnel.TunnelOnlyApiFilter.Decision.OPENAPI_NOT_FOUND;
 import static com.viscosiety.tunnel.TunnelOnlyApiFilter.Decision.PASS;
 import static com.viscosiety.tunnel.TunnelOnlyApiFilter.Decision.PUBLIC_OPENAPI;
 import static com.viscosiety.tunnel.TunnelOnlyApiFilter.decide;
@@ -24,7 +25,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.io.IOException;
+import java.util.Set;
+
 import jakarta.json.JsonObject;
+import jakarta.servlet.http.HttpServlet;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 
 import org.frankframework.http.rest.ApiListener;
 import org.frankframework.http.rest.ApiListener.HttpMethod;
@@ -97,12 +104,14 @@ class TunnelOnlyApiFilterTest {
     @Test
     void thePerPatternOpenApiFormsAreNotFoundForATunnelPattern() {
         registerAll();
-        assertEquals(NOT_FOUND, decide("GET", "/openapi.json", "/feed"));
-        assertEquals(NOT_FOUND, decide("GET", "/openapi.json", "/mixed"));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "/feed"));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "/mixed"));
         assertEquals(PASS, decide("GET", "/openapi.json", "/open"));
-        assertEquals(NOT_FOUND, decide("GET", "/feed/openapi.json", null));
-        assertEquals(NOT_FOUND, decide("GET", "/mixed/openapi.json", null));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/feed/openapi.json", null));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/mixed/openapi.json", null));
         assertEquals(PASS, decide("GET", "/open/openapi.json", null));
+        assertEquals(PASS, decide("BREW", "/openapi.json", null), "an unknown method reaches the servlet (405)");
+        assertEquals(PASS, decide("BREW", "/feed/openapi.json", null));
     }
 
     @Test
@@ -163,5 +172,62 @@ class TunnelOnlyApiFilterTest {
         new TunnelOnlyApiFilter().doFilter(request, new MockHttpServletResponse(), chain);
 
         assertEquals(request, chain.getRequest());
+    }
+
+    @Test
+    void thePerPatternOpenApiFormAnswersAsForAPatternThatDoesNotExist() throws Exception {
+        registerAll();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/viscolink/api/feed/openapi.json");
+        request.setPathInfo("/feed/openapi.json");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        MockFilterChain chain = new MockFilterChain();
+
+        new TunnelOnlyApiFilter().doFilter(request, response, chain);
+
+        assertEquals(404, response.getStatus());
+        assertEquals("OpenApi specification not found", response.getErrorMessage());
+        assertEquals(null, chain.getRequest());
+    }
+
+    @Test
+    void methodListsLoseTheHiddenMethods() {
+        Set<String> hidden = Set.of("POST");
+        assertEquals("OPTIONS, GET", TunnelOnlyApiFilter.withoutMethods("OPTIONS, GET, POST", hidden));
+        assertEquals("GET, PUT", TunnelOnlyApiFilter.withoutMethods("GET,post , PUT", hidden));
+        assertEquals("", TunnelOnlyApiFilter.withoutMethods("POST", hidden));
+        assertEquals(null, TunnelOnlyApiFilter.withoutMethods(null, hidden));
+    }
+
+    @Test
+    void theTunnelMethodsOfTheMatchedPatternAreKnown() {
+        registerAll();
+        assertEquals(Set.of("POST"), TunnelOnlyApiFilter.tunnelMethods("GET", "/mixed"));
+        assertEquals(Set.of("POST"), TunnelOnlyApiFilter.tunnelMethods("OPTIONS", "/mixed/"));
+        assertEquals(Set.of(), TunnelOnlyApiFilter.tunnelMethods("GET", "/open"));
+        assertEquals(Set.of(), TunnelOnlyApiFilter.tunnelMethods("GET", "/nothing"));
+        assertEquals(Set.of(), TunnelOnlyApiFilter.tunnelMethods("BREW", "/mixed"));
+    }
+
+    @Test
+    void aMixedPatternsHeadersLeaveOutItsTunnelMethods() throws Exception {
+        registerAll();
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/viscolink/api/mixed");
+        request.setPathInfo("/mixed");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        HttpServlet servlet = new HttpServlet() {
+            @Override
+            protected void service(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+                resp.addHeader("Allow", "OPTIONS, GET, POST");
+                resp.setHeader("access-control-allow-methods", "GET, POST");
+                resp.setHeader("X-Other", "POST");
+                resp.setStatus(200);
+            }
+        };
+
+        new TunnelOnlyApiFilter().doFilter(request, response, new MockFilterChain(servlet));
+
+        assertEquals("OPTIONS, GET", response.getHeader("Allow"));
+        assertEquals("GET", response.getHeader("Access-Control-Allow-Methods"));
+        assertEquals("POST", response.getHeader("X-Other"), "other headers are untouched");
     }
 }
