@@ -7,6 +7,8 @@ major version).
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-11-13
+
 ### In short
 - No change to how a runtime works. The release's component list now also names the servlet of the
   tunnel API, so a platform that sets up logins per servlet from that list knows it exists.
