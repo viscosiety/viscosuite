@@ -141,7 +141,7 @@ class OAuth2AuthenticatorOverrideTest {
 		// Regression (2026-09-09): an override derived from frankframework master -- where bearer
 		// support has since moved to BearerOnlyAuthenticator -- silently dropped
 		// allowBearerAuthentication, so the portal's and the agent's bearer calls to /iaf/api
-		// were refused. The override must keep tracking the CONSUMED nightly's source.
+		// were refused. The override must keep tracking the CONSUMED version's source.
 		authenticator.setClientId("clientID");
 		authenticator.setClientSecret("clientSecret");
 		authenticator.setProvider("github");
