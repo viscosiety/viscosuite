@@ -1,0 +1,53 @@
+<!DOCTYPE Configuration>
+
+<!-- Test configuration for TunnelApiIT: a plain ApiListener, a tunnel-only listener, and one
+     pattern with both (GET public, POST tunnel-only). Each adapter answers a fixed text. -->
+<Configuration name="tunnelapi">
+    <Adapter name="Open">
+        <Receiver name="OpenReceiver">
+            <ApiListener name="open" uriPattern="open" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="open"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="Feed">
+        <Receiver name="FeedReceiver">
+            <Listener className="com.viscosiety.tunnel.TunnelApiListener" name="feed" uriPattern="feed" method="POST"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="feed"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="MixedGet">
+        <Receiver name="MixedGetReceiver">
+            <ApiListener name="mixed-get" uriPattern="mixed" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="mixed-get"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="MixedPost">
+        <Receiver name="MixedPostReceiver">
+            <Listener className="com.viscosiety.tunnel.TunnelApiListener" name="mixed-post" uriPattern="mixed" method="POST"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="mixed-post"/>
+        </Pipeline>
+    </Adapter>
+</Configuration>

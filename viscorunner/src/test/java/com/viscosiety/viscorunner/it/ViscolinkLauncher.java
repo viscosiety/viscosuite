@@ -66,6 +66,10 @@ import java.util.zip.ZipInputStream;
  *       {@code WEB-INF/classes} join the webapp class path as Tomcat pre-resources, the way the
  *       runner image's {@code conf/Catalina/localhost/viscolink.xml} lays
  *       {@code /opt/frank/webapp-overlay/viscolink} over the WAR.</li>
+ *   <li>{@code visco.tunnel.api.connectors} (optional) — a tunnel port settings file; when set,
+ *       {@code TunnelPortListener} (viscorunner's {@code target/classes} must be on the class path)
+ *       opens the HTTPS tunnel ports it names.</li>
+ *   <li>{@code dtap.stage} (optional) — defaults to {@code LOC}.</li>
  * </ul>
  *
  * <h3>Output protocol</h3>
@@ -94,7 +98,9 @@ public class ViscolinkLauncher {
 
         // ── F!F system properties (read by AppConstants during webapp init) ─────────────
         System.setProperty("log.dir",   logDir.toString());
-        System.setProperty("dtap.stage", "LOC");
+        if (System.getProperty("dtap.stage") == null) {
+            System.setProperty("dtap.stage", "LOC");
+        }
 
         // Credential factory: match the production configuration (PropertyFileCredentialFactory
         // reading from a properties file).
@@ -219,6 +225,14 @@ public class ViscolinkLauncher {
             WebResourceRoot resources = new StandardRoot(ctx);
             resources.addPreResources(new DirResourceSet(resources, "/", Path.of(overlayDir).toAbsolutePath().toString(), "/"));
             ctx.setResources(resources);
+        }
+
+        // Optional HTTPS tunnel ports (TunnelApiIT): the shared jar's listener, as server.xml adds it in the
+        // image. Loaded by name so the other ITs' launcher class path needs no viscorunner classes.
+        if (System.getProperty("visco.tunnel.api.connectors") != null) {
+            tomcat.getServer().addLifecycleListener((org.apache.catalina.LifecycleListener) Class
+                .forName("com.viscosiety.viscorunner.tunnel.TunnelPortListener")
+                .getDeclaredConstructor().newInstance());
         }
 
         // ── Start and signal readiness ────────────────────────────────────────────────────
