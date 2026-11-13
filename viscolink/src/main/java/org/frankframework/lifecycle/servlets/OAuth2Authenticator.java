@@ -17,9 +17,10 @@
 // TEMPORARY CLASSPATH OVERRIDE -- NOT VISCOSIETY CODE
 //
 // This is org.frankframework.lifecycle.servlets.OAuth2Authenticator exactly as
-// built into the consumed Frank!Framework nightly 10.3.0-20260924.042323
-// (frankframework master 1dcb19c2, 2026-09-23; the upstream file is unchanged
-// since e3803c17, 2026-09-01) plus two ViscoLink changes,
+// built into the consumed Frank!Framework release 10.3.0 (tag v10.3.0; checked
+// 2026-11-13: the upstream file at that tag is byte-identical to the nightly
+// 10.3.0-20260924.042323 this copy was derived from, frankframework 1dcb19c2;
+// only Lombok's setters are written out here) plus two ViscoLink changes,
 // both in configure(HttpSecurity):
 //  1. the interactive login chain is made stateful (IF_REQUIRED +
 //     HttpSessionRequestCache + HttpSessionSecurityContextRepository);
@@ -35,10 +36,15 @@
 // It lives in the WAR because WEB-INF/classes takes precedence over
 // WEB-INF/lib by servlet spec (staged there by the stage-oauth2-override
 // execution in the pom), so this class shadows the one in
-// frankframework-security.jar. The same fix has been submitted upstream from
-// tommy2d/frankframework branch claude/upstream-repo-sync-tu8aso.
+// frankframework-security.jar. Change 1 has been submitted upstream as
+// frankframework/frankframework#11648 (open). Two things to know when it is
+// merged: change 2 is NOT part of it, so this file stays until HTTP Basic on
+// the OAuth2 chain is upstream too; and the upstream version stores the login
+// per security chain, while ApiSessionAuthListener reads the plain
+// SPRING_SECURITY_CONTEXT session attribute this copy writes -- adapt the
+// listener before taking the upstream class.
 //
-// MUST track the consumed nightly, never frankframework master: master has
+// MUST track the consumed version, never frankframework master: master has
 // since moved bearer support out of this class, and an override copied from
 // there silently dropped allowBearerAuthentication (2026-09-09). On every
 // F!F version bump, re-derive this file from that version's source and
