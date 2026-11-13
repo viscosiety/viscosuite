@@ -66,6 +66,7 @@ final class TunnelApiLauncher {
     private final List<String> output = Collections.synchronizedList(new ArrayList<>());
     private final List<Path> tempDirs = new ArrayList<>();
     private Process process;
+    private Path childTmp;
     int publicPort;
     int tunnelPort;
     HttpClient https;
@@ -144,7 +145,11 @@ final class TunnelApiLauncher {
                 lib("tomcat-embed-jasper"), lib("tomcat-dbcp"), lib("jakarta.annotation-api"), lib("h2"),
                 testClasses.toString(), classes.toString());
 
+        // The child's own temp files (ViscolinkLauncher's work dir with the F!F log files) go under our work dir, so
+        // stop() removes them and the filter check can read the F!F log.
+        childTmp = Files.createDirectories(work.resolve("jvm-tmp"));
         List<String> command = new ArrayList<>(List.of(javaExe,
+                "-Djava.io.tmpdir=" + childTmp,
                 "-Dspring.main.allow-circular-references=true",
                 "-Dviscolink.overlay.dir=" + healthOverlay));
         command.addAll(tunnelArgs);
@@ -282,6 +287,35 @@ final class TunnelApiLauncher {
             throw new IllegalStateException("launcher did not report READY within 3 minutes");
         }
         return port[0];
+    }
+
+    /**
+     * Asserts that {@code TunnelOnlyApiFilterRegistrar} registered the public-side filter in this runtime: its INFO
+     * line is in the Frank!Framework log ({@code viscolink.log}, which the child writes under its temp dir; the
+     * registrar's INFO never reaches stdout) and its ERROR line ("could not be registered") is in neither.
+     */
+    void assertPublicSideFilterRegistered() throws Exception {
+        List<String> lines = new ArrayList<>();
+        try (Stream<Path> walk = Files.walk(childTmp)) {
+            for (Path log : walk.filter(p -> p.getFileName().toString().equals("viscolink.log")).toList()) {
+                lines.addAll(Files.readAllLines(log, StandardCharsets.UTF_8));
+            }
+        }
+        if (lines.isEmpty()) {
+            throw new AssertionError("no viscolink.log found under " + childTmp);
+        }
+        synchronized (output) {
+            lines.addAll(output);
+        }
+        boolean registered = lines.stream().anyMatch(line -> line.contains("tunnel-only endpoints answer 404 on the public servlet"));
+        boolean failed = lines.stream().anyMatch(line -> line.contains("public-side filter could not be registered")
+                || line.contains("tunnel-only endpoints are NOT hidden"));
+        if (failed) {
+            throw new AssertionError("the runtime logged that the public-side filter is not registered");
+        }
+        if (!registered) {
+            throw new AssertionError("the runtime's log has no line saying the public-side filter was registered");
+        }
     }
 
     /** The launcher's output, with the generated passwords masked. */

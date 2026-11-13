@@ -17,11 +17,9 @@
 
 package com.viscosiety.viscorunner.it;
 
-import static com.viscosiety.viscorunner.it.TunnelApiLauncher.PUBLIC_USER;
 import static com.viscosiety.viscorunner.it.TunnelApiLauncher.SITE_USER;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.net.http.HttpResponse;
 import java.util.ArrayList;
@@ -64,6 +62,11 @@ class TunnelApiPublicOffIT {
     @AfterAll
     void stop() {
         l.stop();
+    }
+
+    @Test
+    void publicSideFilterIsRegisteredInThisRuntime() throws Exception {
+        l.assertPublicSideFilterRegistered();
     }
 
     @Test

@@ -25,7 +25,6 @@ import static com.viscosiety.viscorunner.it.TunnelApiLauncher.PUBLIC_USER;
 import static com.viscosiety.viscorunner.it.TunnelApiLauncher.SITE_USER;
 
 import java.net.URI;
-import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.time.Duration;
@@ -34,7 +33,6 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.TestInstance;
-
 
 /**
  * The tunnel side on a real Frank!Framework: {@code TunnelApiServlet} at {@code /tunnel-api/*} under its own
@@ -60,6 +58,11 @@ class TunnelApiIT {
     }
 
     @Test
+    void publicSideFilterIsRegisteredInThisRuntime() throws Exception {
+        l.assertPublicSideFilterRegistered();
+    }
+
+    @Test
     void tunnelOnlyListenerAnswersOnTheTunnelSide() throws Exception {
         HttpResponse<String> response = l.https.send(TunnelApiLauncher.post(tunnel("/viscolink/tunnel-api/feed"), SITE_USER, l.sitePassword),
                 HttpResponse.BodyHandlers.ofString());
@@ -80,6 +83,7 @@ class TunnelApiIT {
         HttpResponse<String> response = l.https.send(TunnelApiLauncher.get(tunnel("/viscolink/tunnel-api/open"), null, null),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(401, response.statusCode());
+        assertNoAdapterText(response);
     }
 
     @Test
@@ -87,6 +91,7 @@ class TunnelApiIT {
         HttpResponse<String> response = l.https.send(TunnelApiLauncher.get(tunnel("/viscolink/tunnel-api/open"), PUBLIC_USER, l.publicPassword),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(401, response.statusCode());
+        assertNoAdapterText(response);
     }
 
     @Test
@@ -102,6 +107,7 @@ class TunnelApiIT {
         HttpResponse<String> response = l.http.send(TunnelApiLauncher.get(open("/viscolink/api/open"), SITE_USER, l.sitePassword),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(401, response.statusCode());
+        assertNoAdapterText(response);
     }
 
     @Test
@@ -118,6 +124,7 @@ class TunnelApiIT {
         HttpResponse<String> response = l.https.send(TunnelApiLauncher.get(tunnel("/viscolink/tunnel-api/nothing-here"), SITE_USER, l.sitePassword),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(404, response.statusCode());
+        assertNoAdapterText(response);
     }
 
     @Test
@@ -145,6 +152,7 @@ class TunnelApiIT {
         HttpResponse<String> response = l.http.send(TunnelApiLauncher.post(open("/viscolink/api/feed"), null, null),
                 HttpResponse.BodyHandlers.ofString());
         assertEquals(401, response.statusCode());
+        assertNoAdapterText(response);
     }
 
     @Test
@@ -259,8 +267,11 @@ class TunnelApiIT {
         return l.rawPublicStatus(method, rawPath, user, password);
     }
 
-    private HttpResponse<String> send(HttpClient client, HttpRequest request) throws Exception {
-        return l.send(client, request);
+    private static void assertNoAdapterText(HttpResponse<String> response) {
+        for (String text : new String[] {"tunnel-test-open-reply", "tunnel-test-feed-reply",
+                "tunnel-test-mixed-get-reply", "tunnel-test-mixed-post-reply"}) {
+            assertFalse(response.body().contains(text), "body must not carry " + text);
+        }
     }
 
     private URI tunnel(String path) {

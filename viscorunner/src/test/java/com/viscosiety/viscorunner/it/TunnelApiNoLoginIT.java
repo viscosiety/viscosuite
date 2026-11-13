@@ -57,6 +57,11 @@ class TunnelApiNoLoginIT {
     }
 
     @Test
+    void publicSideFilterIsRegisteredInThisRuntime() throws Exception {
+        l.assertPublicSideFilterRegistered();
+    }
+
+    @Test
     void tunnelSideAnswersGetWithoutLogin() throws Exception {
         HttpResponse<String> r = l.send(l.https, TunnelApiLauncher.get(l.tunnel("/viscolink/tunnel-api/open"), null, null));
         assertEquals(200, r.statusCode());
