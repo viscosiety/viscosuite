@@ -58,10 +58,17 @@ class RuntimeSessionCookieScopeTest {
         // image (conf/Catalina/localhost/rewrite.config); the embedded engine is called "Tomcat".
         Path rules = base.resolve("conf/Tomcat/localhost/rewrite.config");
         Files.createDirectories(rules.getParent());
-        Files.copy(REWRITE_RULES, rules);
+        // The image's rules treat every port but 8080 as a tunnel port (tunnel-api routing), so the rules this
+        // Tomcat loads name its own port instead of 8080; every other rule is the image's own.
+        int publicPort;
+        try (java.net.ServerSocket probe = new java.net.ServerSocket(0)) {
+            publicPort = probe.getLocalPort();
+        }
+        Files.writeString(rules, Files.readString(REWRITE_RULES).replace("8080", String.valueOf(publicPort)));
+        EmbeddedTomcatSupport.useBaseDir(base); // not the first embedded Tomcat of the JVM's base dir
         tomcat = new Tomcat();
         tomcat.setBaseDir(base.toString());
-        tomcat.setPort(0);
+        tomcat.setPort(publicPort);
 
         Context runtime = tomcat.addContext("/runtime", new File(".").getAbsolutePath());
         Element descriptor = DocumentBuilderFactory.newInstance().newDocumentBuilder()

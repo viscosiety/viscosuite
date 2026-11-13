@@ -84,7 +84,7 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
     /** Public liveness endpoint — must stay reachable without authentication. */
     static final String PUBLIC_HEALTH_PATH = "/tools/health";
     /** Owned by the platform in every image; a pack's prefixes come on top (see {@link #isFrankOwnedPath}). */
-    private static final List<String> CORE_FRANK_OWNED_PREFIXES = List.of("/iaf/", "/api/", "/api-service/", "/webcontent/");
+    private static final List<String> CORE_FRANK_OWNED_PREFIXES = List.of("/iaf/", "/api/", "/api-service/", "/webcontent/", "/tunnel-api/");
 
     private ApplicationContext applicationContext;
 
@@ -165,7 +165,8 @@ public class ConsoleSecurityRegistrar implements InitializingBean, ApplicationCo
      * independently — never touched by this filter. The core prefixes are {@code /iaf/} (the
      * console), {@code /api/} (F!F's API listeners), {@code /webcontent/} (F!F's WebContentServlet, the
      * configurations' hosted pages, secured by {@code servlet.WebContentServlet.authenticator} -- which
-     * may be NONE for public pages, and this filter must then not demand the console login on top)
+     * may be NONE for public pages, and this filter must then not demand the console login on top),
+     * {@code /tunnel-api/} (the tunnel servlet, secured by {@code servlet.tunnelApi.*} alone, which may be NONE)
      * and {@code /api-service/}, the Bearer-only
      * servlet family ({@link org.frankframework.visco.security.ConfigRefServlet}): it enforces its
      * own JWT-based auth and must never also be gated by this class's session-based tool-page check.
