@@ -204,4 +204,25 @@ class TunnelPortSettingsTest {
             assertFalse(refused.reason().contains(dir.toString()));
         }
     }
+
+    @Test
+    void thePortsToStringNeverShowsThePasswordOrAFileName() throws Exception {
+        Path keystore = TestCertificates.pkcs12(dir, "hunter2");
+        Path password = passwordFile("pw", "hunter2\n");
+        Result result = TunnelPortSettings.read(settings("ports=8443",
+                "8443.keystoreFile=" + keystore, "8443.keystorePasswordFile=" + password));
+        assertEquals("Port[8443, keystore]", result.ports().get(0).toString());
+        assertFalse(result.ports().toString().contains("hunter2"));
+    }
+
+    @Test
+    void aPortWrittenTwiceWithALeadingZeroIsListedTwice() throws Exception {
+        Path keystore = TestCertificates.pkcs12(dir, "secret");
+        Path password = passwordFile("pw", "secret\n");
+        Result result = TunnelPortSettings.read(settings("ports=8443,08443",
+                "8443.keystoreFile=" + keystore, "8443.keystorePasswordFile=" + password,
+                "08443.keystoreFile=" + keystore, "08443.keystorePasswordFile=" + password));
+        assertEquals(1, result.ports().size());
+        assertRefused(result, "08443", "listed twice");
+    }
 }

@@ -1,9 +1,6 @@
 # Tunnel API: feasibility spike
 
-**Status:** spike, 2026-11-12. Nothing here is production code. Spike tests live in
-`viscorunner/src/test/java/com/viscosiety/viscorunner/spike/` and are off in the normal build
-(see "Test pitfall" below). Run them with
-`./mvnw test -pl viscorunner -Dtest='Tunnel*SpikeTest' -Dspike=true`.
+**Status:** Spike of 2026-11-12. Its tests became `TunnelPortRoutingTest` and `TunnelApiIT`; the spike classes are gone.
 
 Versions read: Tomcat 11.0.18 (test classpath; the image runs 11.0.14), Frank!Framework 10.3.0
 (`frankframework-core-10.3.0-sources.jar`; `frankframework-security-10.3.0.jar` decompiled, no

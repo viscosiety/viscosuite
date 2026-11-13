@@ -98,4 +98,35 @@ class TunnelPortListenerTest {
         assertEquals(0, server.findServices()[0].findConnectors().length);
         assertNull(System.getProperty(TunnelPortListener.PORTS_PROPERTY));
     }
+
+    @Test
+    void aPortThatIsAlreadyInUseIsNotOpened() throws Exception {
+        Path keystore = TestCertificates.pkcs12(dir, "secret");
+        Files.writeString(dir.resolve("pw"), "secret\n");
+        try (java.net.ServerSocket busy = new java.net.ServerSocket(0)) {
+            int port = busy.getLocalPort();
+            Path file = dir.resolve("connectors.properties");
+            Files.writeString(file, "ports=" + port + "\n" + port + ".keystoreFile=" + keystore + "\n"
+                    + port + ".keystorePasswordFile=" + dir.resolve("pw") + "\n");
+            System.setProperty(TunnelPortSettings.FILE_PROPERTY, file.toString());
+            StandardServer server = server();
+            TunnelPortListener listener = new TunnelPortListener();
+            fire(listener, server);
+            assertEquals(0, listener.opened().size());
+            assertEquals(0, server.findServices()[0].findConnectors().length);
+            assertNull(System.getProperty(TunnelPortListener.PORTS_PROPERTY));
+        }
+    }
+
+    @Test
+    void portsWithoutAServiceOpenNothingAndDoNotFail() throws Exception {
+        Path keystore = TestCertificates.pkcs12(dir, "secret");
+        Files.writeString(dir.resolve("pw"), "secret\n");
+        Path file = dir.resolve("connectors.properties");
+        Files.writeString(file, "ports=18451\n18451.keystoreFile=" + keystore + "\n18451.keystorePasswordFile=" + dir.resolve("pw") + "\n");
+        System.setProperty(TunnelPortSettings.FILE_PROPERTY, file.toString());
+        TunnelPortListener listener = new TunnelPortListener();
+        fire(listener, new StandardServer());
+        assertEquals(0, listener.opened().size());
+    }
 }

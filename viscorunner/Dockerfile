@@ -61,6 +61,11 @@ COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 # path; every other request (API calls, POSTs, scripts, probes) is served in place. A rule to a context
 # that is not deployed answers 404, as before. The rules file must not contain comment lines: with them
 # Tomcat 11 silently skipped the conditional rules (found in the 2026-10-28 spike).
+# The first six rules route by ARRIVAL PORT; Tomcat's only other port is the public 8080. On any other port
+# (a tunnel port opened by TunnelPortListener from the settings file) /api, /runtime/api and /viscolink/api go
+# to /runtime/tunnel-api (the tunnel-side servlet) and every other path is 404 (rules 1-4); on 8080 the
+# /runtime/tunnel-api and /viscolink/tunnel-api paths are 404 (rules 5-6), so the tunnel servlet cannot be
+# reached from the public side. They sit above the old-path rules so the tunnel rules win.
 COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
 
 # Log retention (2026-10-23): the third file of log4j.configurationFile (catalinaAdditional.properties).

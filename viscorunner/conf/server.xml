@@ -38,6 +38,8 @@
        classloader, so it survives a single WAR failure and sees every context. Auto-detects
        in-cluster access and no-ops off-cluster. -->
   <Listener className="com.viscosiety.viscorunner.k8s.ContextFailureEventPublisher" />
+  <!-- Opens HTTPS tunnel ports from /opt/frank/tunnel-api/connectors.properties; without that file it does nothing. -->
+  <Listener className="com.viscosiety.viscorunner.tunnel.TunnelPortListener" />
 
   <!-- Global JNDI resources
        Documentation at /docs/jndi-resources-howto.html

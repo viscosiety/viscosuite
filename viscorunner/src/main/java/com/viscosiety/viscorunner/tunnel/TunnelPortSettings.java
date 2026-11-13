@@ -46,6 +46,11 @@ public final class TunnelPortSettings {
     /** One usable tunnel port. Exactly one of the two forms is filled. */
     public record Port(int port, String keystoreFile, String keystorePassword, String keystoreType,
                        String certificateFile, String certificateKeyFile, String certificateChainFile) {
+        /** Never prints the keystore password or a file name: the port number and which form it uses. */
+        @Override
+        public String toString() {
+            return "Port[" + port + ", " + (keystoreFile != null ? "keystore" : "certificate") + "]";
+        }
     }
 
     /** A port that was asked for and cannot be opened; reason is safe to log. */
@@ -103,7 +108,7 @@ public final class TunnelPortSettings {
         if (number < 1024 || number > 65535 || number == 8005 || number == 8009 || number == 8080) {
             return BAD_PORT;
         }
-        if (!seen.add(token)) {
+        if (!seen.add(String.valueOf(number))) {
             return "listed twice";
         }
         String keystoreFile = value(p, token, "keystoreFile");

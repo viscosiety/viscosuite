@@ -66,8 +66,17 @@ public class TunnelPortListener implements LifecycleListener {
         }
         StringBuilder ports = new StringBuilder();
         Service[] services = server.findServices();
+        if (!result.ports().isEmpty() && services.length == 0) {
+            LOG.log(Level.SEVERE, "tunnel-api: ports are configured but the server has no Service; no port opened");
+        }
         if (!result.ports().isEmpty() && services.length > 0) {
             for (TunnelPortSettings.Port port : result.ports()) {
+                String portText = String.valueOf(port.port());
+                String busy = busyReason(port.port());
+                if (busy != null) {
+                    LOG.log(Level.SEVERE, "tunnel-api: port {0} not opened: {1}", new Object[] {portText, busy});
+                    continue;
+                }
                 try {
                     Connector connector = connector(port);
                     services[0].addConnector(connector);
@@ -77,7 +86,8 @@ public class TunnelPortListener implements LifecycleListener {
                     }
                     ports.append(port.port());
                 } catch (RuntimeException e) {
-                    LOG.log(Level.SEVERE, "tunnel-api: port {0} not opened: the port could not be set up", port.port());
+                    LOG.log(Level.SEVERE, "tunnel-api: port {0} not opened: the port could not be set up ({1})",
+                            new Object[] {portText, e.getClass().getSimpleName()});
                 }
             }
         }
@@ -86,6 +96,16 @@ public class TunnelPortListener implements LifecycleListener {
             LOG.log(Level.INFO, "tunnel-api: HTTPS on port(s) {0}", ports.toString().replace(",", ", "));
         } else {
             System.clearProperty(PORTS_PROPERTY);
+        }
+    }
+
+    /** Null when the port can be bound now; else the refusal reason. */
+    private static String busyReason(int port) {
+        try (java.net.ServerSocket probe = new java.net.ServerSocket()) {
+            probe.bind(new java.net.InetSocketAddress(port));
+            return null;
+        } catch (java.io.IOException | RuntimeException e) {
+            return "the port is already in use";
         }
     }
 
