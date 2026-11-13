@@ -2,7 +2,9 @@
 # smoke-image.sh <image> [component id ...]: boot a just-built runner image and check it serves.
 #   - the Frank!Framework answers GET /runtime/iaf/api/server/health 200 within $SMOKE_TIMEOUT s (default 240; H2 in memory)
 #   - /opt/frank/components/MANIFEST lists exactly the given component ids (none = viscobase)
-#   - an HTTPS tunnel port (8443, own throwaway certificate) answers: /api/... 404 or 401 from the tunnel servlet, anything else 404
+#   - an HTTPS tunnel port (8443, own throwaway certificate) answers: /api/openapi.json 200 from the tunnel servlet,
+#     an unknown /api path 404 or 401, anything else 404. A runtime without the settings file is not booted here:
+#     TunnelApiNoSettingsIT covers that case.
 #   - with "store": a postgres:16 container is started first and GET /fhir-store/fhir/metadata answers 200
 # Runs inside the docker jobs on the per-arch image just pushed. Everything it starts is removed.
 set -eu
@@ -27,7 +29,7 @@ docker run --rm --user root -v "$tunnel_vol:/t" --entrypoint sh "$IMAGE" -c '
   pw=$(head -c 12 /dev/urandom | od -An -tx1 | tr -d " \n")
   printf %s "$pw" > /t/tunnel.pw
   keytool -genkeypair -alias smoke -keyalg RSA -keysize 2048 -validity 2 -dname CN=localhost \
-    -storetype PKCS12 -keystore /t/tunnel.p12 -storepass "$pw" -keypass "$pw" >/dev/null 2>&1
+    -storetype PKCS12 -keystore /t/tunnel.p12 -storepass "$pw" -keypass "$pw" >/dev/null
   printf "ports=8443\n8443.keystoreFile=/opt/frank/tunnel-api/tunnel.p12\n8443.keystorePasswordFile=/opt/frank/tunnel-api/tunnel.pw\n" > /t/connectors.properties
   chmod -R a+rX /t'
 
@@ -70,6 +72,10 @@ actual=$(echo "$actual" | sed 's/ *$//')
 tunnel_status() { # <path>
   docker exec smoke-runner curl --silent --insecure --output /dev/null --write-out '%{http_code}' "https://localhost:8443$1" || true
 }
+# The OpenAPI document proves that the tunnel servlet, not plain Tomcat, answers (the smoke runtime runs on stage LOC
+# without a login).
+openapi=$(tunnel_status /api/openapi.json)
+[ "$openapi" = 200 ] || { echo "smoke: https://localhost:8443/api/openapi.json answered '$openapi', expected 200; last log lines:" >&2; docker logs --tail 80 smoke-runner >&2; exit 1; }
 api=$(tunnel_status /api/smoke-nothing)
 case "$api" in 404|401) ;; *)
   echo "smoke: https://localhost:8443/api/smoke-nothing answered '$api', expected 404 or 401; last log lines:" >&2
