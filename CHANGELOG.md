@@ -25,7 +25,7 @@ major version).
 ### Upgrade notes
 - **Own `server.xml` with another port.** The image's routing rules now treat every Tomcat port other than 8080 as
   a tunnel port. If you mount your own `server.xml` with another HTTP or HTTPS port, that port answers 404 for
-  everything except `/api` after the upgrade. Serve the runtime on port 8080, or adapt the rewrite rules.
+  every request after the upgrade, `/api` included. Serve the runtime on port 8080, or adapt the rewrite rules.
 - **A servlet named `tunnelApi`** is now registered in every runtime, at `/tunnel-api/*`. It answers 404 to every
   request that did not arrive on a tunnel port. Do not use the name `tunnelApi` for a servlet of your own.
 
