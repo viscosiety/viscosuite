@@ -2,12 +2,11 @@ package com.viscosiety.viscorunner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.File;
 import java.io.IOException;
-import java.net.ConnectException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.net.URI;
@@ -76,6 +75,7 @@ class TunnelPortRoutingTest {
     @AfterAll
     static void stop() throws Exception {
         main.stop();
+        System.clearProperty(TunnelPortListener.PORTS_PROPERTY);
     }
 
     /**
@@ -113,6 +113,7 @@ class TunnelPortRoutingTest {
         tomcat.addContext("", new File(".").getAbsolutePath());
         tomcat.getHost().getPipeline().addValve(new RewriteValve());
         tomcat.start();
+        System.clearProperty(TunnelPortListener.PORTS_PROPERTY);
         return new Running(tomcat, publicPort);
     }
 
@@ -120,7 +121,8 @@ class TunnelPortRoutingTest {
         Tomcat.addServlet(context, name, new HttpServlet() {
             @Override
             protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
-                response.getWriter().write(name + " path=" + request.getPathInfo() + " query=" + request.getQueryString());
+                response.getWriter().write(name + " path=" + request.getPathInfo() + " query=" + request.getQueryString()
+                        + " secure=" + request.isSecure() + " port=" + request.getLocalPort());
             }
         });
         context.addServletMappingDecoded(mapping, name);
@@ -142,14 +144,29 @@ class TunnelPortRoutingTest {
 
     private static void assertTunnelEcho(HttpResponse<String> response, String pathInfo, String query) {
         assertEquals(200, response.statusCode(), response.body());
-        assertEquals("tunnelApi path=" + pathInfo + " query=" + query, response.body());
+        assertTrue(response.body().startsWith("tunnelApi path=" + pathInfo + " query=" + query + " secure=true port="), response.body());
+    }
+
+    private static void assertTunnelEcho(HttpResponse<String> response, String pathInfo, String query, int port) {
+        assertTunnelEcho(response, pathInfo, query);
+        assertTrue(response.body().endsWith(" port=" + port), response.body());
+    }
+
+    /** A request line sent as written over a raw socket (java.net.http may normalise paths); returns status line + body. */
+    private static String raw(int port, String path) throws IOException {
+        try (Socket socket = new Socket("localhost", port)) {
+            socket.setSoTimeout(10000);
+            socket.getOutputStream().write(("GET " + path + " HTTP/1.1\r\nHost: localhost\r\nAccept: application/json\r\nConnection: close\r\n\r\n")
+                    .getBytes(java.nio.charset.StandardCharsets.US_ASCII));
+            return new String(socket.getInputStream().readAllBytes(), java.nio.charset.StandardCharsets.ISO_8859_1);
+        }
     }
 
     @Test
     void anApiCallOnATunnelPortReachesTheTunnelServletWhateverTheStartOfThePath() throws Exception {
         for (String accept : new String[] {"application/json", "text/html"}) {
             for (String path : new String[] {"/runtime/api/x", "/api/x", "/viscolink/api/x"}) {
-                assertTunnelEcho(tunnel(path, accept), "/x", "null");
+                assertTunnelEcho(tunnel(path, accept), "/x", "null", tunnelPort);
             }
         }
     }
@@ -171,7 +188,7 @@ class TunnelPortRoutingTest {
     @Test
     void everythingElseOnATunnelPortIsNotFound() throws Exception {
         for (String path : new String[] {"/runtime/iaf/gui/", "/", "/console/ui/", "/fhir-store/fhir/metadata",
-                "/runtime/tunnel-apix", "/runtime/apix/y"}) {
+                "/runtime/tunnel-apix", "/runtime/apix/y", "/runtime/tunnel-api/x", "/viscolink/tunnel-api/x", "/tunnel-api/x"}) {
             HttpResponse<String> response = tunnel(path, "text/html");
             assertEquals(404, response.statusCode(), path + " body=" + response.body());
         }
@@ -190,11 +207,18 @@ class TunnelPortRoutingTest {
     @Test
     void thePublicPortKeepsItsApiAndHasNoTunnelServlet() throws Exception {
         HttpResponse<String> api = publicGet("/runtime/api/x", "application/json");
-        assertEquals("api path=/x query=null", api.body());
+        assertEquals("api path=/x query=null secure=false port=" + main.publicPort(), api.body());
         for (String path : new String[] {"/runtime/tunnel-api/x", "/viscolink/tunnel-api/x", "/runtime/tunnel-api"}) {
             assertEquals(404, publicGet(path, "application/json").statusCode(), path);
         }
-        assertEquals("api path=/x query=null", publicGet("/viscolink/api/x", "application/json").body(), "old path, in place");
+        assertEquals("api path=/x query=null secure=false port=" + main.publicPort(), publicGet("/viscolink/api/x", "application/json").body(), "old path, in place");
+        for (String path : new String[] {"/runtime/tunnel-api;x=1/y", "/runtime/./tunnel-api/x", "/runtime//tunnel-api/x",
+                "/runtime/api/../tunnel-api/x", "/runtime/tunnel%2dapi/x"}) {
+            String answer = raw(main.publicPort(), path);
+            assertFalse(answer.contains("tunnelApi"), path + " reached the tunnel servlet: " + answer);
+            String status = answer.lines().findFirst().orElse("");
+            assertTrue(status.contains(" 404") || status.contains(" 400"), path + " answered " + status);
+        }
         HttpResponse<String> page = publicGet("/viscolink/iaf/gui/", "text/html");
         assertEquals(302, page.statusCode());
         assertEquals("/runtime/iaf/gui/", page.headers().firstValue("Location").orElse(""));
@@ -210,8 +234,7 @@ class TunnelPortRoutingTest {
         Running plain = startTomcat(null, false);
         try {
             assertEquals(1, plain.tomcat().getService().findConnectors().length);
-            int reserved = freePort();
-            assertThrows(ConnectException.class, () -> new Socket("localhost", reserved).close());
+            assertNull(System.getProperty(TunnelPortListener.PORTS_PROPERTY));
         } finally {
             plain.stop();
         }
@@ -250,7 +273,7 @@ class TunnelPortRoutingTest {
             try {
                 assertEquals(2, running.tomcat().getService().findConnectors().length, "public + the good tunnel port");
                 assertTunnelEcho(get("https", good, "/runtime/api/x", "application/json"), "/x", "null");
-                assertEquals("api path=/x query=null", get("http", running.publicPort(), "/runtime/api/x", "application/json").body());
+                assertEquals("api path=/x query=null secure=false port=" + running.publicPort(), get("http", running.publicPort(), "/runtime/api/x", "application/json").body());
             } finally {
                 running.stop();
             }

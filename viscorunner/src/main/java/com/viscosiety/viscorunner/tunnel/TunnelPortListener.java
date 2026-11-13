@@ -104,8 +104,10 @@ public class TunnelPortListener implements LifecycleListener {
         try (java.net.ServerSocket probe = new java.net.ServerSocket()) {
             probe.bind(new java.net.InetSocketAddress(port));
             return null;
-        } catch (java.io.IOException | RuntimeException e) {
+        } catch (java.net.BindException e) {
             return "the port is already in use";
+        } catch (java.io.IOException | RuntimeException e) {
+            return "the port cannot be bound";
         }
     }
 
