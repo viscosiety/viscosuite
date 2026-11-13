@@ -11,7 +11,7 @@
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
             </Exits>
-            <EchoPipe name="answer" getInputFromFixedValue="open"/>
+            <EchoPipe name="answer" getInputFromFixedValue="tunnel-test-open-reply"/>
         </Pipeline>
     </Adapter>
 
@@ -23,7 +23,7 @@
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
             </Exits>
-            <EchoPipe name="answer" getInputFromFixedValue="feed"/>
+            <EchoPipe name="answer" getInputFromFixedValue="tunnel-test-feed-reply"/>
         </Pipeline>
     </Adapter>
 
@@ -35,7 +35,7 @@
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
             </Exits>
-            <EchoPipe name="answer" getInputFromFixedValue="mixed-get"/>
+            <EchoPipe name="answer" getInputFromFixedValue="tunnel-test-mixed-get-reply"/>
         </Pipeline>
     </Adapter>
 
@@ -47,7 +47,7 @@
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>
             </Exits>
-            <EchoPipe name="answer" getInputFromFixedValue="mixed-post"/>
+            <EchoPipe name="answer" getInputFromFixedValue="tunnel-test-mixed-post-reply"/>
         </Pipeline>
     </Adapter>
 </Configuration>

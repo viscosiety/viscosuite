@@ -17,6 +17,7 @@
 
 package com.viscosiety.tunnel;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -61,6 +62,6 @@ class TunnelPortsTest {
         System.setProperty(TunnelPorts.PORTS_PROPERTY, "8443, x,,");
         assertTrue(TunnelPorts.isTunnelPort(8443));
         assertFalse(TunnelPorts.isTunnelPort(0));
-        assertTrue(TunnelPorts.ports().size() == 1);
+        assertEquals(1, TunnelPorts.ports().size());
     }
 }
