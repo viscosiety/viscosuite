@@ -7,6 +7,8 @@ major version).
 
 ## [Unreleased]
 
+## [1.2.2] — 2026-11-18
+
 ### In short
 - Protection against the Java vulnerability CVE-2026-114938 ("Java4Shell"): every image now starts Java
   with the part that has the flaw switched off. It can only be abused on servers with certain recent
