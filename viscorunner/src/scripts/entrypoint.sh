@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
 set -e
 
-# JVM flags required by Frank!Framework (Narayana transaction manager, Hazelcast)
+# JVM flags required by Frank!Framework (Narayana transaction manager, Hazelcast).
+# -XX:-UseBASE64Intrinsics switches off the JIT's hand-written Base64 code: CVE-2026-114938
+# ("Java4Shell") is a memory corruption in it on x86-64 CPUs with AVX-512 VBMI, fixed in Java
+# 25.0.5.1. The flag is accepted on every CPU and costs some Base64 speed. Remove it once the base
+# image runs a fixed Java.
 export JAVA_OPTS="\
+	-XX:-UseBASE64Intrinsics \
 	-XX:HeapDumpPath=/usr/local/tomcat/logs \
 	-XX:+HeapDumpOnOutOfMemoryError \
 	--add-modules java.se \

@@ -134,6 +134,8 @@ class DockerfileContractTest {
         assertTrue(base.get(unzip).contains(" curl ") && base.get(unzip).contains(" ca-certificates "),
             "curl is installed with it: the fetcher, the HEALTHCHECK and the smoke test call it, and the Java 25 base image does not ship it");
         assertTrue(read("src/scripts/entrypoint.sh").contains("/opt/frank/bin/place-components"), "the entrypoint places the components at every start");
+        assertTrue(read("src/scripts/entrypoint.sh").contains("\t-XX:-UseBASE64Intrinsics \\\n"),
+            "the entrypoint switches off the Base64 intrinsics (CVE-2026-114938) until the base image runs Java 25.0.5.1 or newer");
         assertTrue(Files.isExecutable(MODULE.resolve("src/scripts/fetch-components")) && Files.isExecutable(MODULE.resolve("src/scripts/place-components")),
             "both scripts are executable in git");
     }
