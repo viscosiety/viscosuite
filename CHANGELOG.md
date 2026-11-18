@@ -7,6 +7,16 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- Protection against the Java vulnerability CVE-2026-114938 ("Java4Shell"): every image now starts Java
+  with the part that has the flaw switched off. It can only be abused on servers with certain recent
+  processors, and no fixed Java 25 is published yet. Base64 encoding and decoding gets a little slower.
+
+### Security
+- **`-XX:-UseBASE64Intrinsics` in every image's entrypoint** (runtime images and the store image). The
+  flaw is a memory corruption in the JIT's Base64 code on x86-64 processors with AVX-512 VBMI. The flag
+  is removed again when the base image moves to Java 25.0.5.1 or newer.
+
 ## [1.2.1] — 2026-11-13
 
 ### In short
