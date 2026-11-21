@@ -7,6 +7,8 @@ major version).
 
 ## [Unreleased]
 
+## [1.2.3] — 2026-11-21
+
 ### In short
 - A REST endpoint that does not say which request parameters it uses now receives none of them,
   instead of all of them. Endpoints that list their parameters, or say they take all of them, work as
