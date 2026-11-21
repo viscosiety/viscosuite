@@ -1,0 +1,63 @@
+<!DOCTYPE Configuration>
+
+<!-- Test configuration for ApiListenerParamsDefaultIT: four listeners that each answer the value of the
+     request parameter "x" as it reached the session ("none" when it did not), and one that answers a
+     path parameter. -->
+<Configuration name="apiparams">
+    <Adapter name="Bare">
+        <Receiver name="BareReceiver">
+            <ApiListener name="bare" uriPattern="bare" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <XsltPipe name="answer" getInputFromFixedValue="&lt;a/&gt;" xpathExpression="$x" outputType="TEXT">
+                <Param name="x" sessionKey="x" defaultValue="none"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="Listed">
+        <Receiver name="ListedReceiver">
+            <ApiListener name="listed" uriPattern="listed" method="GET" allowedParameters="x"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <XsltPipe name="answer" getInputFromFixedValue="&lt;a/&gt;" xpathExpression="$x" outputType="TEXT">
+                <Param name="x" sessionKey="x" defaultValue="none"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="AllowAll">
+        <Receiver name="AllowAllReceiver">
+            <ApiListener name="allow-all" uriPattern="allow-all" method="GET" allowAllParams="true"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <XsltPipe name="answer" getInputFromFixedValue="&lt;a/&gt;" xpathExpression="$x" outputType="TEXT">
+                <Param name="x" sessionKey="x" defaultValue="none"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="PathParam">
+        <Receiver name="PathParamReceiver">
+            <ApiListener name="path" uriPattern="path/{id}" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <XsltPipe name="answer" getInputFromFixedValue="&lt;a/&gt;" xpathExpression="concat($id, '/', $x)" outputType="TEXT">
+                <Param name="id" sessionKey="id" defaultValue="none"/>
+                <Param name="x" sessionKey="x" defaultValue="none"/>
+            </XsltPipe>
+        </Pipeline>
+    </Adapter>
+</Configuration>
