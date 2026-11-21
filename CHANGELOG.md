@@ -7,6 +7,21 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- A REST endpoint that does not say which request parameters it uses now receives none of them,
+  instead of all of them. Endpoints that list their parameters, or say they take all of them, work as
+  before.
+
+### Changed
+- **`allowAllParams` defaults to `false`.** An `ApiListener` (and `TunnelApiListener`) that sets neither
+  `allowedParameters` nor `allowAllParams` no longer copies query, form and multipart parameters into the
+  session, and the framework's "SECURITY RISK: All path parameters and query parameters will be copied
+  into the session" warning is gone for it. Path parameters (`uriPattern="orders/{id}"`) and the
+  multipart body part (`multipartBodyName`) still arrive. `allowedParameters="a,b"` and
+  `allowAllParams="true"` work as before; a configuration that relied on getting every parameter sets
+  `allowAllParams="true"` on that listener. The Frank!Framework (10.3) defaults to `true`;
+  `ApiListenerParamsDefault` (`springApiListenerDefaults.xml`) changes that.
+
 ## [1.2.2] — 2026-11-18
 
 ### In short

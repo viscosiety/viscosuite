@@ -75,6 +75,6 @@ public class ViscoLinkModule implements Module {
         // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer); the INFO
         // lifecycle (started / closed / failed to start) from springLifecycleEvents.xml below.
         return List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml",
-                "springLifecycleEvents.xml");
+                "springLifecycleEvents.xml", "springApiListenerDefaults.xml");
     }
 }

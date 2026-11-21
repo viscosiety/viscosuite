@@ -74,9 +74,19 @@ final class TunnelApiLauncher {
     HttpClient https;
     HttpClient http;
 
+    private final String configsDir;
+    private final String configurationName;
+
     TunnelApiLauncher(String tag, boolean withTunnelSettings) {
+        this(tag, withTunnelSettings, "src/test/resources/tunnel-api", "tunnelapi");
+    }
+
+    /** A runtime with another test configuration (a folder under {@code configsDir} named {@code configurationName}). */
+    TunnelApiLauncher(String tag, boolean withTunnelSettings, String configsDir, String configurationName) {
         this.tag = tag;
         this.withTunnelSettings = withTunnelSettings;
+        this.configsDir = configsDir;
+        this.configurationName = configurationName;
     }
 
     private static String lib(String artifactId) {
@@ -119,7 +129,7 @@ final class TunnelApiLauncher {
     /** Starts the launcher with the given security arguments; returns once it reported its public port. */
     void start(List<String> securityArgs) throws Exception {
         Path viscolinkWar = Paths.get("target/viscolink.war").toAbsolutePath();
-        Path configs = Paths.get("src/test/resources/tunnel-api").toAbsolutePath();
+        Path configs = Paths.get(configsDir).toAbsolutePath();
         Path testClasses = Paths.get("target/test-classes").toAbsolutePath();
         Path classes = Paths.get("target/classes").toAbsolutePath();
         Path healthOverlay = Paths.get("target/packs/health").toAbsolutePath();
@@ -167,7 +177,7 @@ final class TunnelApiLauncher {
         command.addAll(tunnelArgs);
         command.addAll(securityArgs);
         command.addAll(List.of("-cp", classpath, "com.viscosiety.viscorunner.it.ViscolinkLauncher",
-                viscolinkWar.toString(), configs.toString(), "http://localhost:1/fhir/", h2Url, "unused", "tunnelapi"));
+                viscolinkWar.toString(), configs.toString(), "http://localhost:1/fhir/", h2Url, "unused", configurationName));
         process = new ProcessBuilder(command).redirectErrorStream(true).start();
         publicPort = readReadyPort();
         log("launcher ready on " + publicPort + (withTunnelSettings ? ", tunnel port " + tunnelPort : ", no tunnel port"));
@@ -323,6 +333,13 @@ final class TunnelApiLauncher {
     void assertLogContains(String text) throws Exception {
         if (logLines().stream().noneMatch(line -> line.contains(text))) {
             throw new AssertionError("the runtime's log has no line containing: " + text);
+        }
+    }
+
+    /** Asserts that no line of the Frank!Framework log or the launcher output contains the text. */
+    void assertLogLacks(String text) throws Exception {
+        if (logLines().stream().anyMatch(line -> line.contains(text))) {
+            throw new AssertionError("the runtime's log has a line containing: " + text);
         }
     }
 
