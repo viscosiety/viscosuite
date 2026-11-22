@@ -98,6 +98,9 @@ test:
   tags: [docker]
   script:
     - sh scripts/ci/check-changelog.sh
+    # Every Frank!Framework classpath override under viscolink/src/main/java/org/frankframework/ is
+    # registered in VISCO-OVERRIDES.md with its version, reason and removal condition.
+    - sh scripts/ci/check-overrides.sh
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
