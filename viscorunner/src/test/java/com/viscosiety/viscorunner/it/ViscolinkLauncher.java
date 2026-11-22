@@ -19,6 +19,7 @@ package com.viscosiety.viscorunner.it;
 import org.apache.catalina.Context;
 import org.apache.catalina.WebResourceRoot;
 import org.apache.catalina.startup.Tomcat;
+import org.apache.catalina.valves.rewrite.RewriteValve;
 import org.apache.catalina.webresources.DirResourceSet;
 import org.apache.catalina.webresources.StandardRoot;
 import org.apache.tomcat.util.descriptor.web.ContextResource;
@@ -70,6 +71,11 @@ import java.util.zip.ZipInputStream;
  *       {@code TunnelPortListener} (viscorunner's {@code target/classes} must be on the class path)
  *       opens the HTTPS tunnel ports it names.</li>
  *   <li>{@code dtap.stage} (optional) — defaults to {@code LOC}.</li>
+ *   <li>{@code viscolink.context.path} (optional) — the webapp's context path, default
+ *       {@code /viscolink}; the image serves it at {@code /runtime}.</li>
+ *   <li>{@code viscolink.rewrite.rules} (optional) — the image's Host rewrite rules
+ *       ({@code conf/Catalina/localhost/rewrite.config}); when set, a {@code RewriteValve} on the
+ *       host applies them, with the image's public port 8080 replaced by this launcher's port.</li>
  * </ul>
  *
  * <h3>Output protocol</h3>
@@ -209,7 +215,18 @@ public class ViscolinkLauncher {
         tomcat.enableNaming(); // required for JNDI
 
         // Deploy the extracted webapp directory
-        Context ctx = tomcat.addWebapp("/viscolink", webappDir.toString());
+        String contextPath = System.getProperty("viscolink.context.path", "/viscolink");
+        Context ctx = tomcat.addWebapp(contextPath, webappDir.toString());
+
+        // Optional: the image's Host rewrite rules (old /viscolink paths served in place at /runtime). The valve
+        // reads <base>/conf/<engine>/<host>/rewrite.config at start; the embedded engine is called "Tomcat".
+        String rewriteRules = System.getProperty("viscolink.rewrite.rules");
+        if (rewriteRules != null) {
+            Path rules = baseDir.resolve("conf/Tomcat/localhost/rewrite.config");
+            Files.createDirectories(rules.getParent());
+            Files.writeString(rules, Files.readString(Path.of(rewriteRules)).replace("8080", String.valueOf(port)));
+            tomcat.getHost().getPipeline().addValve(new RewriteValve());
+        }
 
         // jdbc/viscolink — used by F!F's FixedQuerySender in Configuration-lab-enrichment.xml
         ctx.getNamingResources().addResource(buildH2Resource("jdbc/viscolink", h2Url));

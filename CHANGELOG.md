@@ -7,6 +7,27 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- A console user with only the read-only observer role no longer sees the runtime's settings,
+  environment and system properties in the Frank!Console: the console still loads, with only the few
+  settings it needs to show its pages. Such a user can also no longer upload a database changelog to
+  generate SQL from it. Users with the admin, tester or data admin role see and do everything as before.
+
+### Security
+- **The observer role is narrowed on two console endpoints** (`ConsoleEndpointRoleFilter`, declared in
+  the runtime's `web.xml` on `/iaf/api/*`, so it runs after the console's Spring Security chain has
+  authenticated the caller). For a caller without `IbisAdmin`, `IbisTester` or `IbisDataAdmin`:
+  `GET /iaf/api/environmentvariables` (which shows the container environment, the system properties and
+  every property unmasked) answers only `{"Application Constants":{"Global":{...}}}` with the keys the
+  console frontend reads (version, server type, status page, poller interval, custom views, default
+  datasource, Larva, schedules, Ladybug echo, Statistics settings); an answer that does not parse, has
+  another shape or is larger than 8 MiB becomes an empty `Global`, and no `ETag` of the full answer is
+  passed on. `POST /iaf/api/jdbc/liquibase` (changelog upload; in generate-SQL mode Liquibase resolves
+  `<sqlFile path>` and `<include file>`, so the answer can carry server files) answers an empty 403.
+  Both carry `@AllowAllIbisUserRoles` in the Frank!Framework 10.3 console backend, which no property
+  narrows. `GET /iaf/api/jdbc/liquibase` (the changelog download) is unchanged. The old `/viscolink/...`
+  paths are covered too (served in place at `/runtime`).
+
 ## [1.2.3] — 2026-11-21
 
 ### In short
