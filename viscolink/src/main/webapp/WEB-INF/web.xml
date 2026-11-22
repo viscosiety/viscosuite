@@ -29,6 +29,25 @@
     <url-pattern>/iaf/gui/*</url-pattern>
   </filter-mapping>
 
+  <!-- Refuses GET /iaf/api/environmentvariables and POST /iaf/api/jdbc/liquibase to callers who
+       hold none of IbisAdmin, IbisTester, IbisDataAdmin (the Frank!Framework allows every Ibis role,
+       IbisObserver included, and no property narrows it). Declared here on purpose: Spring Security's
+       programmatic filter (isMatchAfter=false) runs before declared filters, so the caller is already
+       authenticated when this filter reads the roles. -->
+  <filter>
+    <filter-name>consoleEndpointRoles</filter-name>
+    <filter-class>com.viscosiety.security.ConsoleEndpointRoleFilter</filter-class>
+    <async-supported>true</async-supported>
+  </filter>
+  <filter-mapping>
+    <filter-name>consoleEndpointRoles</filter-name>
+    <url-pattern>/iaf/api/*</url-pattern>
+    <dispatcher>REQUEST</dispatcher>
+    <dispatcher>FORWARD</dispatcher>
+    <dispatcher>INCLUDE</dispatcher>
+    <dispatcher>ASYNC</dispatcher>
+  </filter-mapping>
+
   <servlet>
     <servlet-name>ToolsServlet</servlet-name>
     <servlet-class>com.viscosiety.tools.ToolsServlet</servlet-class>
