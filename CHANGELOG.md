@@ -14,6 +14,12 @@ major version).
   root need no change. A configuration that deliberately reaches outside its root stops working: set
   `-Dapplication.security.filesystem.allowPathsOutsideRoot=true` on the runtime to get the old
   behaviour back, or give the filesystem a root that covers the paths it uses.
+- The Frank!Console's **Browse JDBC Table** page no longer returns data. The page still opens, but a
+  query answers "Access to table [...] not allowed" for every table. It used to let anyone with the
+  admin, tester or data admin role read any table on any configured database, which is more than that
+  page is meant for. If you relied on it, query the database directly, or set
+  `browseJdbcTable.permission.rules` on the runtime to the tables and roles you actually want
+  (format: `table role allow|deny`, separated by `|`).
 - A console user with only the read-only observer role no longer sees the runtime's settings,
   environment and system properties in the Frank!Console: the console still loads, with only the few
   settings it needs to show its pages. Such a user can also no longer upload a database changelog to
@@ -27,6 +33,17 @@ major version).
   `VISCO-OVERRIDES.md`.
 
 ### Security
+- **The console's Browse JDBC Table endpoint is denied by default** (`browseJdbcTable.permission.rules=`
+  in viscolink's `DeploymentSpecifics.properties`). The Frank!Framework ships `* * allow`, which grants
+  arbitrary table reads on every configured datasource to any `IbisDataAdmin`, `IbisAdmin` or
+  `IbisTester`. Blank is a deliberate deny-all, not an unset value: `BrowseJdbcTable.readAllowed`
+  short-circuits on a blank value ("No JDBC table permissions are defined, default deny") before it
+  parses any rule, so it does not depend on the rule parser, as an explicit `* * deny` would. The role
+  gate mattered less than it looks: `oauth-role-mapping.properties` maps all four Ibis roles to
+  `SCOPE_openid`, so on a runtime using the OAUTH2 authenticator every authenticated user holds
+  `IbisDataAdmin`. Nothing in ViscoSuite drives this endpoint (no configuration, test, Larva scenario
+  or console script references it), so the page is simply inert now. Override
+  `browseJdbcTable.permission.rules` on the runtime to re-open specific tables.
 - **A `LocalFileSystem` is confined to its `root`.** The `root` attribute is documented as the boundary
   all folders and files are relative to, but the Frank!Framework 10.3.0 `toFile` does not enforce it: an
   absolute filename skips the root (the `!result.isAbsolute()` guard) and a relative one is resolved

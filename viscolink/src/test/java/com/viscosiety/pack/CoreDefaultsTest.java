@@ -18,6 +18,7 @@ package com.viscosiety.pack;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.InputStream;
 import java.util.Properties;
@@ -47,5 +48,21 @@ class CoreDefaultsTest {
     @Test
     void customViewsTakeThePacksNamesThroughTheIndirection() throws Exception {
         assertEquals("viscoLink,${pack.customViews.names:-}", core().getProperty("customViews.names"));
+    }
+
+    /**
+     * The console's Browse JDBC Table page is denied outright. The Frank!Framework ships
+     * {@code browseJdbcTable.permission.rules=* * allow}, so the key being ABSENT here is not a
+     * neutral state: it hands any IbisDataAdmin, IbisAdmin or IbisTester arbitrary table reads on
+     * every datasource. Blank is the deny-all, because {@code BrowseJdbcTable.readAllowed}
+     * short-circuits on a blank value before parsing any rule.
+     */
+    @Test
+    void browseJdbcTableIsDeniedOutright() throws Exception {
+        Properties p = core();
+        assertTrue(p.containsKey("browseJdbcTable.permission.rules"),
+                "the key must be present: absent means the framework's '* * allow' default applies");
+        assertEquals("", p.getProperty("browseJdbcTable.permission.rules"),
+                "blank is the deny-all; any rule here would re-open the endpoint");
     }
 }
