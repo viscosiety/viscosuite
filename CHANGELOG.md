@@ -26,6 +26,15 @@ major version).
   the class now comes from `frankframework-ladybug-debugger`. No behaviour change. See
   `VISCO-OVERRIDES.md`.
 
+### Fixed
+- **The launcher integration tests no longer go red when a CI runner is slow** (test-only, no runtime
+  change). `Hl7v2ToFhirIT` and `LabEnrichmentIT` waited at most 120s for ViscoStore and 90s for
+  ViscoLink. ViscoStore needs ~20s locally but logged `Started Application in 110.783 seconds` on a
+  loaded shared runner, so the 120s ceiling had under a second of margin and both tests failed in
+  setup, skipping every publish job behind them. The four ceilings now come from one place
+  (`ItTimeouts`) and are 5 minutes for ViscoStore and 3 for ViscoLink. Awaitility returns as soon as
+  the server answers, so a healthy run is not slower.
+
 ### Security
 - **A `LocalFileSystem` is confined to its `root`.** The `root` attribute is documented as the boundary
   all folders and files are relative to, but the Frank!Framework 10.3.0 `toFile` does not enforce it: an

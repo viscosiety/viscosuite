@@ -168,7 +168,7 @@ class Hl7v2ToFhirIT {
         log("Step 3: polling ViscoStore metadata at " + storeHealthUrl);
         AtomicInteger vsStatus = new AtomicInteger(0);
         AtomicReference<String> vsError = new AtomicReference<>("");
-        await().atMost(120, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
+        await().atMost(ItTimeouts.VISCOSTORE_READY).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
                 if (!c.isSatisfied()) log("  ViscoStore not ready: status=" + vsStatus.get()
                     + (vsError.get().isEmpty() ? "" : " error=" + vsError.get()));
@@ -241,7 +241,7 @@ class Hl7v2ToFhirIT {
         log("Step 7: polling ViscoLink health at " + viscolinkHealthUrl);
         AtomicInteger healthStatus = new AtomicInteger(0);
         AtomicReference<String> healthBody = new AtomicReference<>("");
-        await().atMost(90, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
+        await().atMost(ItTimeouts.VISCOLINK_READY).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
                 if (!c.isSatisfied()) log("  ViscoLink not healthy: status=" + healthStatus.get()
                     + (healthBody.get().isEmpty() ? "" : " body=" + truncate(healthBody.get(), 400)));

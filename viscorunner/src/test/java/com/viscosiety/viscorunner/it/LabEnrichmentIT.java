@@ -155,7 +155,7 @@ class LabEnrichmentIT {
         log("Step 3: polling ViscoStore metadata at " + storeHealthUrl);
         AtomicInteger lastStatus = new AtomicInteger(0);
         AtomicReference<String> lastError = new AtomicReference<>("");
-        await().atMost(120, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
+        await().atMost(ItTimeouts.VISCOSTORE_READY).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
                 if (!c.isSatisfied()) log("  ViscoStore not ready yet: status=" + lastStatus.get()
                     + (lastError.get().isEmpty() ? "" : " error=" + lastError.get()));
@@ -224,7 +224,7 @@ class LabEnrichmentIT {
         log("Step 8: polling ViscoLink health at " + viscolinkHealthUrl);
         AtomicInteger healthStatus = new AtomicInteger(0);
         AtomicReference<String> healthBody = new AtomicReference<>("");
-        await().atMost(90, TimeUnit.SECONDS).pollInterval(3, TimeUnit.SECONDS)
+        await().atMost(ItTimeouts.VISCOLINK_READY).pollInterval(3, TimeUnit.SECONDS)
             .conditionEvaluationListener(c -> {
                 if (!c.isSatisfied()) log("  ViscoLink not healthy yet: status=" + healthStatus.get()
                     + (healthBody.get().isEmpty() ? "" : " body=" + truncate(healthBody.get(), 300)));
