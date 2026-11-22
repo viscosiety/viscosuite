@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+    TEMPORARY, delete with the override.
+
+    Registered via ViscoLinkModule.getSpringConfigurationFiles(). LocalFileSystemOverrideCheck refuses to
+    start the context unless the loaded org.frankframework.filesystem.LocalFileSystem is ViscoLink's
+    root-containment copy (frankframework/frankframework#12074, PR #12075), which it only is when it was
+    staged into WEB-INF/classes of a deployed WAR. See that class and the override's own banner.
+-->
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="
+           http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+       ">
+
+    <bean id="localFileSystemOverrideCheck" class="com.viscosiety.filesystem.LocalFileSystemOverrideCheck"/>
+</beans>

@@ -268,11 +268,85 @@
 				<artifactId>maven-compiler-plugin</artifactId>
 				<version>3.14.0</version>
 			</plugin>
+			<!-- TEMPORARY: unpack the ONE upstream source file the LocalFileSystem override copies, so the
+			     antrun execution below can hash it. Declared BEFORE maven-antrun-plugin because Maven runs
+			     same-phase executions in POM order and the hash check needs the file. Delete with the
+			     override. -->
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-dependency-plugin</artifactId>
+				<version>3.8.0</version>
+				<executions>
+					<execution>
+						<id>unpack-localfilesystem-upstream</id>
+						<phase>validate</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<overWriteReleases>true</overWriteReleases>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-filesystem</artifactId>
+									<version>${frankframework.version}</version>
+									<classifier>sources</classifier>
+									<includes>org/frankframework/filesystem/LocalFileSystem.java</includes>
+									<outputDirectory>${project.build.directory}/ff-upstream-sources</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+				</executions>
+			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
 				<version>3.1.0</version>
 				<executions>
+					<!-- TEMPORARY: upstream-drift gate for the LocalFileSystem override (see that class's
+					     banner). src/main/java/org/frankframework/filesystem/LocalFileSystem.java is a copy
+					     of the file this very F!F version ships, plus the patch of
+					     frankframework/frankframework#12075. If upstream changes that file, the copy is
+					     stale and silently loses whatever upstream fixed, so the build stops here and the
+					     copy has to be re-derived. Delete this execution with the override. -->
+					<execution>
+						<id>check-localfilesystem-upstream</id>
+						<phase>validate</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<loadfile property="localfilesystem.expected.sha256"
+										  srcFile="${basedir}/src/overrides/LocalFileSystem.java.sha256">
+									<filterchain><striplinebreaks/></filterchain>
+								</loadfile>
+								<checksum file="${project.build.directory}/ff-upstream-sources/org/frankframework/filesystem/LocalFileSystem.java"
+										  algorithm="SHA-256"
+										  property="${localfilesystem.expected.sha256}"
+										  verifyproperty="localfilesystem.upstream.unchanged"/>
+								<condition property="localfilesystem.upstream.changed">
+									<not><istrue value="${localfilesystem.upstream.unchanged}"/></not>
+								</condition>
+								<fail if="localfilesystem.upstream.changed">
+									upstream org/frankframework/filesystem/LocalFileSystem.java CHANGED in Frank!Framework ${frankframework.version}.
+									Its SHA-256 no longer matches viscolink/src/overrides/LocalFileSystem.java.sha256
+									(expected ${localfilesystem.expected.sha256}).
+
+									viscolink ships a classpath override of that class to confine a LocalFileSystem to its
+									root (frankframework/frankframework#12074, PR #12075), so the override now hides an
+									upstream change and MUST be re-reviewed:
+									1. re-derive src/main/java/org/frankframework/filesystem/LocalFileSystem.java from
+									   frankframework-filesystem:${frankframework.version}:sources,
+									2. re-apply the patch described in that file's banner (and write Lombok out),
+									3. check whether the F!F release now carries PR #12075 -- if it does, DELETE the
+									   override, this execution, the stage-localfilesystem-override execution,
+									   com.viscosiety.filesystem.LocalFileSystemOverrideCheck and its spring file, and the
+									   VISCO-OVERRIDES.md row (keep the DeploymentSpecifics.properties entry: that release
+									   ships the property as true),
+									4. update the expected hash in the same change.
+								</fail>
+							</target>
+						</configuration>
+					</execution>
 					<!-- TEMPORARY: stage the OAuth2Authenticator override (see the class banner)
 					     into WEB-INF/classes. archiveClasses=true bundles target/classes into a
 					     JAR in WEB-INF/lib, where it would NOT reliably shadow frankframework-
@@ -291,6 +365,28 @@
 								</copy>
 								<fail message="OAuth2Authenticator override missing from WEB-INF/classes -- the workaround would not shadow the framework jar">
 									<condition><not><available file="${project.build.directory}/console-patched/org/frankframework/lifecycle/servlets/OAuth2Authenticator.class"/></not></condition>
+								</fail>
+							</target>
+						</configuration>
+					</execution>
+					<!-- TEMPORARY: stage the LocalFileSystem override (see the class banner) into
+					     WEB-INF/classes, for the same reason as the OAuth2 one above: archiveClasses=true
+					     bundles target/classes as a JAR in WEB-INF/lib, which would NOT shadow
+					     frankframework-filesystem.jar; only target/console-patched/ is copied in as an
+					     exploded WEB-INF/classes, which the WebappClassLoader searches first. Without this
+					     execution the WAR would carry the override and still load upstream's unchecked
+					     toFile. Delete this execution with the override. -->
+					<execution>
+						<id>stage-localfilesystem-override</id>
+						<phase>prepare-package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<copy todir="${project.build.directory}/console-patched" overwrite="true">
+									<fileset dir="${project.build.directory}/classes" includes="org/frankframework/filesystem/LocalFileSystem*.class"/>
+								</copy>
+								<fail message="LocalFileSystem override missing from WEB-INF/classes -- a LocalFileSystem would not confine file access to its root (frankframework/frankframework#12074)">
+									<condition><not><available file="${project.build.directory}/console-patched/org/frankframework/filesystem/LocalFileSystem.class"/></not></condition>
 								</fail>
 							</target>
 						</configuration>

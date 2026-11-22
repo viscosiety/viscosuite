@@ -8,12 +8,46 @@ major version).
 ## [Unreleased]
 
 ### In short
+- File access through a `LocalFileSystem` (the local-directory pipes, senders and listeners) now stays
+  inside the `root` the configuration gives it. A filename that points outside that folder — an absolute
+  path, or one containing `..` — is refused instead of followed. Configurations that keep to their own
+  root need no change. A configuration that deliberately reaches outside its root stops working: set
+  `-Dapplication.security.filesystem.allowPathsOutsideRoot=true` on the runtime to get the old
+  behaviour back, or give the filesystem a root that covers the paths it uses.
 - A console user with only the read-only observer role no longer sees the runtime's settings,
   environment and system properties in the Frank!Console: the console still loads, with only the few
   settings it needs to show its pages. Such a user can also no longer upload a database changelog to
   generate SQL from it. Users with the admin, tester or data admin role see and do everything as before.
 
+### Removed
+- **The `org.frankframework.ladybug.DeploymentSpecificsBeanPostProcessor` copy in viscolink.** It
+  carried no ViscoSuite change (only upstream drift) and was never staged into `WEB-INF/classes`, so
+  it shadowed nothing at runtime; the framework's own `springIbisTestTool.xml` declares that bean and
+  the class now comes from `frankframework-ladybug-debugger`. No behaviour change. See
+  `VISCO-OVERRIDES.md`.
+
 ### Security
+- **A `LocalFileSystem` is confined to its `root`.** The `root` attribute is documented as the boundary
+  all folders and files are relative to, but the Frank!Framework 10.3.0 `toFile` does not enforce it: an
+  absolute filename skips the root (the `!result.isAbsolute()` guard) and a relative one is resolved
+  against the root with no check on the result, so `..` escapes. Because
+  `FileSystemActor.determineFilename` falls back to the input message when neither the `filename`
+  attribute nor the `filename` parameter is set (and `determineDestination` does the same for move, copy
+  and rename), the path is under the control of whoever sends the message: on an unmodified
+  `frankframework/frankframework:10.3.0`, an `ApiListener` into a `LocalFileSystemPipe` with
+  `root="/opt/frank/sandbox"` read `/etc/passwd`, created files in `/tmp`, overwrote a file outside the
+  root and deleted one, all answering HTTP 200. ViscoLink now ships a classpath override of
+  `org.frankframework.filesystem.LocalFileSystem` (`WEB-INF/classes` beats `WEB-INF/lib`) that routes
+  both return paths of `toFile` through a containment check, comparing real paths when the lexical
+  comparison says a path is outside so that a root reached through a symlink still contains its own
+  files. Reported as frankframework/frankframework#12074 with PR #12075; that PR is opt-in and ships
+  permissive, so ViscoLink makes the safe value the default instead and pins
+  `application.security.filesystem.allowPathsOutsideRoot=false` in `DeploymentSpecifics.properties`
+  (load-bearing: the F!F release carrying #12075 will ship it as `true`, and that file is loaded after
+  `AppConstants.properties`). A `-D` system property still overrides, as the documented escape hatch.
+  A `validate`-phase hash gate on the upstream source file fails the build if upstream changes it,
+  `com.viscosiety.filesystem.LocalFileSystemOverrideCheck` refuses to start if the override is not the
+  class that got loaded, and `VISCO-OVERRIDES.md` (checked in CI) records the removal condition.
 - **The observer role is narrowed on two console endpoints** (`ConsoleEndpointRoleFilter`, declared in
   the runtime's `web.xml` on `/iaf/api/*`, so it runs after the console's Spring Security chain has
   authenticated the caller). For a caller without `IbisAdmin`, `IbisTester` or `IbisDataAdmin`:

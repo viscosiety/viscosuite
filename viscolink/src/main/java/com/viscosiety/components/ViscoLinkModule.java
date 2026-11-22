@@ -74,7 +74,9 @@ public class ViscoLinkModule implements Module {
         // Kubernetes lifecycle events: WARN/ERROR come from the Frank!Framework's own
         // KubernetesEventPublisher (frankframework-kubernetes, @IbisInitializer); the INFO
         // lifecycle (started / closed / failed to start) from springLifecycleEvents.xml below.
+        // springLocalFileSystemOverride.xml is TEMPORARY: it refuses to start when the LocalFileSystem
+        // root-containment override is not the class that got loaded. Delete it with the override.
         return List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml",
-                "springLifecycleEvents.xml", "springApiListenerDefaults.xml");
+                "springLifecycleEvents.xml", "springApiListenerDefaults.xml", "springLocalFileSystemOverride.xml");
     }
 }

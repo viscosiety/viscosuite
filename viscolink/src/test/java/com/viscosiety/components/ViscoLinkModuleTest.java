@@ -37,7 +37,8 @@ class ViscoLinkModuleTest {
 	@Test
 	void registersOnlyTheCoresOwnSpringFiles() {
 		// The healthcare Spring files (springMllp.xml, springFhir.xml) belong to the pack's own Module.
-		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml", "springLifecycleEvents.xml", "springApiListenerDefaults.xml"),
+		// springLocalFileSystemOverride.xml goes away with the LocalFileSystem override (VISCO-OVERRIDES.md).
+		assertEquals(List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml", "springLifecycleEvents.xml", "springApiListenerDefaults.xml", "springLocalFileSystemOverride.xml"),
 				new ViscoLinkModule().getSpringConfigurationFiles());
 	}
 
