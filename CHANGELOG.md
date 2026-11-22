@@ -7,9 +7,11 @@ major version).
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-11-22
+
 ### In short
-- File access through a `LocalFileSystem` (the local-directory pipes, senders and listeners) now stays
-  inside the `root` the configuration gives it. A filename that points outside that folder — an absolute
+- File access through the local-directory pipes, senders and listeners now stays inside the `root`
+  the configuration gives it. A filename that points outside that folder — an absolute
   path, or one containing `..` — is refused instead of followed. Configurations that keep to their own
   root need no change. A configuration that deliberately reaches outside its root stops working: set
   `-Dapplication.security.filesystem.allowPathsOutsideRoot=true` on the runtime to get the old
