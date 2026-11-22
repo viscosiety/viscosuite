@@ -19,6 +19,13 @@ major version).
   settings it needs to show its pages. Such a user can also no longer upload a database changelog to
   generate SQL from it. Users with the admin, tester or data admin role see and do everything as before.
 
+### Removed
+- **The `org.frankframework.ladybug.DeploymentSpecificsBeanPostProcessor` copy in viscolink.** It
+  carried no ViscoSuite change (only upstream drift) and was never staged into `WEB-INF/classes`, so
+  it shadowed nothing at runtime; the framework's own `springIbisTestTool.xml` declares that bean and
+  the class now comes from `frankframework-ladybug-debugger`. No behaviour change. See
+  `VISCO-OVERRIDES.md`.
+
 ### Security
 - **A `LocalFileSystem` is confined to its `root`.** The `root` attribute is documented as the boundary
   all folders and files are relative to, but the Frank!Framework 10.3.0 `toFile` does not enforce it: an

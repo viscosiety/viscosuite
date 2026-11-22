@@ -35,7 +35,20 @@ the WAR and the framework's own class is still the one that loads.
 |---|---|---|---|---|---|
 | `org/frankframework/filesystem/LocalFileSystem.java` | `frankframework-filesystem` | **10.3.0** (hash pinned in `viscolink/src/overrides/LocalFileSystem.java.sha256`) | `root` is documented as the boundary all folders and files are relative to, but upstream's `toFile` does not enforce it: an absolute filename skips the root and a relative one escapes via `..`. `FileSystemActor.determineFilename` falls back to the input message, so the path is attacker-controlled. Confines every path to `root`, **safe by default** (upstream's PR is opt-in). | issue [#12074](https://github.com/frankframework/frankframework/issues/12074), PR [#12075](https://github.com/frankframework/frankframework/pull/12075) | ViscoLink is on an F!F release containing #12075. Keep the `DeploymentSpecifics.properties` entry even then: that release ships `allowPathsOutsideRoot=true`. |
 | `org/frankframework/lifecycle/servlets/OAuth2Authenticator.java` | `frankframework-security` | 10.3.0 | The base class's `STATELESS` policy discards the originally requested URL and the login itself; plus HTTP Basic for `basicUsersFile` users on the same chain as the Keycloak login and bearer tokens. | PR [#11648](https://github.com/frankframework/frankframework/pull/11648) (open) — covers the stateful change only, not Basic-on-the-OAuth2-chain | Both changes are upstream. Adapt `ApiSessionAuthListener` first: it reads the plain `SPRING_SECURITY_CONTEXT` session attribute this copy writes, while upstream stores per security chain. |
-| `org/frankframework/ladybug/DeploymentSpecificsBeanPostProcessor.java` | `frankframework-ladybug-debugger` | unknown (added in `6fd8dc3`, "Replace placeholder viscostore with real HAPI FHIR JPA Server fork") | **No known ViscoLink purpose.** Diffed against upstream it carries no ViscoSuite change — only upstream drift (upstream has since added `@NonNull` annotations and a `trim()` on `maxBackupIndex`). It is also not staged into `WEB-INF/classes`, so it does not shadow anything at runtime; it is an inert stale copy. | — | **Candidate for deletion**, not re-derivation. Listed here so the CI check passes and so it is not mistaken for a deliberate override. |
+
+## Removed, do not re-add
+
+`org/frankframework/ladybug/DeploymentSpecificsBeanPostProcessor.java` sat here from `6fd8dc3`
+("Replace placeholder viscostore with real HAPI FHIR JPA Server fork") until it was deleted on
+2026-11-22. It carried no ViscoSuite change — diffed against upstream it was only behind it (upstream
+has since added `@NonNull` annotations and a `trim()` on `maxBackupIndex`) — and it was never staged
+into `WEB-INF/classes`, so it shadowed nothing at runtime. The framework's own
+`springIbisTestTool.xml`, inside `frankframework-ladybug-debugger`, declares that bean and resolves
+the class from the jar.
+
+`docs/design/2026-08-08-console-bearer-reload-endpoint-design.md` cites it as an example of the
+"put a class in an `org.frankframework.*` package so the framework's scan sees it" pattern. That
+pattern is about package *visibility*, not about shadowing, and it does not need this file.
 
 ## Re-deriving an override on an F!F bump
 
