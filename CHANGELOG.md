@@ -39,10 +39,13 @@ major version).
   `IbisTester`. Blank is a deliberate deny-all, not an unset value: `BrowseJdbcTable.readAllowed`
   short-circuits on a blank value ("No JDBC table permissions are defined, default deny") before it
   parses any rule, so it does not depend on the rule parser, as an explicit `* * deny` would. The role
-  gate mattered less than it looks: `oauth-role-mapping.properties` maps all four Ibis roles to
-  `SCOPE_openid`, so on a runtime using the OAUTH2 authenticator every authenticated user holds
-  `IbisDataAdmin`. Nothing in ViscoSuite drives this endpoint (no configuration, test, Larva scenario
-  or console script references it), so the page is simply inert now. Override
+  gate is an OR over three roles and ordinary users hold two of them: a ViscoFoundry-managed instance
+  grants `IbisAdmin` and `IbisTester` to the single tenant realm role, so every tenant user who is not
+  observer-only satisfied it, as did the tenant service account over bearer (where the role-mapping
+  file does not apply and the raw realm roles are used). Where `roleMappingFile` is left at its
+  default, viscolink's bundled mapping puts all four Ibis roles behind `SCOPE_openid`, which is broader
+  still. Nothing in ViscoSuite drives this endpoint (no configuration, test, Larva scenario or console
+  script references it), so the page is simply inert now. Override
   `browseJdbcTable.permission.rules` on the runtime to re-open specific tables.
 - **A `LocalFileSystem` is confined to its `root`.** The `root` attribute is documented as the boundary
   all folders and files are relative to, but the Frank!Framework 10.3.0 `toFile` does not enforce it: an
