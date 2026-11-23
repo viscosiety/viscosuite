@@ -120,7 +120,7 @@ class CiScriptsTest {
 	@Test
 	void cleanupDeletesNothingWithoutTheSupportedReleasesList() throws Exception {
 		Path dir = Files.createTempDirectory("cleanup");
-		Run r = sh(dir, Map.of("RELEASE_LIST_TOKEN", "x", "RELEASE_LIST_URL", "http://127.0.0.1:9/none", "CI_API_V4_URL", "http://127.0.0.1:9", "CI_PROJECT_ID", "2"),
+		Run r = sh(dir, Map.of("RELEASE_LIST_URL", "http://127.0.0.1:9/none", "CI_API_V4_URL", "http://127.0.0.1:9", "CI_PROJECT_ID", "2"),
 			"/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
 		assertEquals(1, r.exit(), r.out());
 		assertTrue(r.err().contains("nothing deleted"), r.err());

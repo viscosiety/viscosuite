@@ -430,9 +430,8 @@ cleanup:arch-tags:
   <<: *on-main-or-release
 
 # Deletes package versions ViscoFoundry no longer supports and that are older than 30 days
-# (scripts/ci/cleanup-packages.sh). Only on the schedule that sets PACKAGE_CLEANUP=1; needs the masked
-# CI variable RELEASE_LIST_TOKEN (the portal's RELEASE_LIST_TOKEN). CLEANUP_DRY_RUN=1 on the schedule
-# prints the decisions without deleting.
+# (scripts/ci/cleanup-packages.sh). Only on the schedule that sets PACKAGE_CLEANUP=1; reads the portal's
+# public supported-releases list. CLEANUP_DRY_RUN=1 on the schedule prints the decisions without deleting.
 cleanup:packages:
   stage: cleanup
   image: alpine:3

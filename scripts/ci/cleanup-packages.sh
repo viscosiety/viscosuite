@@ -1,9 +1,8 @@
 #!/bin/sh
 # Deletes package versions of this project's Maven registry that ViscoFoundry no longer supports and
-# that are older than MIN_AGE_DAYS (30). "Supported" comes from the portal: GET
-# $RELEASE_LIST_URL with "Authorization: Bearer $RELEASE_LIST_TOKEN" answers the release numbers it
-# still needs (its allow-lists, the releases instances run, and every component version those
-# releases use); this script keeps .keep["com.visco"]. It refuses to delete anything when the list
+# that are older than MIN_AGE_DAYS (30). "Supported" comes from the portal: GET $RELEASE_LIST_URL
+# (public, release numbers only) answers the release numbers it still needs (its allow-lists, the
+# releases instances run, and every component version those releases use); this script keeps .keep["com.visco"]. It refuses to delete anything when the list
 # cannot be read or is empty. Runs on the cleanup schedule with the job token (PACKAGE_CLEANUP=1);
 # CLEANUP_DRY_RUN=1 prints the decisions without deleting.
 #
@@ -29,15 +28,10 @@ if [ -n "${CLEANUP_DECIDE_ONLY:-}" ]; then
   exit 0
 fi
 
-: "${RELEASE_LIST_TOKEN:?cleanup: RELEASE_LIST_TOKEN is not set}"
 LIST_URL="${RELEASE_LIST_URL:-https://foundry.viscosiety.com/api/releases/supported}"
 KEEP_FILE="$(mktemp)"
 trap 'rm -f "$KEEP_FILE"' EXIT
-AUTH_CFG="$(mktemp)"
-trap 'rm -f "$KEEP_FILE" "$AUTH_CFG"' EXIT
-chmod 600 "$AUTH_CFG"
-printf 'header = "Authorization: Bearer %s"\n' "$RELEASE_LIST_TOKEN" > "$AUTH_CFG"
-curl --fail --silent --show-error --config "$AUTH_CFG" "$LIST_URL" | jq -er --arg g "$GROUP" '.keep[$g] | if length > 0 then .[] else error("empty") end' > "$KEEP_FILE" \
+curl --fail --silent --show-error --max-time 60 "$LIST_URL" | jq -er --arg g "$GROUP" '.keep[$g] | if length > 0 then .[] else error("empty") end' > "$KEEP_FILE" \
   || { echo "cleanup: the supported-releases list could not be read or keeps nothing for $GROUP; nothing deleted" >&2; exit 1; }
 echo "cleanup: ViscoFoundry supports $(wc -l < "$KEEP_FILE" | tr -d ' ') $GROUP version(s): $(tr '\n' ' ' < "$KEEP_FILE")"
 CUTOFF="$(date -u -d "@$(( $(date +%s) - MIN_AGE_DAYS * 86400 ))" +%Y-%m-%dT%H:%M:%S)"
