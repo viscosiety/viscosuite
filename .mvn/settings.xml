@@ -3,6 +3,20 @@
           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
           xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.2.0 https://maven.apache.org/xsd/settings-1.2.0.xsd">
 
+  <!-- CI reads every artifact through Viscosiety's Maven proxy on the NAS (Reposilite,
+       viscoFoundry docs/ops/maven-proxy.md): one repository that knows where each group comes from
+       (org.frankframework from the Frank!Framework mirror, com.visco from this project's registry,
+       the rest from Maven Central and Frank!Framework's Nexus) and keeps what it fetched. Reachable
+       from the LAN only, so this file is for CI; a local build does not use it. Publishing is not
+       affected: distributionManagement does not go through mirrors. -->
+  <mirrors>
+    <mirror>
+      <id>viscosiety-maven</id>
+      <mirrorOf>*</mirrorOf>
+      <url>https://maven.viscosiety.com/maven</url>
+    </mirror>
+  </mirrors>
+
   <profiles>
     <profile>
       <id>frankframework-nexus</id>
