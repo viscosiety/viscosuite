@@ -33,6 +33,14 @@ A **components list** has one header `release <version>` and one line per compon
 
 The other compose files are overlays or single-purpose stacks: `docker-compose.demo.yml` (Mode 1, layered on the suite), `docker-compose.debug.yml` and `docker-compose.viscolink.debug.yml` (JPDA on `5005`), `docker-compose.git.yml` (git-sourced configurations, layered on the demo) and `docker-compose.viscostore.yml` (the standalone ViscoStore image). All three stacks above mount `secrets/credentials.properties` (see Mode 2).
 
+**Sign-in.** Set a password before the first start; the three stacks refuse to start without one:
+
+```bash
+echo "VISCO_ADMIN_PASSWORD=$(openssl rand -hex 16)" > .env   # .env is git-ignored
+```
+
+You then sign in as `admin` (set `VISCO_ADMIN_USERNAME` in `.env` for another name) to the Frank!Console, Larva, Ladybug and every endpoint the runtime serves; API calls use the same user with HTTP Basic. The images run on stage `LOC`, which keeps Larva's local conveniences such as saving a test result to file, but they keep web security on: on its own, `LOC` would serve every page and API to anyone who can reach the port, including Larva, which can write files and run classes. Run without a login configured, an image answers 401 to everyone (Tomcat has no users). Configure a real login before you run one anywhere but your own machine.
+
 ```bash
 docker compose up --build                                  # the suite
 docker compose -f docker-compose.viscolink.yml up --build  # health pack, no store
