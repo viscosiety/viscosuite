@@ -27,7 +27,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
-import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -48,6 +47,7 @@ import org.frankframework.core.FrankElement;
 import org.frankframework.core.PipeLine.ExitState;
 import org.frankframework.core.PipeLineResult;
 import org.frankframework.core.PipeLineSession;
+import org.frankframework.receivers.MessageHandler;
 import org.frankframework.receivers.Receiver;
 import org.frankframework.statistics.FrankMeterType;
 import org.frankframework.statistics.MetricsInitializer;
@@ -123,10 +123,12 @@ class MllpListenerReceiverTest {
 
         Adapter adapter = mock(Adapter.class);
         when(adapter.getName()).thenReturn("AdtIn");
-        when(adapter.processMessageWithExceptions(any(), anyString(), any(Message.class), any(PipeLineSession.class)))
+        // Since Frank!Framework 10.4 the receiver calls processMessageWithReceiver and the message id
+        // travels in the session.
+        when(adapter.processMessageWithReceiver(any(), any(Message.class), any(PipeLineSession.class)))
                 .thenAnswer(invocation -> {
-                    pipelineMessageIds.add(invocation.getArgument(1));
-                    PipeLineSession session = invocation.getArgument(3);
+                    PipeLineSession session = invocation.getArgument(2);
+                    pipelineMessageIds.add(session.getMessageId());
                     pipelineCorrelationIds.add(session.getCorrelationId());
                     PipeLineResult result = new PipeLineResult();
                     result.setState(ExitState.SUCCESS);
@@ -134,6 +136,12 @@ class MllpListenerReceiverTest {
                             + "|P|2.5\rMSA|AA|MSG00001\r"));
                     return result;
                 });
+
+        // Since Frank!Framework 10.4 the receiver takes its message handler from its adapter (a
+        // prototype bean in a real configuration).
+        MessageHandler<String> messageHandler = new MessageHandler<>(new NoResourceTransactionManager());
+        messageHandler.setApplicationContext(adapter);
+        when(adapter.getBean("messageHandler", MessageHandler.class)).thenReturn(messageHandler);
 
         listener = listenerOnFreePort();
         MllpListener theListener = listener;

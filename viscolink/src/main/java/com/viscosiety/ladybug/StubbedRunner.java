@@ -21,6 +21,7 @@ import java.util.UUID;
 import org.frankframework.configuration.Configuration;
 import org.frankframework.configuration.IbisManager;
 import org.frankframework.core.Adapter;
+import org.frankframework.core.ListenerException;
 import org.frankframework.core.PipeLineResult;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.stream.Message;
@@ -95,8 +96,14 @@ public class StubbedRunner implements ApplicationContextAware, InitializingBean 
             if (originId != null && !originId.isBlank()) {
                 session.put(ORIGIN_ID_KEY, originId);
             }
-            PipeLineResult plr = adapter.processMessageDirect(correlationId, new Message(input), session);
+            // F!F 10.4 takes the message id from the session (processMessageDirect is gone).
+            session.put(PipeLineSession.MESSAGE_ID_KEY, correlationId);
+            PipeLineResult plr = adapter.processMessage(new Message(input), session, false);
             return new Result(correlationId, plr.getState() != null ? plr.getState().name() : "");
+        } catch (ListenerException e) {
+            // rethrowPipelineExceptions=false: the pipeline's errors come back in the result; only a
+            // setup failure (no message id) can still end up here.
+            throw new IllegalStateException("stubbed run of adapter [" + adapterName + "] failed to start", e);
         } finally {
             StubbingDebugger.disableStubAllSenders(correlationId);
         }

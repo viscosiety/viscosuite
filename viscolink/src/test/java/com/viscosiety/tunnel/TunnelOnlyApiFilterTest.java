@@ -24,6 +24,8 @@ import static com.viscosiety.tunnel.TunnelOnlyApiFilter.decide;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import java.io.IOException;
 import java.util.Set;
@@ -33,6 +35,8 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.frankframework.core.Adapter;
+import org.frankframework.core.PipeLine;
 import org.frankframework.http.rest.ApiListener;
 import org.frankframework.http.rest.ApiListener.HttpMethod;
 import org.frankframework.http.rest.ApiServiceDispatcher;
@@ -45,8 +49,8 @@ import org.springframework.mock.web.MockHttpServletResponse;
 
 /**
  * The public-side decision against the real {@link ApiServiceDispatcher}. Listeners are registered directly
- * ({@code setUriPattern} + {@code setMethod}, then {@code registerServiceClient}); no {@code configure()} or receiver
- * is needed for the dispatcher's pattern table.
+ * ({@code setAdapter}, {@code setUriPattern} + {@code setMethod}, then {@code registerServiceClient}); no {@code configure()} or
+ * receiver is needed for the dispatcher's pattern table.
  */
 class TunnelOnlyApiFilterTest {
 
@@ -57,6 +61,11 @@ class TunnelOnlyApiFilterTest {
     }
 
     private static void register(ApiListener listener, String pattern, HttpMethod method) {
+        // Since Frank!Framework 10.4 the OpenAPI generator reads each listener's adapter (at runtime
+        // the receiver always sets one).
+        Adapter adapter = mock(Adapter.class);
+        when(adapter.getPipeLine()).thenReturn(mock(PipeLine.class));
+        listener.setAdapter(adapter);
         listener.setUriPattern(pattern);
         listener.setMethod(method);
         ApiServiceDispatcher.getInstance().registerServiceClient(listener);

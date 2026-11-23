@@ -15,11 +15,30 @@ major version).
   stay). An image started without a login answers 401 to everyone. The compose files give one local
   user whose password must be set as `VISCO_ADMIN_PASSWORD` in `.env`; without it they refuse to
   start. A runtime that configures its own login, as the hosted platform does, is not affected.
+- Runs on a Frank!Framework 10.4 development build (upstream `master` at `aad5ad9fb`, 23 November
+  2026) instead of the 10.3.0 release, to get today's upstream fixes: environment variables listed in
+  `properties.hide` are hidden on the console's environment page, a configurable JDBC pool wait limit
+  (`transactionmanager.jdbc.connection.maxWait`, default 30 s; ViscoSuite already set the same limit),
+  a keystore that can be configured once for all senders, the HTTP sender's shared-session timeout, and
+  Tomcat 11.0.29 libraries. It is not a published Frank!Framework version: ViscoSuite builds it from
+  that commit and publishes it in its own package registry.
+- From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
+  `/opt/logs` no longer also covers `/opt/logs-old`).
 
 ### Security
 - `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
   `catalina.properties` (`viscorunner/src/scripts/catalinaAdditional.properties`); pinned by
   `LocWebSecurityTest`.
+
+### Changed
+- Frank!Framework `10.3.0` → `10.4.0-20261123.aad5ad9fb`, Ladybug `4.1-20261005.165608` →
+  `4.1-20261105.111401` (the build that commit uses); `FrankConfig.xsd` refreshed in all three copies;
+  the health class-path golden follows the transitive version moves (no jar added or removed).
+- `GitClassLoader` no longer overrides `reload()`, which Frank!Framework 10.4 removed: a configuration
+  reload now destroys the class loader and builds a new one, whose `configure()` pulls the clone. A draft
+  checkout (`/api-service/configurations/ref`) only moves the clone; the reload that follows loads it.
+- `StubbedRunner` calls `Adapter.processMessage` (10.4 renamed `processMessageDirect`; the message id
+  now travels in the session).
 
 ## [1.3.0] — 2026-11-22
 

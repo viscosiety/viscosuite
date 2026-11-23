@@ -41,7 +41,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import org.frankframework.core.IListener;
 import org.frankframework.core.IMessageHandler;
 import org.frankframework.core.IPushingListener;
 import org.frankframework.core.ListenerException;
@@ -82,7 +81,7 @@ class MllpListenerTest {
         }
 
         @Override
-        public void processRawMessage(IListener<String> origin, RawMessageWrapper<String> rawMessage, PipeLineSession session, boolean duplicatesAlreadyChecked) {
+        public void processRawMessage(IPushingListener<String> origin, RawMessageWrapper<String> rawMessage, PipeLineSession session, boolean duplicatesAlreadyChecked) {
             throw new UnsupportedOperationException();
         }
     }
@@ -216,7 +215,7 @@ class MllpListenerTest {
                 }
 
                 @Override
-                public void processRawMessage(IListener<String> origin, RawMessageWrapper<String> raw, PipeLineSession session, boolean checked) {
+                public void processRawMessage(IPushingListener<String> origin, RawMessageWrapper<String> raw, PipeLineSession session, boolean checked) {
                     throw new UnsupportedOperationException();
                 }
             });

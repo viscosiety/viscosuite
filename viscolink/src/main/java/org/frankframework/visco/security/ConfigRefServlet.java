@@ -61,9 +61,7 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * context this servlet family otherwise resolves beans from (see
  * {@link AbstractBearerServiceServlet#lookupConsoleBean}).</p>
  *
- * <p>Moving HEAD ({@code checkout}) is not itself a configuration reload -- {@code
- * AbstractClassLoader.reload()} only evicts this classloader's cached {@code AppConstants}. The
- * real reload is {@code IbisContext.reload(configurationName)}, reached the same way the
+ * <p>Moving HEAD ({@code checkout}) is not itself a configuration reload. The real reload is {@code IbisContext.reload(configurationName)}, reached the same way the
  * console's own reload action reaches it: a management-bus RELOAD dispatch.
  * The difference is the action's configuration-name header --
  * RELOAD with a configuration name reaches {@code IbisContext.reload(name)}; only the
@@ -84,13 +82,13 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * with no such binding.</p>
  *
  * <p><b>Lock order: never hold a {@link GitClassLoader} monitor while calling into the bus or
- * {@code IbisContext}.</b> F!F takes those two locks in exactly that order -- {@code
- * IbisContext.reload(String)} is synchronized and calls the synchronized {@code
- * GitClassLoader.reload()} from inside it -- so a thread holding the classloader monitor while
- * waiting on an inline bus reload inverts the order, and any concurrent per-configuration reload
- * (the console's own reload button, {@code CheckReloadJob}, {@code ReloadSender}) deadlocks both
- * threads permanently. The reload worker therefore takes no loader monitor at all; the pull inside
- * the reload is already serialised by {@code GitClassLoader.reload()} being synchronized.</p>
+ * {@code IbisContext}.</b> {@code IbisContext.reload(String)} is synchronized and, since
+ * Frank!Framework 10.4, destroys the configuration's class loader and builds a new one (whose
+ * {@code configure()} pulls) from inside it. A thread holding a loader monitor while waiting on an
+ * inline bus reload would wait on {@code IbisContext} while holding a lock F!F code may need, and a
+ * concurrent per-configuration reload (the console's own reload button, {@code CheckReloadJob},
+ * {@code ReloadSender}) could then deadlock. The reload worker therefore takes no loader monitor
+ * at all.</p>
  *
  * <p>What this servlet serialises instead is its own work, with locks it fully owns and never
  * holds across a call into F!F:</p>
@@ -298,9 +296,9 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 				return;
 			}
 
-			// Moving HEAD is not a configuration reload: AbstractClassLoader.reload() only evicts
-			// AppConstants, and the real reload is IbisContext.reload(name) -- classloader reload
-			// (a no-op pull now), unload, load. Dispatched as a NAMED RELOAD: RELOAD with a
+			// Moving HEAD is not a configuration reload; the real reload is IbisContext.reload(name)
+			// -- unload, a new class loader over this clone (its configure() pulls), load.
+			// Dispatched as a NAMED RELOAD: RELOAD with a
 			// configuration name reaches IbisContext.reload(name) (only the *ALL* sentinel is the
 			// silent no-op). OutboundGateway rather than FrankApiService -- see class javadoc.
 			OutboundGateway gateway = lookupConsoleBean(req, OutboundGateway.class);
