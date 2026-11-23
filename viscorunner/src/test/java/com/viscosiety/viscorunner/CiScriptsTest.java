@@ -86,32 +86,44 @@ class CiScriptsTest {
 	}
 
 	@Test
-	void cleanupKeepsReleasesAndTheNewestTenMainVersions() throws Exception {
-		StringBuilder in = new StringBuilder();
-		for (int i = 20; i >= 1; i--) {                      // newest first
-			in.append("2026-11-").append(String.format("%02d", i)).append("T00:00:00Z\t1.0.0-").append(i).append("\t").append(i).append('\n');
-		}
-		in.append("2026-10-01T00:00:00Z\t0.22.0\t99\n");    // a release, older than everything
+	void cleanupDeletesOnlyUnsupportedVersionsOlderThanTheCutOff() throws Exception {
 		Path dir = Files.createTempDirectory("cleanup");
 		Path input = dir.resolve("versions.tsv");
-		Files.writeString(input, in.toString());
-		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString()), "/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
+		Files.writeString(input,
+			"2026-11-20T10:00:00.000Z\t1.4.0-2070\t1\n"      // unsupported, but newer than the cut-off
+			+ "2026-10-01T10:00:00.000Z\t1.3.0-1849\t2\n"    // unsupported and old: deleted
+			+ "2026-09-01T10:00:00.000Z\t1.1.0\t3\n"         // a supported release, old: kept
+			+ "2026-08-01T10:00:00.000Z\t1.0.0\t4\n"         // an unsupported release, old: deleted
+			+ "2026-08-02T10:00:00.000Z\t1.1.0-1605\t5\n");  // a pre-release a ViscoForge release uses: kept
+		Path keep = dir.resolve("keep.txt");
+		Files.writeString(keep, "1.1.0\n1.1.0-1605\n1.3.0\n");
+		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString(), "KEEP_FILE", keep.toString(), "CUTOFF", "2026-10-24T00:00:00"),
+			"/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
 		assertEquals(0, r.exit(), r.err());
 		List<String> deleted = r.out().lines().filter(l -> l.startsWith("delete ")).toList();
-		assertEquals(10, deleted.size(), r.out());
-		assertTrue(deleted.get(0).equals("delete 10 1.0.0-10") && deleted.get(9).equals("delete 1 1.0.0-1"), "the ten oldest main versions: " + deleted);
-		assertFalse(r.out().lines().anyMatch(l -> l.startsWith("delete ") && l.contains("0.22.0")), "a release is never deleted");
-		assertTrue(r.out().contains("keep 99 0.22.0 (release)"), r.out());
+		assertEquals(List.of("delete 2 1.3.0-1849", "delete 4 1.0.0"), deleted, r.out());
+		assertTrue(r.out().contains("keep 1 1.4.0-2070 (newer than the cut-off)"), r.out());
+		assertTrue(r.out().contains("keep 3 1.1.0 (supported)"), r.out());
+		assertTrue(r.out().contains("keep 5 1.1.0-1605 (supported)"), r.out());
 	}
 
 	@Test
-	void cleanupRefusesAKeepThatIsNotANumber() throws Exception {
+	void cleanupRefusesAMinimumAgeThatIsNotANumber() throws Exception {
 		Path dir = Files.createTempDirectory("cleanup");
 		Path input = dir.resolve("versions.tsv");
 		Files.writeString(input, "");
-		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString(), "KEEP", "ten"), "/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
+		Run r = sh(dir, Map.of("CLEANUP_DECIDE_ONLY", input.toString(), "MIN_AGE_DAYS", "thirty"), "/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
 		assertEquals(2, r.exit());
-		assertTrue(r.err().contains("KEEP must be a number"), r.err());
+		assertTrue(r.err().contains("MIN_AGE_DAYS must be a number"), r.err());
+	}
+
+	@Test
+	void cleanupDeletesNothingWithoutTheSupportedReleasesList() throws Exception {
+		Path dir = Files.createTempDirectory("cleanup");
+		Run r = sh(dir, Map.of("RELEASE_LIST_URL", "http://127.0.0.1:9/none", "CI_API_V4_URL", "http://127.0.0.1:9", "CI_PROJECT_ID", "2"),
+			"/bin/sh", REPO.resolve("scripts/ci/cleanup-packages.sh").toString());
+		assertEquals(1, r.exit(), r.out());
+		assertTrue(r.err().contains("nothing deleted"), r.err());
 	}
 
 	@Test

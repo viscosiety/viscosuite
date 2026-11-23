@@ -80,6 +80,9 @@ variables:
 # main commits and release tags publish; everything else only tests.
 .on-main-or-release: &on-main-or-release
   rules:
+    # A scheduled pipeline (the package clean-up) runs only cleanup:packages, never a build or a publish.
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "main"'
     - if: '$CI_COMMIT_TAG =~ /^v\d+\.\d+\.\d+$/'
 
@@ -104,6 +107,8 @@ test:
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
     - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
   rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+      when: never
     - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
     - if: '$CI_COMMIT_BRANCH'
     - if: '$CI_COMMIT_TAG'
@@ -424,17 +429,20 @@ cleanup:arch-tags:
       done
   <<: *on-main-or-release
 
+# Deletes package versions ViscoFoundry no longer supports and that are older than 30 days
+# (scripts/ci/cleanup-packages.sh). Only on the schedule that sets PACKAGE_CLEANUP=1; reads the portal's
+# public supported-releases list. CLEANUP_DRY_RUN=1 on the schedule prints the decisions without deleting.
 cleanup:packages:
   stage: cleanup
   image: alpine:3
   tags: [docker]
-  needs:
-    - release:bom
+  needs: []
   before_script:
     - apk add --no-cache curl jq
   script:
     - sh scripts/ci/cleanup-packages.sh
-  <<: *on-main-or-release
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule" && $PACKAGE_CLEANUP == "1"'
 
 # ---------------------------------------------------------------------------
 # Open-source distribution: the GitHub Release on a tag (unchanged; see git history for the token notes).
