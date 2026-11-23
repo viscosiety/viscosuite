@@ -20,8 +20,8 @@ major version).
   `properties.hide` are hidden on the console's environment page, a configurable JDBC pool wait limit
   (`transactionmanager.jdbc.connection.maxWait`, default 30 s; ViscoSuite already set the same limit),
   a keystore that can be configured once for all senders, the HTTP sender's shared-session timeout, and
-  Tomcat 11.0.29 libraries. It is not a published Frank!Framework version: ViscoSuite builds it from
-  that commit and publishes it in its own package registry.
+  Tomcat 11.0.29 libraries. It is not a published Frank!Framework version: a mirror of Frank!Framework
+  master on Viscosiety's GitLab builds it from that commit and publishes it in its package registry.
 - From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
   `/opt/logs` no longer also covers `/opt/logs-old`).
 

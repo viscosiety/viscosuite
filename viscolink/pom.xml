@@ -444,13 +444,14 @@
 			<name>Frank!Framework</name>
 			<url>https://nexus.frankframework.org/content/repositories/public</url>
 		</repository>
-		<!-- Frank!Framework builds of an upstream commit that has no published nightly yet
-		     (version A.B.C-<date>.<commit>), published to this project's public package registry.
-		     Read anonymously, so it resolves locally and in CI alike. -->
+		<!-- Builds of commits of Frank!Framework master that are in no published release or nightly
+		     yet (version A.B.C-<yyyyMMdd>.<sha9>), from the mirror public-applications/frankframework
+		     (pipeline: public-applications/frankframework-ci). Public, so it resolves locally and in
+		     CI alike. -->
 		<repository>
-			<id>viscosuite-frankframework-builds</id>
-			<name>ViscoSuite builds of Frank!Framework</name>
-			<url>https://git.viscosiety.com/api/v4/projects/2/packages/maven</url>
+			<id>frankframework-mirror</id>
+			<name>Frank!Framework master builds (public-applications/frankframework)</name>
+			<url>https://git.viscosiety.com/api/v4/projects/46/packages/maven</url>
 			<snapshots><enabled>false</enabled></snapshots>
 		</repository>
 	</repositories>
