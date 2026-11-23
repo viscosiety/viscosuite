@@ -42,6 +42,13 @@ class PublishWiringTest {
     }
 
     @Test
+    void ciReadsEveryArtifactThroughTheMavenProxy() throws IOException {
+        String settings = Files.readString(REPO.resolve(".mvn/settings.xml"));
+        assertTrue(settings.contains("<mirrorOf>*</mirrorOf>"), "one mirror for every repository");
+        assertTrue(settings.contains("<url>https://maven.viscosiety.com/maven</url>"), "the NAS proxy");
+    }
+
+    @Test
     void thePublishScriptsExistAndAreExecutable() {
         for (String script : List.of("scripts/ci/stage-publish.sh", "scripts/ci/publish.sh")) {
             assertTrue(Files.isExecutable(REPO.resolve(script)), script + " is executable");
