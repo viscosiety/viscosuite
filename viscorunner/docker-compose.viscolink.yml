@@ -13,6 +13,17 @@ services:
       - "2575:2575"   # MLLP listener (optional)
     environment:
       dtap.stage: LOC
+      # Sign-in. The image keeps web security on although the stage is LOC; this gives the console,
+      # Larva, Ladybug and every API one local user. Set VISCO_ADMIN_PASSWORD in .env (never in git);
+      # compose refuses to start without it.
+      application.security.console.authentication.type: IN_MEMORY
+      application.security.console.authentication.username: "${VISCO_ADMIN_USERNAME:-admin}"
+      application.security.console.authentication.password: "${VISCO_ADMIN_PASSWORD:?set VISCO_ADMIN_PASSWORD in .env}"
+      application.security.http.authenticators: local
+      application.security.http.authenticators.local.type: IN_MEMORY
+      application.security.http.authenticators.local.username: "${VISCO_ADMIN_USERNAME:-admin}"
+      application.security.http.authenticators.local.password: "${VISCO_ADMIN_PASSWORD:?set VISCO_ADMIN_PASSWORD in .env}"
+      application.security.http.authenticator: local
 
       # F!F loads all subdirectories in the configurations directory automatically
       configurations.directory.autoLoad: "true"

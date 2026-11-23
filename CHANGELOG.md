@@ -7,6 +7,20 @@ major version).
 
 ## [Unreleased]
 
+### In short
+- The images no longer serve anything without a login. They run on stage `LOC`, which on its own
+  switches web security off: the Frank!Console, its APIs, Ladybug and Larva answered anyone who could
+  reach the port, and Larva could be made to write any file and run any class without signing in.
+  Web security and the console's CSRF protection are now always on (stage `LOC` and Larva's file save
+  stay). An image started without a login answers 401 to everyone. The compose files give one local
+  user whose password must be set as `VISCO_ADMIN_PASSWORD` in `.env`; without it they refuse to
+  start. A runtime that configures its own login, as the hosted platform does, is not affected.
+
+### Security
+- `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
+  `catalina.properties` (`viscorunner/src/scripts/catalinaAdditional.properties`); pinned by
+  `LocWebSecurityTest`.
+
 ## [1.3.0] — 2026-11-22
 
 ### In short
