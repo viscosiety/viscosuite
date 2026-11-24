@@ -54,6 +54,11 @@ variables:
   MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
   # -B: batch mode. No -U: the F!F dependency is pinned to an immutable version (see the root pom).
   MAVEN_CLI_OPTS: "-B -s .mvn/settings.xml"
+  # The Maven wrapper fetches Maven itself (.mvn/wrapper/maven-wrapper.properties) from Maven Central unless
+  # this is set; it then takes it from the proxy, like every other artifact. Local builds keep Central.
+  # MVNW_VERBOSE makes the wrapper log the address it downloads from.
+  MVNW_REPOURL: https://maven.viscosiety.com/maven
+  MVNW_VERBOSE: "true"
   IMAGE_VISCOBASE: $CI_REGISTRY_IMAGE/viscobase
   IMAGE:           $CI_REGISTRY_IMAGE/viscorunner   # the suite image (health + store)
   IMAGE_VISCOLINK: $CI_REGISTRY_IMAGE/viscolink     # health, no store; its -core tags are viscobase
