@@ -25,6 +25,13 @@ major version).
 - From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
   `/opt/logs` no longer also covers `/opt/logs-old`).
 
+### Added
+- `DraftRefSwitchIT`: the real runtime loads a configuration from git with `GitClassLoader`, switches to a
+  draft branch and back through `/api-service/configurations/ref`, and reloads onto a new commit of main,
+  each step checked by the configuration's own answer. It runs in the merge-request `test` job and in
+  `integration-test`, which publishing waits on: a build on which ViscoFoundry's drafts do not load is
+  never published.
+
 ### Security
 - `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
   `catalina.properties` (`viscorunner/src/scripts/catalinaAdditional.properties`); pinned by
