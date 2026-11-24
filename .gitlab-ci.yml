@@ -101,7 +101,8 @@ variables:
 # One `install` (tests on) runs the three modules' tests and leaves their artifacts in .m2/, which
 # viscorunner's copy-dependencies and unpack resolve from (not the reactor — see CLAUDE.md).
 # `verify -pl viscorunner` runs its unit tests (Dockerfile contract, the fetcher and CI scripts, the
-# release template, the event publisher) and the two fast ITs.
+# release template, the event publisher) and the fast ITs, among them DraftRefSwitchIT: a draft that does not
+# load must fail a merge request (a Frank!Framework bump above all), not only main's integration-test stage.
 # ---------------------------------------------------------------------------
 test:
   stage: test
@@ -115,7 +116,7 @@ test:
     # registered in VISCO-OVERRIDES.md with its version, reason and removal condition.
     - sh scripts/ci/check-overrides.sh
     - ./mvnw $MAVEN_CLI_OPTS install -pl viscolink,packs/health,viscostore
-    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT
+    - ./mvnw $MAVEN_CLI_OPTS verify -pl viscorunner -Dit.test=HealthClasspathIT,PackOverlayLayoutIT,DraftRefSwitchIT
   rules:
     - if: '$CI_PIPELINE_SOURCE == "schedule"'
       when: never
