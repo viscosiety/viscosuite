@@ -29,6 +29,16 @@
 # pipeline run on the same commit at once and each cleanup:arch-tags deletes its own intermediates (the v1.0.0 pipeline lost its
 # amd64 halves to the main pipeline's cleanup, 2026-11-04).
 
+# One pipeline per push. A branch with an open merge request runs only its merge request pipeline;
+# the branch pipeline of the same commit would run the same tests a second time on the same runner.
+# Everything else (branches without a merge request, main, tags, schedules, triggers, web) runs as before.
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_COMMIT_BRANCH && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - when: always
+
 stages:
   - test
   - package
