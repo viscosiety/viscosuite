@@ -33,14 +33,11 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 /**
- * {@code AbstractClassLoader.reload()} (the method {@link GitClassLoader#checkout} calls via
- * {@code super.reload()}) does not call back into {@code IbisContext}; it only evicts this
- * classloader's cached {@link AppConstants} instance
- * ({@code AppConstants.removeInstance(this)}). {@code IbisContext.reload(String)} is the other
- * direction of that relationship -- something external calls to *drive* a classloader reload, not
- * something a classloader reload triggers. So "reload happened" is observed here as: the next
- * {@code AppConstants.getInstance(loader)} call returns a fresh instance rather than the one
- * cached before the reload.
+ * Since Frank!Framework 10.4 a configuration reload destroys the configuration's class loader and
+ * builds a new one ({@code IbisContext.reload(String)}); there is no {@code reload()} on the class
+ * loader any more. {@link GitClassLoader#checkout} therefore only moves the clone, and "the reload
+ * sees the new ref" is observed here as: a fresh loader configured over the same clone reports that
+ * ref as its {@code configuration.version}.
  */
 class GitClassLoaderCheckoutTest {
 
@@ -71,28 +68,39 @@ class GitClassLoaderCheckoutTest {
         assertSame(loader, GitClassLoader.lookup("demo"));
     }
 
-    @Test
-    void checkoutSwitchesToBranchAndReloadsUnconditionally() throws Exception {
-        AppConstants before = AppConstants.getInstance(loader);
+    /** What F!F 10.4's reload does: destroy the loader and configure a new one over the clone. */
+    private GitClassLoader reloadLikeFrankFramework() throws Exception {
+        loader.destroy();
+        GitClassLoader fresh = new GitClassLoader(getClass().getClassLoader());
+        fresh.setRepoUrl(remote.toURI().toString());
+        fresh.setRepoSubdir("ff-configurations/demo");
+        fresh.setLocalPath(tmp.resolve(TempGitRepo.CLONE_DIR).toString());
+        fresh.configure(ibisContext, "demo");
+        loader = fresh;
+        return fresh;
+    }
 
+    @Test
+    void checkoutSwitchesToBranchAndTheNextLoaderLoadsIt() throws Exception {
         loader.checkout("assistant/demo/draft-abc123");
 
         assertEquals("assistant/demo/draft-abc123", loader.currentRef());
         assertFalse(loader.isDefaultRef());
         String content = Files.readString(tmp.resolve("clone/ff-configurations/demo/Configuration.xml"));
         assertTrue(content.contains("version=\"2\""));
-        // super.reload() evicted the cached AppConstants instance -- the next lookup is a new one,
-        // and configuration.version must be set on THAT fresh instance (checkout sets it after
-        // super.reload(), not before -- setting it before would just be evicted along with it).
-        AppConstants after = AppConstants.getInstance(loader);
-        assertNotSame(before, after);
-        assertEquals("assistant/demo/draft-abc123", after.getProperty("configuration.version"));
+
+        GitClassLoader fresh = reloadLikeFrankFramework();
+        assertEquals("assistant/demo/draft-abc123", fresh.currentRef());
+        // The draft is not mistaken for the default branch by the new loader.
+        assertFalse(fresh.isDefaultRef());
+        assertSame(fresh, GitClassLoader.lookup("demo"));
+        assertEquals("assistant/demo/draft-abc123", AppConstants.getInstance(fresh).getProperty("configuration.version"));
     }
 
     @Test
     void checkoutBackToDefaultRefRestoresMain() throws Exception {
         loader.checkout("assistant/demo/draft-abc123");
-        AppConstants beforeSecondCheckout = AppConstants.getInstance(loader);
+        reloadLikeFrankFramework();
 
         loader.checkout("main");
 
@@ -100,20 +108,16 @@ class GitClassLoaderCheckoutTest {
         assertTrue(loader.isDefaultRef());
         String content = Files.readString(tmp.resolve("clone/ff-configurations/demo/Configuration.xml"));
         assertTrue(content.contains("version=\"1\""));
-        AppConstants afterSecondCheckout = AppConstants.getInstance(loader);
-        assertNotSame(beforeSecondCheckout, afterSecondCheckout);
-        assertEquals("main", afterSecondCheckout.getProperty("configuration.version"));
+        GitClassLoader fresh = reloadLikeFrankFramework();
+        assertTrue(fresh.isDefaultRef());
+        assertEquals("main", AppConstants.getInstance(fresh).getProperty("configuration.version"));
     }
 
     @Test
     void unknownRefThrowsAndLeavesHeadUntouched() {
-        AppConstants before = AppConstants.getInstance(loader);
-
         assertThrows(Exception.class, () -> loader.checkout("assistant/demo/does-not-exist"));
 
         assertEquals("main", loader.currentRef());
-        // checkout failed before reaching super.reload() -- no eviction happened.
-        assertSame(before, AppConstants.getInstance(loader));
     }
 
     @Test

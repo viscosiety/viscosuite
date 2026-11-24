@@ -48,13 +48,12 @@ import org.frankframework.util.AppConstants;
  *   <li>{@code cloneRoot} when no basePath is set (single configuration at the root).</li>
  * </ol>
  *
- * On {@link #reload()} the classloader performs a {@code git pull}. If HEAD
- * has advanced, {@code super.reload()} clears AppConstants and signals F!F to
- * re-read the configuration. If the repository is already up-to-date the reload
- * is a no-op — no unnecessary configuration restart occurs.
+ * Since Frank!Framework 10.4 a configuration reload destroys this class loader and creates a new
+ * one; its {@link #configure} performs the {@code git pull} (non-fatal: on failure the on-disk
+ * version is served), so every reload picks up new commits on the checked-out branch.
  *
- * {@link #checkout(String)} only moves the clone's HEAD to a different branch and clears this
- * classloader's cached {@code AppConstants}; the real configuration reload is
+ * {@link #checkout(String)} only moves the clone's HEAD to a different branch; the real
+ * configuration reload is
  * {@code IbisContext.reload(configurationName)}, dispatched by the ref servlet
  * ({@code org.frankframework.visco.security.ConfigRefServlet}) after {@code checkout} returns.
  * The static {@link #lookup(String)} registry exists because that servlet needs to reach a
@@ -254,26 +253,10 @@ public class GitClassLoader extends AbstractClassLoader {
         return null;
     }
 
-    @Override
-    public synchronized void reload() throws ClassLoaderException {
-        try {
-            boolean changed = pull();
-            if (changed) {
-                log.info("[{}] git pull produced changes — reloading configuration", getConfigurationName());
-                super.reload();
-            } else {
-                log.debug("[{}] git pull: already up-to-date, skipping reload", getConfigurationName());
-            }
-        } catch (Exception e) {
-            throw new ClassLoaderException("git pull failed for configuration [" + getConfigurationName() + "]", e);
-        }
-    }
-
     /**
-     * Switches the clone to {@code ref} (a remote branch) and reloads the configuration
-     * unconditionally. The pull-based {@link #reload()} cannot be reused here: it only reloads
-     * when HEAD advanced during the pull, and right after a checkout the pull reports "already
-     * up to date". Fetch/checkout failures leave the clone on its previous ref.
+     * Switches the clone to {@code ref} (a remote branch). The caller reloads the configuration
+     * afterwards, which builds a new class loader over this clone. Fetch/checkout failures leave
+     * the clone on its previous ref.
      */
     public synchronized void checkout(String ref) throws ClassLoaderException {
         validateRef(ref);
@@ -309,13 +292,8 @@ public class GitClassLoader extends AbstractClassLoader {
         } catch (Exception e) {
             throw new ClassLoaderException("git checkout [" + ref + "] failed for configuration [" + getConfigurationName() + "]", e);
         }
-        // super.reload() evicts the cached AppConstants instance first; set configuration.version
-        // on the fresh instance created afterwards, not the one about to be thrown away.
-        super.reload();
-        String gitVersion = resolveGitVersion();
-        if (gitVersion != null) {
-            AppConstants.getInstance(this).setProperty("configuration.version", gitVersion);
-        }
+        // No reload here: since Frank!Framework 10.4 a configuration reload destroys this class
+        // loader and builds a new one, whose configure() pulls and sets configuration.version.
     }
 
     /** The currently checked-out branch name (falls back to the described tag/commit when detached). */
