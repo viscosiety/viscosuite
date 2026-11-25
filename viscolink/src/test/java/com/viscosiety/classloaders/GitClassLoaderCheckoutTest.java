@@ -75,7 +75,8 @@ class GitClassLoaderCheckoutTest {
         fresh.setRepoUrl(remote.toURI().toString());
         fresh.setRepoSubdir("ff-configurations/demo");
         fresh.setLocalPath(tmp.resolve(TempGitRepo.CLONE_DIR).toString());
-        fresh.configure(ibisContext, "demo");
+        fresh.setConfigurationName("demo");
+        fresh.afterPropertiesSet();
         loader = fresh;
         return fresh;
     }
@@ -203,7 +204,8 @@ class GitClassLoaderCheckoutTest {
         recreated.setRepoUrl(remote.toURI().toString());
         recreated.setRepoSubdir("ff-configurations/demo");
         recreated.setLocalPath(tmp.resolve("clone").toString());
-        recreated.configure(mock(IbisContext.class), "demo");
+        recreated.setConfigurationName("demo");
+        recreated.afterPropertiesSet();
         loader = recreated; // let tearDown destroy this instance too
 
         assertEquals("assistant/demo/draft-abc123", recreated.currentRef());

@@ -19,7 +19,6 @@ import org.eclipse.jgit.lib.StoredConfig;
 import org.eclipse.jgit.transport.UsernamePasswordCredentialsProvider;
 
 import org.frankframework.configuration.ClassLoaderException;
-import org.frankframework.configuration.IbisContext;
 import org.frankframework.configuration.classloaders.AbstractClassLoader;
 import org.frankframework.util.AppConstants;
 
@@ -49,7 +48,7 @@ import org.frankframework.util.AppConstants;
  * </ol>
  *
  * Since Frank!Framework 10.4 a configuration reload destroys this class loader and creates a new
- * one; its {@link #configure} performs the {@code git pull} (non-fatal: on failure the on-disk
+ * one; its {@link #afterPropertiesSet} performs the {@code git pull} (non-fatal: on failure the on-disk
  * version is served), so every reload picks up new commits on the checked-out branch.
  *
  * {@link #checkout(String)} only moves the clone's HEAD to a different branch; the real
@@ -136,9 +135,16 @@ public class GitClassLoader extends AbstractClassLoader {
         }
     }
 
+    /**
+     * Runs once all {@code configurations.<name>.*} properties (and the configuration name) have
+     * been set by F!F's {@code ClassLoaderFactory}: clones or pulls, resolves the resource root and
+     * registers this loader. Called by Spring's {@code initializeBean}; before F!F 10.4's #12031 this
+     * was {@code configure(IbisContext, String)}.
+     */
     @Override
-    public void configure(IbisContext ibisContext, String configurationName) throws ClassLoaderException {
-        super.configure(ibisContext, configurationName);
+    public void afterPropertiesSet() throws ClassLoaderException {
+        super.afterPropertiesSet();
+        String configurationName = getConfigurationName();
 
         if (repoUrl == null || repoUrl.isBlank()) {
             throw new ClassLoaderException("repoUrl is required for GitClassLoader");
@@ -159,7 +165,7 @@ public class GitClassLoader extends AbstractClassLoader {
         // The clone target (localDir) is the repository root. Resolve the configuration root
         // within it: an explicit repoSubdir wins (full subpath, e.g. ff-configurations/my-config);
         // otherwise fall back to the F!F basePath (= configuration name, set by
-        // AbstractClassLoader#configure) selecting a per-config subdirectory, mirroring the
+        // AbstractClassLoader#afterPropertiesSet) selecting a per-config subdirectory, mirroring the
         // DirectoryClassLoader "append basePath to root" pattern; otherwise the repository root
         // itself is the configuration root (single-config repository).
         if (repoSubdir != null && !repoSubdir.isBlank()) {
@@ -174,7 +180,7 @@ public class GitClassLoader extends AbstractClassLoader {
         // configuration.version. Without this, configurations loaded from git have no BuildInfo.properties
         // and the framework logs "unable to determine [configuration.version]". The version is read from
         // this classloader's AppConstants by ConfigurationUtils#getConfigurationVersion during the
-        // Configuration context refresh, which happens after configure(), so setting it here is in time.
+        // Configuration context refresh, which happens after afterPropertiesSet(), so setting it here is in time.
         String gitVersion = resolveGitVersion();
         if (gitVersion != null) {
             AppConstants.getInstance(this).setProperty("configuration.version", gitVersion);
@@ -186,7 +192,7 @@ public class GitClassLoader extends AbstractClassLoader {
         defaultRef = readDefaultRef();
         if (defaultRef == null) {
             // Pre-existing clone from before visco.defaultRef was introduced: best effort, only
-            // correct as long as this configure() call is not itself running on a draft branch.
+            // correct as long as this afterPropertiesSet() call is not itself running on a draft branch.
             defaultRef = resolveGitVersion();
         }
         REGISTRY.put(configurationName, this);
@@ -196,7 +202,7 @@ public class GitClassLoader extends AbstractClassLoader {
      * Reads the default branch persisted in the clone's git config ({@code visco.defaultRef},
      * written once in {@link #cloneOrVerify()} right after the initial clone). Unlike
      * {@link #resolveGitVersion()} this is stable across classloader recreation: F!F's real
-     * reload path destroys this instance and builds a new one whose {@code configure()} runs
+     * reload path destroys this instance and builds a new one whose {@code afterPropertiesSet()} runs
      * against whatever branch the clone happens to be on at that moment (e.g. a draft branch
      * left checked out by a prior {@link #checkout(String)}) -- resolving "default" from the
      * currently checked-out branch at that point would silently redefine it as the draft.
@@ -231,7 +237,7 @@ public class GitClassLoader extends AbstractClassLoader {
     }
 
     @Override
-    protected boolean getAllowCustomClasses() {
+    public boolean isAllowCustomClasses() {
         return false;
     }
 
@@ -293,7 +299,7 @@ public class GitClassLoader extends AbstractClassLoader {
             throw new ClassLoaderException("git checkout [" + ref + "] failed for configuration [" + getConfigurationName() + "]", e);
         }
         // No reload here: since Frank!Framework 10.4 a configuration reload destroys this class
-        // loader and builds a new one, whose configure() pulls and sets configuration.version.
+        // loader and builds a new one, whose afterPropertiesSet() pulls and sets configuration.version.
     }
 
     /** The currently checked-out branch name (falls back to the described tag/commit when detached). */
@@ -326,7 +332,7 @@ public class GitClassLoader extends AbstractClassLoader {
 
     /**
      * The directory this configuration's resources are read from: {@code <localPath>/<repoSubdir>}
-     * (the whole clone when no subdir is configured). Null before {@link #configure}. The Larva run
+     * (the whole clone when no subdir is configured). Null before {@link #afterPropertiesSet}. The Larva run
      * servlet resolves a configuration's {@code larva/} scenario root from it; it never writes there.
      */
     public File getResourceDir() {
@@ -415,7 +421,7 @@ public class GitClassLoader extends AbstractClassLoader {
         try (Git git = clone.call()) {
             // Record the branch this clone started on so a later classloader recreation (F!F's
             // real reload path) can still tell "default" from "draft" even when it runs
-            // configure() while the clone happens to be checked out on a draft branch.
+            // afterPropertiesSet() while the clone happens to be checked out on a draft branch.
             String ref = resolveGitVersion();
             if (ref != null) {
                 StoredConfig config = git.getRepository().getConfig();

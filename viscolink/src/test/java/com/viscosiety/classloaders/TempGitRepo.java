@@ -72,7 +72,8 @@ public final class TempGitRepo {
 		loader.setRepoUrl(remote.toURI().toString());
 		loader.setRepoSubdir(SUBDIR);
 		loader.setLocalPath(tmp.resolve(CLONE_DIR).toString());
-		loader.configure(ctx, configurationName);
+		loader.setConfigurationName(configurationName);
+		loader.afterPropertiesSet();
 		return loader;
 	}
 

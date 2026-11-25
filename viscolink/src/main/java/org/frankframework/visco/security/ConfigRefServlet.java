@@ -84,7 +84,7 @@ import org.frankframework.management.bus.message.RequestMessageBuilder;
  * <p><b>Lock order: never hold a {@link GitClassLoader} monitor while calling into the bus or
  * {@code IbisContext}.</b> {@code IbisContext.reload(String)} is synchronized and, since
  * Frank!Framework 10.4, destroys the configuration's class loader and builds a new one (whose
- * {@code configure()} pulls) from inside it. A thread holding a loader monitor while waiting on an
+ * {@code afterPropertiesSet()} pulls) from inside it. A thread holding a loader monitor while waiting on an
  * inline bus reload would wait on {@code IbisContext} while holding a lock F!F code may need, and a
  * concurrent per-configuration reload (the console's own reload button, {@code CheckReloadJob},
  * {@code ReloadSender}) could then deadlock. The reload worker therefore takes no loader monitor
@@ -297,7 +297,7 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 			}
 
 			// Moving HEAD is not a configuration reload; the real reload is IbisContext.reload(name)
-			// -- unload, a new class loader over this clone (its configure() pulls), load.
+			// -- unload, a new class loader over this clone (its afterPropertiesSet() pulls), load.
 			// Dispatched as a NAMED RELOAD: RELOAD with a
 			// configuration name reaches IbisContext.reload(name) (only the *ALL* sentinel is the
 			// silent no-op). OutboundGateway rather than FrankApiService -- see class javadoc.
@@ -428,7 +428,7 @@ public class ConfigRefServlet extends AbstractBearerServiceServlet {
 	 * 409, not 404: 404 on this endpoint means "no such endpoint" (an instance whose image predates
 	 * it), and a client that cannot tell the two apart will report "unsupported instance" for what
 	 * is really a transient state. A configuration missing from the registry is exactly that --
-	 * either a reload is between destroy() and configure(), or its classloader failed to configure
+	 * either a reload is between destroy() and afterPropertiesSet(), or its classloader failed to configure
 	 * -- so it is a conflict with the instance's current state, and retryable.
 	 */
 	private void sendNotRegistered(HttpServletResponse resp, String configuration) throws IOException {
