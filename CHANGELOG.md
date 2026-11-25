@@ -27,6 +27,10 @@ major version).
   Frank!Doc page and `/iaf/frankdoc/xml/xsd/FrankConfig.xsd` answer (the `aad5ad9fb` build had neither).
   Its configuration schema lists only the elements of the Frank!Framework modules the runtime ships, so
   elements of CMIS, nn-specials and batch (55 in all), which never loaded here, are no longer offered.
+  That commit also carries an upstream regression (#12031): `IbisManager` no longer gets its
+  `IbisContext`, so every configuration reload (console, configurations API, ViscoFoundry's draft switch)
+  failed with a NullPointerException. ViscoSuite sets it itself until upstream fixes it (temporary
+  `IbisManagerContextWiring`).
 - From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
   `/opt/logs` no longer also covers `/opt/logs-old`).
 
@@ -36,6 +40,12 @@ major version).
   each step checked by the configuration's own answer. It runs in the merge-request `test` job and in
   `integration-test`, which publishing waits on: a build on which ViscoFoundry's drafts do not load is
   never published.
+
+### Fixed
+- Configuration reloads on Frank!Framework 10.4 master since #12031: `IbisManagerContextWiring`
+  (`springIbisManagerContextWiring.xml`, TEMPORARY) hands `IbisManager` the `IbisContext` once
+  `FrankApplicationInitializer` publishes it, and only when the manager has none. Found by
+  `DraftRefSwitchIT`. Remove it when the consumed build wires the manager again.
 
 ### Security
 - `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
