@@ -288,7 +288,8 @@ class LarvaRunServletTest {
 		Files.createDirectories(baked.resolve("other/larva"));
 		DirectoryClassLoader directoryLoader = new DirectoryClassLoader(getClass().getClassLoader());
 		directoryLoader.setDirectory(baked.toString());
-		directoryLoader.configure(mock(IbisContext.class), "other");
+		directoryLoader.setConfigurationName("other");
+		directoryLoader.afterPropertiesSet();
 		assertEquals(baked.resolve("other").toFile(), directoryLoader.getDirectory(), "test setup: F!F appended the name");
 		AppConstants.getInstance().setProperty("configurations.directory", tmp.resolve("configurations").toString());
 		try {

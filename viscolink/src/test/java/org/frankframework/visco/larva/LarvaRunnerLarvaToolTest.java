@@ -22,6 +22,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+import org.frankframework.configuration.ClassLoaderFactory;
 import org.frankframework.larva.TestRunStatus;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,7 +38,9 @@ import static org.junit.jupiter.api.Assertions.*;
  * IbisContext: the scenarios talk to {@code org.frankframework.senders.EchoSender} (writeline in,
  * read compared against a file), which Larva instantiates in its own per-scenario
  * {@code LarvaScenarioContext}; a plain refreshed {@link GenericApplicationContext} is enough as
- * that context's parent.
+ * that context's parent, given the one bean Larva takes from it: since Frank!Framework 10.4's #12031
+ * the scenario context builds its class loader through the parent's {@link ClassLoaderFactory}
+ * (on the runtime, IbisContext registers it as {@code classLoaderFactory}).
  */
 class LarvaRunnerLarvaToolTest {
 
@@ -69,6 +72,9 @@ class LarvaRunnerLarvaToolTest {
 		write("Broken/out.txt", "Echo This");
 		applicationContext = new GenericApplicationContext();
 		applicationContext.refresh();
+		ClassLoaderFactory classLoaderFactory = new ClassLoaderFactory();
+		classLoaderFactory.setApplicationContext(applicationContext);
+		applicationContext.getBeanFactory().registerSingleton("classLoaderFactory", classLoaderFactory);
 	}
 
 	@AfterEach
