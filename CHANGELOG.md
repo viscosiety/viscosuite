@@ -32,6 +32,12 @@ major version).
   ViscoSuite's temporary workaround for it is gone again.
 - From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
   `/opt/logs` no longer also covers `/opt/logs-old`).
+- The images run on Tomcat 11.0.29 with Java 25.0.5.1 (`tomcat:11.0.29-jre25-temurin-noble`; was
+  `tomcat:11.0.14-jre25`, Java 25.0.1). A scan of the old base image reported 9 critical and 10 high
+  Tomcat vulnerabilities, all fixed in 11.0.25 or earlier; the new one reports no critical or high
+  finding at all (Trivy, 26 November 2026). Same Ubuntu 24.04 as before. Java 25.0.5.1 also carries the
+  fix for CVE-2026-114938 (Base64 intrinsics); the `-XX:-UseBASE64Intrinsics` start option stays for now
+  and can go in a later release.
 
 ### Added
 - `DraftRefSwitchIT`: the real runtime loads a configuration from git with `GitClassLoader`, switches to a
@@ -44,6 +50,10 @@ major version).
 - `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
   `catalina.properties` (`viscorunner/src/scripts/catalinaAdditional.properties`); pinned by
   `LocWebSecurityTest`.
+- Base image `tomcat:11.0.29-jre25-temurin-noble` in `viscorunner/Dockerfile` and
+  `viscorunner/Dockerfile.viscostore` (pinned by `DockerfileContractTest`). The image's default
+  `conf/server.xml` is unchanged since 11.0.14, so the pinned copy with the context-failure listener
+  needed no re-sync.
 
 ### Changed
 - Frank!Framework `10.3.0` → `10.4.0-20261125.5e30e4cbe`, Ladybug `4.1-20261005.165608` →
