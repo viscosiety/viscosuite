@@ -7,6 +7,21 @@ major version).
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-11-26
+
+### In short
+- A security update of the base image, nothing else. The images run on Tomcat 11.0.29 with Java
+  25.0.5.1 (was Tomcat 11.0.14, Java 25.0.1). A scan of the old base image reported 9 critical and 10
+  high Tomcat vulnerabilities, all fixed in 11.0.25 or earlier; the new one reports no critical or high
+  finding (Trivy, 26 November 2026). Same Ubuntu 24.04 as before. Configurations need no change.
+
+### Security
+- Base image `tomcat:11.0.29-jre25-temurin-noble` (was `tomcat:11.0.14-jre25`) in
+  `viscorunner/Dockerfile` and `viscorunner/Dockerfile.viscostore`, pinned by `DockerfileContractTest`.
+  The image's default `conf/server.xml` is unchanged since 11.0.14, so the pinned copy with the
+  context-failure listener needed no re-sync. Java 25.0.5.1 also carries the fix for CVE-2026-114938
+  (Base64 intrinsics); the `-XX:-UseBASE64Intrinsics` start option stays in this release.
+
 ## [1.3.0] — 2026-11-22
 
 ### In short
