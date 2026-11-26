@@ -5,7 +5,7 @@
 #   fat        FROM viscobase; runs the fetcher at BUILD time against a components list (file:// URLs
 #              into target/components/ from the Maven staging for local builds; registry URLs in CI)
 #              and places the result: the published viscorunner (health + store) and viscolink (health).
-FROM tomcat:11.0.14-jre25 AS viscobase
+FROM tomcat:11.0.29-jre25-temurin-noble AS viscobase
 
 ARG GID=2000
 ARG UID=2000
@@ -50,7 +50,7 @@ RUN cat /tmp/catalinaAdditional.properties >> /usr/local/tomcat/conf/catalina.pr
 COPY --chown=tomcat conf/context.xml /usr/local/tomcat/conf/context.xml
 
 # Tomcat server.xml with the ContextFailureEventPublisher <Server> listener (emits a Kubernetes
-# Warning Event when a WAR context fails to start). Pinned copy of the tomcat:11.0.14 default —
+# Warning Event when a WAR context fails to start). Pinned copy of the tomcat:11.0.29 default (unchanged since 11.0.14) —
 # re-sync on a base-image Tomcat bump.
 COPY --chown=tomcat conf/server.xml /usr/local/tomcat/conf/server.xml
 
