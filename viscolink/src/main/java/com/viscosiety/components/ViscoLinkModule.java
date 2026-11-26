@@ -76,10 +76,7 @@ public class ViscoLinkModule implements Module {
         // lifecycle (started / closed / failed to start) from springLifecycleEvents.xml below.
         // springLocalFileSystemOverride.xml is TEMPORARY: it refuses to start when the LocalFileSystem
         // root-containment override is not the class that got loaded. Delete it with the override.
-        // springIbisManagerContextWiring.xml is TEMPORARY too: it works around F!F #12031 leaving
-        // IbisManager without its IbisContext (every reload fails). See IbisManagerContextWiring.
         return List.of("springStubbedRun.xml", "springConsoleSecurity.xml", "springPoolWaitLimit.xml",
-                "springLifecycleEvents.xml", "springApiListenerDefaults.xml", "springLocalFileSystemOverride.xml",
-                "springIbisManagerContextWiring.xml");
+                "springLifecycleEvents.xml", "springApiListenerDefaults.xml", "springLocalFileSystemOverride.xml");
     }
 }

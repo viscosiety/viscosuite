@@ -15,7 +15,7 @@ major version).
   stay). An image started without a login answers 401 to everyone. The compose files give one local
   user whose password must be set as `VISCO_ADMIN_PASSWORD` in `.env`; without it they refuse to
   start. A runtime that configures its own login, as the hosted platform does, is not affected.
-- Runs on a Frank!Framework 10.4 development build (upstream `master` at `5c3a3c474`, 24 November
+- Runs on a Frank!Framework 10.4 development build (upstream `master` at `5e30e4cbe`, 25 November
   2026) instead of the 10.3.0 release, to get today's upstream fixes: environment variables listed in
   `properties.hide` are hidden on the console's environment page, a configurable JDBC pool wait limit
   (`transactionmanager.jdbc.connection.maxWait`, default 30 s; ViscoSuite already set the same limit),
@@ -27,10 +27,9 @@ major version).
   Frank!Doc page and `/iaf/frankdoc/xml/xsd/FrankConfig.xsd` answer (the `aad5ad9fb` build had neither).
   Its configuration schema lists only the elements of the Frank!Framework modules the runtime ships, so
   elements of CMIS, nn-specials and batch (55 in all), which never loaded here, are no longer offered.
-  That commit also carries an upstream regression (#12031): `IbisManager` no longer gets its
-  `IbisContext`, so every configuration reload (console, configurations API, ViscoFoundry's draft switch)
-  failed with a NullPointerException. ViscoSuite sets it itself until upstream fixes it (temporary
-  `IbisManagerContextWiring`).
+  An earlier build of master (`5c3a3c474`) broke every configuration reload (#12031: console,
+  configurations API, ViscoFoundry's draft switch); this build carries the upstream fix (#12106), and
+  ViscoSuite's temporary workaround for it is gone again.
 - From Frank!Framework 10.4: `FileViewer.permission.rules` matches whole path elements (a rule for
   `/opt/logs` no longer also covers `/opt/logs-old`).
 
@@ -41,19 +40,13 @@ major version).
   `integration-test`, which publishing waits on: a build on which ViscoFoundry's drafts do not load is
   never published.
 
-### Fixed
-- Configuration reloads on Frank!Framework 10.4 master since #12031: `IbisManagerContextWiring`
-  (`springIbisManagerContextWiring.xml`, TEMPORARY) hands `IbisManager` the `IbisContext` once
-  `FrankApplicationInitializer` publishes it, and only when the manager has none. Found by
-  `DraftRefSwitchIT`. Remove it when the consumed build wires the manager again.
-
 ### Security
 - `application.security.http.authentication=true` and `csrf.enabled=true` in the images'
   `catalina.properties` (`viscorunner/src/scripts/catalinaAdditional.properties`); pinned by
   `LocWebSecurityTest`.
 
 ### Changed
-- Frank!Framework `10.3.0` → `10.4.0-20261124.5c3a3c474`, Ladybug `4.1-20261005.165608` →
+- Frank!Framework `10.3.0` → `10.4.0-20261125.5e30e4cbe`, Ladybug `4.1-20261005.165608` →
   `4.1-20261105.111401` (the build that commit uses); `FrankConfig.xsd` refreshed in all three copies;
   the health class-path golden follows the transitive version moves (no jar added or removed).
 - `GitClassLoader` no longer overrides `reload()`, which Frank!Framework 10.4 removed: a configuration
