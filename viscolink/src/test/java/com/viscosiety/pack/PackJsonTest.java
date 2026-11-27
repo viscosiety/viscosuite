@@ -91,8 +91,8 @@ class PackJsonTest {
 
     @Test
     void everyPackCarriesTheCoreFeatures() throws Exception {
-        assertEquals("[\"lemma\",\"lifecycle-events\",\"tunnel-api\"]", parse(new CorePack()).get("features").toString());
-        assertEquals("[\"lemma\",\"lifecycle-events\",\"tunnel-api\"]", parse(new HealthValuesPack()).get("features").toString());
+        assertEquals("[\"lemma\",\"lifecycle-events\",\"tunnel-api\",\"api-groups\"]", parse(new CorePack()).get("features").toString());
+        assertEquals("[\"lemma\",\"lifecycle-events\",\"tunnel-api\",\"api-groups\"]", parse(new HealthValuesPack()).get("features").toString());
     }
 
     @Test
