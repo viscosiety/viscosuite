@@ -21,7 +21,7 @@
         <micrometer.version>1.16.7</micrometer.version>
         <commons.logging.version>1.3.5</commons.logging.version>
         <postgresql.version>42.7.15</postgresql.version>
-        <tomcat_embed_version>10.1.59</tomcat_embed_version>
+        <tomcat_embed_version>10.1.62</tomcat_embed_version>
         <logback_version>1.5.25</logback_version>
     </properties>
 
