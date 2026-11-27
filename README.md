@@ -323,6 +323,15 @@ The latest release is **v1.3.0** (2026-11-22). It builds on Frank!Framework 10.3
 with a short plain-language summary ("In short"). The changelog is also published with each release as its
 release notes (`viscosuite-release-<version>-notes.md` beside the release's component list).
 
+### Dependency updates
+
+A bot (`renovate-bot`) proposes newer versions of the base image, the Maven libraries and the CI
+images every Monday: patch and minor versions as merge requests, major versions as ticks in the
+issue "Dependency dashboard". The rules are in `renovate.json`. A person reads and merges each
+one; a merge request that arrives red (a class path list that must be edited by hand, for
+instance) is finished by hand or closed. The Frank!Framework build and ViscoSuite's own artifacts
+are never proposed: they move by their own release steps.
+
 ## Community
 
 **This GitHub repository is the community home** — issues, discussions, releases and pull
