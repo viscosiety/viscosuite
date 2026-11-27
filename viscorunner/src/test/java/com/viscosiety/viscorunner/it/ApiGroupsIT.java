@@ -86,6 +86,27 @@ class ApiGroupsIT {
     }
 
     @Test
+    void thePathLockOnTheDefaultServletIsRegistered() throws Exception {
+        l.assertLogContains("api-groups: group paths answer 404 on the default servlet [ApiListenerServlet]");
+    }
+
+    @Test
+    void aDefaultEndpointWithAWildcardFirstSegmentIsNotServedThroughTheGroup() throws Exception {
+        for (boolean login : new boolean[] {false, true}) {
+            HttpResponse<String> r = get("/runtime/api/webhooks/secret", login);
+            assertEquals(404, r.statusCode(), "login " + login);
+            assertFalse(r.body().contains("default-secret"), r.body());
+        }
+        HttpResponse<String> doc = get("/runtime/api/webhooks/secret/openapi.json", false);
+        assertEquals(404, doc.statusCode());
+        assertFalse(doc.body().contains("{tenant}"), doc.body());
+        assertEquals(401, get("/runtime/api/acme/secret", false).statusCode());
+        HttpResponse<String> r = get("/runtime/api/acme/secret", true);
+        assertEquals(200, r.statusCode());
+        assertEquals("default-secret", r.body().trim());
+    }
+
+    @Test
     void groupEndpointAnswersAnonymousOnBothPrefixes() throws Exception {
         for (String prefix : new String[] {"/viscolink", "/runtime"}) {
             HttpResponse<String> r = get(prefix + "/api/webhooks/ping", false);

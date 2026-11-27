@@ -148,6 +148,8 @@ class ApiGroupRoutingTest {
     void anUnlistedGroupAndANameThatOnlyStartsLikeOneStayOnTheDefaultApi() throws Exception {
         assertEquals("api path=/orders", publicGet(main, "/runtime/api/orders", "application/json").body());
         assertEquals("api path=/webhooksx/a", publicGet(main, "/runtime/api/webhooksx/a", "application/json").body());
+        // Group names are lower case and the rule compares exactly: another case is not the group.
+        assertEquals("api path=/Webhooks/x", publicGet(main, "/runtime/api/Webhooks/x", "application/json").body());
     }
 
     @Test

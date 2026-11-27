@@ -58,15 +58,30 @@ public final class ApiGroupOpenApi {
 
     /** Server URL {@code <scheme>://<host>/runtime/api}: what callers use, never the internal /api-group path. */
     public static void write(HttpServletResponse response, String group, HttpServletRequest request) throws IOException {
-        String endpoint = request.getScheme() + "://" + request.getServerName()
-                + portPart(request) + request.getContextPath() + "/api";
         List<ApiDispatchConfig> documented = new ArrayList<>();
         for (ApiDispatchConfig config : configsOf(group, ApiServiceDispatcher.getInstance().getPatternClients().values())) {
             if (!TunnelOnlyApiFilter.hasTunnelListener(config)) {
                 documented.add(config);
             }
         }
-        JsonObject json = OpenApiGenerator.generateOpenApiJsonSchema(documented, endpoint);
+        writeJson(response, OpenApiGenerator.generateOpenApiJsonSchema(documented, endpointOf(request)));
+    }
+
+    /**
+     * The per-pattern document ({@code /runtime/api/<pattern>/openapi.json}) of one of the group's own patterns, with
+     * the same server URL as {@link #write}. The caller has checked that the pattern is the group's and has no tunnel
+     * listener.
+     */
+    public static void writePattern(HttpServletResponse response, ApiDispatchConfig config, HttpServletRequest request) throws IOException {
+        writeJson(response, OpenApiGenerator.generateOpenApiJsonSchema(List.of(config), endpointOf(request)));
+    }
+
+    private static String endpointOf(HttpServletRequest request) {
+        return request.getScheme() + "://" + request.getServerName()
+                + portPart(request) + request.getContextPath() + "/api";
+    }
+
+    private static void writeJson(HttpServletResponse response, JsonObject json) throws IOException {
         response.setStatus(HttpServletResponse.SC_OK);
         response.setHeader("Content-Type", "application/json");
         try (JsonWriter writer = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true))
