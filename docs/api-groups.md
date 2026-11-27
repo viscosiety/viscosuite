@@ -10,7 +10,7 @@ Without the setting nothing changes: no group servlet, no filter, no routing rul
 
 ## The setting
 
-The property (or environment variable) `visco.api.groups` is a comma-separated list of group names. It is read once, when the runtime starts; a change needs a restart.
+`visco.api.groups` is a comma-separated list of group names. It is read only as a JVM system property (`-Dvisco.api.groups=webhooks`), or else as an environment variable of that exact name. It is not a Frank!Framework property: a line in a property file (DeploymentSpecifics, catalina properties) is not seen. It is read once, when the runtime starts; a change needs a restart.
 
 - A name is lowercase letters, digits and `-`, starts with a letter and is 2 to 30 characters long.
 - `oauth2`, `openapi.json` and `api-service` are reserved and refused.
@@ -19,7 +19,7 @@ The property (or environment variable) `visco.api.groups` is a comma-separated l
 ## Addresses
 
 - `/runtime/api/<name>/...` is the address callers use. `/viscolink/api/<name>/...` works too.
-- `/runtime/api-group/<name>/...` reaches the same servlet with the same login. It is not an address anyone needs to give out, except that an OIDC group's sign-in callback arrives there.
+- `/runtime/api-group/<name>/...` reaches the same servlet with the same login. It is not an address anyone needs to give out. An OIDC group's sign-in callback is expected to arrive there (the OAuth2 authenticator builds its callback from a servlet mapping); this is not tested here.
 
 The image's routing rewrites the first two forms to the internal one, on the public port only (not on a tunnel port). A group name reserves that first segment: on `/api` itself a group path answers 404 (the default servlet never serves it).
 
@@ -29,7 +29,7 @@ Each group is a servlet `api-<name>`, secured only by its own settings:
 
 - `servlet.api-<name>.authenticator`
 - `servlet.api-<name>.securityRoles`
-- the authenticator must be in `application.security.http.authenticators`.
+- a named authenticator must be listed in `application.security.http.authenticators`; the built-in `NONE` needs no entry.
 
 Settings are per servlet because Frank!Framework attaches the login to the servlet: one servlet, one login. Always set the authenticator explicitly; without it Frank!Framework's default applies.
 
@@ -44,8 +44,9 @@ application.security.http.authenticators.basic.password=<password>
 servlet.ApiListenerServlet.authenticator=basic
 servlet.ApiListenerServlet.securityRoles=IbisTester
 servlet.api-webhooks.authenticator=NONE
-visco.api.groups=webhooks
 ```
+
+and, outside the property file, the JVM option `-Dvisco.api.groups=webhooks` (or the environment variable `visco.api.groups=webhooks`).
 
 ## What a listener does
 
