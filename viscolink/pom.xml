@@ -266,7 +266,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
-				<version>3.14.0</version>
+				<version>3.16.0</version>
 			</plugin>
 			<!-- TEMPORARY: unpack the ONE upstream source file the LocalFileSystem override copies, so the
 			     antrun execution below can hash it. Declared BEFORE maven-antrun-plugin because Maven runs
@@ -275,7 +275,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-dependency-plugin</artifactId>
-				<version>3.8.0</version>
+				<version>3.11.0</version>
 				<executions>
 					<execution>
 						<id>unpack-localfilesystem-upstream</id>
@@ -301,7 +301,7 @@
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-antrun-plugin</artifactId>
-				<version>3.1.0</version>
+				<version>3.2.0</version>
 				<executions>
 					<!-- TEMPORARY: upstream-drift gate for the LocalFileSystem override (see that class's
 					     banner). src/main/java/org/frankframework/filesystem/LocalFileSystem.java is a copy

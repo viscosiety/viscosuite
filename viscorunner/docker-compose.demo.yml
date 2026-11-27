@@ -21,7 +21,7 @@ services:
   # files are kept. The demo already requires network (image pulls/builds), so a
   # hard dependency is honest — and offline runs would fail earlier anyway.
   fhir-packages:
-    image: curlimages/curl:8.10.1
+    image: curlimages/curl:8.23.0
     # root: the image's default user (uid 100) cannot write a bind mount on native Linux
     user: "0:0"
     entrypoint: ["/bin/sh", "/fetch/download-packages.sh"]

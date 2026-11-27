@@ -465,7 +465,7 @@ cleanup:packages:
 # ---------------------------------------------------------------------------
 github-release:
   stage: downstream
-  image: alpine:3.20
+  image: alpine:3.24
   tags: [docker]
   rules:
     - if: '$CI_COMMIT_TAG'
