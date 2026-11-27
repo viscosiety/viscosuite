@@ -1,0 +1,40 @@
+<!DOCTYPE Configuration>
+
+<!-- Test configuration for ApiGroupsIT: one default endpoint and two in the group "webhooks". -->
+<Configuration name="apigroups">
+    <Adapter name="DefaultPing">
+        <Receiver name="DefaultPingReceiver">
+            <ApiListener name="defaultping" uriPattern="ping" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="default-ping"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="WebhooksPing">
+        <Receiver name="WebhooksPingReceiver">
+            <ApiListener name="webhooksping" uriPattern="webhooks/ping" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="webhooks-ping"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="WebhooksFeed">
+        <Receiver name="WebhooksFeedReceiver">
+            <ApiListener name="webhooksfeed" uriPattern="webhooks/feed" method="POST"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="webhooks-feed"/>
+        </Pipeline>
+    </Adapter>
+</Configuration>
