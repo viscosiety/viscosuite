@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.frankframework.visco.security;
+package com.viscosiety.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
