@@ -38,6 +38,9 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 
+import com.viscosiety.api.ApiGroupOpenApi;
+import com.viscosiety.api.ApiGroups;
+
 import org.frankframework.http.openapi.OpenApiGenerator;
 import org.frankframework.http.rest.ApiDispatchConfig;
 import org.frankframework.http.rest.ApiListener;
@@ -187,7 +190,7 @@ public class TunnelOnlyApiFilter implements Filter {
 
         if (OPENAPI.equalsIgnoreCase(uri)) {
             if (uriParameter == null) {
-                return anyTunnelListener(dispatcher.getPatternClients().values()) ? Decision.PUBLIC_OPENAPI : Decision.PASS;
+                return !ApiGroups.names().isEmpty() || anyTunnelListener(dispatcher.getPatternClients().values()) ? Decision.PUBLIC_OPENAPI : Decision.PASS;
             }
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(uriParameter))
                     ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
@@ -233,11 +236,11 @@ public class TunnelOnlyApiFilter implements Filter {
         return OPENAPI.equalsIgnoreCase(uri);
     }
 
-    /** The OpenAPI document of every pattern that has no tunnel listener at all. */
+    /** The OpenAPI document of every pattern that has no tunnel listener and is in no endpoint group. */
     public static JsonObject publicOpenApi(String endpoint) {
         List<ApiDispatchConfig> publicConfigs = new ArrayList<>();
         for (ApiDispatchConfig config : ApiServiceDispatcher.getInstance().getPatternClients().values()) {
-            if (!hasTunnelListener(config)) {
+            if (!hasTunnelListener(config) && !ApiGroupOpenApi.inAnyGroup(config)) {
                 publicConfigs.add(config);
             }
         }

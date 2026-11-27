@@ -19,6 +19,8 @@ package org.frankframework.visco.security;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.web.MockHttpServletRequest;
+import org.springframework.mock.web.MockHttpServletResponse;
 
 class ApiGroupServletTest {
 
@@ -34,5 +36,16 @@ class ApiGroupServletTest {
         assertEquals("/webhooks/github", ApiGroupServlet.pathFor("webhooks", "/github"));
         assertEquals("/webhooks", ApiGroupServlet.pathFor("webhooks", null));
         assertEquals("/webhooks", ApiGroupServlet.pathFor("webhooks", "/"));
+    }
+
+    @Test
+    void openApiIsTheGroupsOwnDocument() throws Exception {
+        MockHttpServletRequest request = new MockHttpServletRequest("GET", "/runtime/api-group/webhooks/openapi.json");
+        request.setContextPath("/runtime");
+        request.setPathInfo("/openapi.json");
+        MockHttpServletResponse response = new MockHttpServletResponse();
+        new ApiGroupServlet("webhooks").service(request, response);
+        assertEquals(200, response.getStatus());
+        assertEquals("application/json", response.getHeader("Content-Type"));
     }
 }
