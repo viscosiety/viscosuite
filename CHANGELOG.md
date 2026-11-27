@@ -7,6 +7,19 @@ major version).
 
 ## [Unreleased]
 
+## [1.3.2] — 2026-11-27
+
+### In short
+- An instance can have endpoint groups: extra sets of REST endpoints, each with its own login. A group
+  `webhooks` answers at `/runtime/api/webhooks/...` and can, for example, be public while the other
+  endpoints keep their login. Endpoint addresses do not change, and an instance without groups works as
+  before. Same Frank!Framework (10.3.0) and base image as 1.3.1.
+
+### Added
+- Endpoint groups: `visco.api.groups` names extra REST endpoint groups (`/runtime/api/<name>/...`), each
+  with its own login (`servlet.api-<name>.*`); release capability `apiGroups`, pack feature `api-groups`;
+  see `docs/api-groups.md`.
+
 ## [1.3.1] — 2026-11-26
 
 ### In short
