@@ -112,9 +112,14 @@ variables:
 test:
   stage: test
   image: maven:3.9-eclipse-temurin-25
+  # One heavy test job at a time in this project (shared with integration-test): two of them side by
+  # side starve the one runner and time out. A newer push to the same ref cancels a running `test`.
+  resource_group: heavy-tests
+  interruptible: true
   <<: *maven-cache
   before_script: *maven-before
-  tags: [docker]
+  # `heavy` = the builder's one-job-at-a-time runner entry, shared by every project.
+  tags: [docker, heavy]
   script:
     - sh scripts/ci/check-changelog.sh
     # Every Frank!Framework classpath override under viscolink/src/main/java/org/frankframework/ is
@@ -173,9 +178,12 @@ package:
 integration-test:
   stage: integration-test
   image: maven:3.9-eclipse-temurin-25
+  # Never beside another heavy test job (see `test`). Not interruptible: main and tag pipelines finish.
+  resource_group: heavy-tests
   <<: *maven-cache
   before_script: *maven-before
-  tags: [docker]
+  # `heavy` = the builder's one-job-at-a-time runner entry, shared by every project.
+  tags: [docker, heavy]
   script:
     - VERSION=$(sh scripts/ci/version.sh)
     - ./mvnw $MAVEN_CLI_OPTS -q $VERSIONS_PLUGIN:set -DnewVersion="$VERSION" -DprocessAllModules=true -DgenerateBackupPoms=false
