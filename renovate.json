@@ -71,6 +71,31 @@
       "enabled": false
     },
     {
+      "description": "A new minor version of a Maven library changes what the runtime ships or is tested with, and usually the hand-kept library lists too. Listed in the dashboard issue, one tick per library; never bundled.",
+      "matchManagers": [
+        "maven"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "groupName": null,
+      "dependencyDashboardApproval": true
+    },
+    {
+      "description": "Maven build plugins are not part of the runtime: their minor versions stay in the weekly merge request.",
+      "matchManagers": [
+        "maven"
+      ],
+      "matchDepTypes": [
+        "build"
+      ],
+      "matchUpdateTypes": [
+        "minor"
+      ],
+      "groupName": "weekly minor updates",
+      "dependencyDashboardApproval": false
+    },
+    {
       "description": "The base image's Tomcat and the Tomcat libraries the runner compiles and tests against move together, in a merge request of their own: it is the one bump that changes what every instance runs on.",
       "matchPackageNames": [
         "tomcat",
@@ -80,7 +105,8 @@
         "patch",
         "minor"
       ],
-      "groupName": "Tomcat"
+      "groupName": "Tomcat",
+      "dependencyDashboardApproval": false
     },
     {
       "description": "HAPI FHIR is one version for the store and the healthcare pack (hapi.version); ViscoForge's pack must follow it by hand.",
@@ -91,7 +117,8 @@
         "patch",
         "minor"
       ],
-      "groupName": "HAPI FHIR"
+      "groupName": "HAPI FHIR",
+      "dependencyDashboardApproval": false
     },
     {
       "description": "Look Maven versions up on Maven Central itself, not through the repositories the poms name: the caching proxy answers with the version list it last fetched, which gave a Tomcat merge request with three different versions (2026-11-27). Our own artifacts are held, so nothing needs the other repositories.",
