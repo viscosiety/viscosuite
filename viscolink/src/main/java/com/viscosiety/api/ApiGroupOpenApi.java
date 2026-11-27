@@ -29,6 +29,8 @@ import jakarta.json.stream.JsonGenerator;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import com.viscosiety.tunnel.TunnelOnlyApiFilter;
+
 import org.frankframework.http.openapi.OpenApiGenerator;
 import org.frankframework.http.rest.ApiDispatchConfig;
 import org.frankframework.http.rest.ApiServiceDispatcher;
@@ -58,8 +60,13 @@ public final class ApiGroupOpenApi {
     public static void write(HttpServletResponse response, String group, HttpServletRequest request) throws IOException {
         String endpoint = request.getScheme() + "://" + request.getServerName()
                 + portPart(request) + request.getContextPath() + "/api";
-        JsonObject json = OpenApiGenerator.generateOpenApiJsonSchema(
-                configsOf(group, ApiServiceDispatcher.getInstance().getPatternClients().values()), endpoint);
+        List<ApiDispatchConfig> documented = new ArrayList<>();
+        for (ApiDispatchConfig config : configsOf(group, ApiServiceDispatcher.getInstance().getPatternClients().values())) {
+            if (!TunnelOnlyApiFilter.hasTunnelListener(config)) {
+                documented.add(config);
+            }
+        }
+        JsonObject json = OpenApiGenerator.generateOpenApiJsonSchema(documented, endpoint);
         response.setStatus(HttpServletResponse.SC_OK);
         response.setHeader("Content-Type", "application/json");
         try (JsonWriter writer = Json.createWriterFactory(Map.of(JsonGenerator.PRETTY_PRINTING, true))
