@@ -209,8 +209,8 @@ class DockerfileContractTest {
                 "COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config"),
             "the rules ship with the runner image");
         assertTrue(read("Dockerfile.viscostore").contains(
-                "COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config"),
-            "and with the store-only image");
+                "COPY --chown=tomcat conf/viscostore/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config"),
+            "and its own copy (no endpoint-group map) with the store-only image");
         assertTrue(read("Dockerfile.viscostore").contains("COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/fhir-store.war"),
             "the store-only image serves the store at /fhir-store");
     }
