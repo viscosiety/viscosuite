@@ -24,7 +24,7 @@
 		<frankframework.version>10.4.0-20261125.5e30e4cbe</frankframework.version>
 		<!-- Check https://central.sonatype.com/namespace/ca.uhn.hapi.fhir for the latest release -->
 		<hapi.version>8.12.1</hapi.version>
-		<postgresql.version>42.7.4</postgresql.version>
+		<postgresql.version>42.7.15</postgresql.version>
 	</properties>
 
 	<!--
