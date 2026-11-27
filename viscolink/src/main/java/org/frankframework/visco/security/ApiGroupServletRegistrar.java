@@ -29,6 +29,7 @@ import org.frankframework.lifecycle.ServletManager;
 import org.frankframework.lifecycle.servlets.ServletConfiguration;
 import org.frankframework.util.SpringUtils;
 
+import com.viscosiety.api.ApiGroupServlet;
 import com.viscosiety.api.ApiGroups;
 
 /** Registers one {@link ApiGroupServlet} per listed group (viscoFoundry spec 2026-11-27 api-endpoint-groups). */

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.frankframework.visco.security;
+package com.viscosiety.api;
 
 import java.io.IOException;
 import java.io.Serial;
@@ -30,7 +30,9 @@ import org.frankframework.http.rest.ApiListenerServlet;
  * this servlet's mapping {@code /api-group/<group>/*}) under the group's own login
  * ({@code servlet.api-<group>.authenticator}, {@code .securityRoles}). It serves the same listeners as {@code /api/*}:
  * the dispatcher sees the full path {@code /<group>/...}, so a listener keeps its own uriPattern. Not an
- * {@code @IbisInitializer}: {@link ApiGroupServletRegistrar} creates one per listed group.
+ * {@code @IbisInitializer}: {@link org.frankframework.visco.security.ApiGroupServletRegistrar} creates one per listed
+ * group. It lives outside {@code org.frankframework} because {@code @IbisInitializer} is inherited from
+ * {@code ApiListenerServlet} and a scanned subclass with a constructor argument stops the whole runtime from starting.
  */
 public class ApiGroupServlet extends ApiListenerServlet {
 
@@ -64,7 +66,7 @@ public class ApiGroupServlet extends ApiListenerServlet {
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
         String pathInfo = request.getPathInfo();
         if (pathInfo != null && pathInfo.equalsIgnoreCase("/openapi.json")) {
-            com.viscosiety.api.ApiGroupOpenApi.write(response, group, request);
+            ApiGroupOpenApi.write(response, group, request);
             return;
         }
         String full = pathFor(group, pathInfo);
