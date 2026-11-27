@@ -42,10 +42,26 @@ public final class ApiGroups {
     private ApiGroups() {
     }
 
-    /** Read on every call: the property is set before the runtime starts. */
+    private static volatile List<String> cached;
+
+    /** Read once, at first use: the property is set before the runtime starts. */
     public static List<String> names() {
-        String raw = System.getProperty(PROPERTY);
-        return parse(raw != null ? raw : System.getenv(PROPERTY));
+        List<String> result = cached;
+        if (result == null) {
+            synchronized (ApiGroups.class) {
+                result = cached;
+                if (result == null) {
+                    String raw = System.getProperty(PROPERTY);
+                    result = List.copyOf(parse(raw != null ? raw : System.getenv(PROPERTY)));
+                    cached = result;
+                }
+            }
+        }
+        return result;
+    }
+
+    static void resetForTests() {
+        cached = null;
     }
 
     public static List<String> parse(String raw) {
