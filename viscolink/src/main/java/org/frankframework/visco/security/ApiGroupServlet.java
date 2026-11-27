@@ -62,7 +62,12 @@ public class ApiGroupServlet extends ApiListenerServlet {
 
     @Override
     protected void service(HttpServletRequest request, HttpServletResponse response) throws IOException {
-        String full = pathFor(group, request.getPathInfo());
+        String pathInfo = request.getPathInfo();
+        if (pathInfo != null && pathInfo.equalsIgnoreCase("/openapi.json")) {
+            com.viscosiety.api.ApiGroupOpenApi.write(response, group, request);
+            return;
+        }
+        String full = pathFor(group, pathInfo);
         super.service(new HttpServletRequestWrapper(request) {
             @Override
             public String getPathInfo() {
