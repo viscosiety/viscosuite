@@ -28,6 +28,7 @@ class ApiGroupsTest {
     @AfterEach
     void clear() {
         System.clearProperty(ApiGroups.PROPERTY);
+        ApiGroups.resetForTests();
     }
 
     @Test
@@ -51,6 +52,7 @@ class ApiGroupsTest {
 
     @Test
     void groupOfReadsTheFirstSegment() {
+        ApiGroups.resetForTests();
         System.setProperty(ApiGroups.PROPERTY, "webhooks");
         assertEquals("webhooks", ApiGroups.groupOf("/webhooks/github"));
         assertEquals("webhooks", ApiGroups.groupOf("/webhooks"));
@@ -59,5 +61,14 @@ class ApiGroupsTest {
         assertNull(ApiGroups.groupOf("/orders"));
         assertNull(ApiGroups.groupOf(null));
         assertNull(ApiGroups.groupOf("/openapi.json"));
+    }
+
+    @Test
+    void namesAreReadOnce() {
+        ApiGroups.resetForTests();
+        System.setProperty(ApiGroups.PROPERTY, "webhooks");
+        assertEquals(List.of("webhooks"), ApiGroups.names());
+        System.setProperty(ApiGroups.PROPERTY, "orders");
+        assertEquals(List.of("webhooks"), ApiGroups.names());
     }
 }
