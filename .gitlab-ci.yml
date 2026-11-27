@@ -118,8 +118,9 @@ test:
   interruptible: true
   <<: *maven-cache
   before_script: *maven-before
-  # `heavy` = the builder's one-job-at-a-time runner entry, shared by every project.
-  tags: [docker, heavy]
+  # `heavy` alone: the builder's one-job-at-a-time runner entry carries no other tag, so only
+  # heavy jobs of any project fit it. Never add a second tag here.
+  tags: [heavy]
   script:
     - sh scripts/ci/check-changelog.sh
     # Every Frank!Framework classpath override under viscolink/src/main/java/org/frankframework/ is
@@ -182,8 +183,9 @@ integration-test:
   resource_group: heavy-tests
   <<: *maven-cache
   before_script: *maven-before
-  # `heavy` = the builder's one-job-at-a-time runner entry, shared by every project.
-  tags: [docker, heavy]
+  # `heavy` alone: the builder's one-job-at-a-time runner entry carries no other tag, so only
+  # heavy jobs of any project fit it. Never add a second tag here.
+  tags: [heavy]
   script:
     - VERSION=$(sh scripts/ci/version.sh)
     - ./mvnw $MAVEN_CLI_OPTS -q $VERSIONS_PLUGIN:set -DnewVersion="$VERSION" -DprocessAllModules=true -DgenerateBackupPoms=false
