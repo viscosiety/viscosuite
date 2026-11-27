@@ -4,7 +4,7 @@
     "image": "${BASE_IMAGE}",
     "digest": "${BASE_DIGEST}",
     "version": "${VERSION}",
-    "servlets": ["ApiListenerServlet", "WebContentServlet", "configRef", "larvaRun", "agentApi", "pack", "tunnelApi"]
+    "servlets": ["ApiListenerServlet", "WebContentServlet", "configRef", "larvaRun", "agentApi", "pack", "tunnelApi", "apiGroups"]
   },
   "suiteRelease": null,
   "components": [

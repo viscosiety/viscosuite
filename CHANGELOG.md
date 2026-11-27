@@ -7,6 +7,11 @@ major version).
 
 ## [Unreleased]
 
+### Added
+- Endpoint groups: `visco.api.groups` names extra REST endpoint groups (`/runtime/api/<name>/...`), each
+  with its own login (`servlet.api-<name>.*`); release capability `apiGroups`, pack feature `api-groups`;
+  see `docs/api-groups.md`.
+
 ## [1.3.1] — 2026-11-26
 
 ### In short
