@@ -72,7 +72,7 @@ public class TunnelOnlyApiFilter implements Filter {
 
     private static final String OPENAPI = "/openapi.json";
     /** The servlet's own answer for an OpenAPI document of a pattern that does not exist. */
-    static final String OPENAPI_NOT_FOUND_MESSAGE = "OpenApi specification not found";
+    public static final String OPENAPI_NOT_FOUND_MESSAGE = "OpenApi specification not found";
 
     @Override
     public void doFilter(ServletRequest servletRequest, ServletResponse servletResponse, FilterChain chain)
@@ -106,7 +106,11 @@ public class TunnelOnlyApiFilter implements Filter {
         if (httpMethod == null || uri == null || uri.endsWith("openapi.json") || OPENAPI.equalsIgnoreCase(uri)) {
             return Set.of();
         }
-        ApiDispatchConfig config = ApiServiceDispatcher.getInstance().findConfigForRequest(httpMethod, uri);
+        return tunnelMethodsOf(ApiServiceDispatcher.getInstance().findConfigForRequest(httpMethod, uri));
+    }
+
+    /** The methods of a pattern that are served by a {@link TunnelApiListener} (empty for null). */
+    public static Set<String> tunnelMethodsOf(ApiDispatchConfig config) {
         if (config == null) {
             return Set.of();
         }
@@ -145,11 +149,14 @@ public class TunnelOnlyApiFilter implements Filter {
         return kept.isEmpty() ? null : String.join(", ", kept);
     }
 
-    /** Leaves the tunnel-only methods out of the {@code Allow} and {@code Access-Control-Allow-Methods} headers. */
-    static final class TunnelMethodHidingResponse extends HttpServletResponseWrapper {
+    /**
+     * Leaves the tunnel-only methods out of the {@code Allow} and {@code Access-Control-Allow-Methods} headers. Public
+     * for the endpoint-group servlets, which serve the same patterns without this filter in front.
+     */
+    public static final class TunnelMethodHidingResponse extends HttpServletResponseWrapper {
         private final Set<String> hidden;
 
-        TunnelMethodHidingResponse(HttpServletResponse response, Set<String> hidden) {
+        public TunnelMethodHidingResponse(HttpServletResponse response, Set<String> hidden) {
             super(response);
             this.hidden = Set.copyOf(hidden);
         }
@@ -207,7 +214,15 @@ public class TunnelOnlyApiFilter implements Filter {
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(pattern)) ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
         }
 
-        ApiDispatchConfig config = dispatcher.findConfigForRequest(httpMethod, uri);
+        return decideForConfig(dispatcher.findConfigForRequest(httpMethod, uri), httpMethod);
+    }
+
+    /**
+     * The decision for a request with the given method that the dispatcher matched to {@code config} (null: no
+     * pattern, PASS so the servlet answers its own 404): NOT_FOUND when the method's listener is tunnel-only, or when
+     * the pattern has no listener for the method and all its listeners are tunnel-only (no 405 hint).
+     */
+    public static Decision decideForConfig(ApiDispatchConfig config, ApiListener.HttpMethod httpMethod) {
         if (config == null) {
             return Decision.PASS;
         }
@@ -218,7 +233,8 @@ public class TunnelOnlyApiFilter implements Filter {
         return onlyTunnelListeners(config) ? Decision.NOT_FOUND : Decision.PASS;
     }
 
-    private static ApiListener.HttpMethod parseMethod(String method) {
+    /** As {@code ApiListenerServlet.service}: the method parsed case-insensitively; null for an unknown method. */
+    public static ApiListener.HttpMethod parseMethod(String method) {
         try {
             return EnumUtils.parse(ApiListener.HttpMethod.class, method);
         } catch (IllegalArgumentException e) {
@@ -227,7 +243,7 @@ public class TunnelOnlyApiFilter implements Filter {
     }
 
     /** Path info with one trailing slash removed; null when nothing is left. */
-    private static String cleanUri(String pathInfo) {
+    public static String cleanUri(String pathInfo) {
         if (pathInfo == null || pathInfo.isEmpty()) {
             return null;
         }

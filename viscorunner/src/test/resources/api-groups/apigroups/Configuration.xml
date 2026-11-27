@@ -1,6 +1,8 @@
 <!DOCTYPE Configuration>
 
-<!-- Test configuration for ApiGroupsIT: one default endpoint and two in the group "webhooks". -->
+<!-- Test configuration for ApiGroupsIT: two default endpoints and two in the group "webhooks". The default
+     endpoint {tenant}/secret has a wildcard first segment: the dispatcher would also match it for /webhooks/secret,
+     and the group servlet must not serve it. -->
 <Configuration name="apigroups">
     <Adapter name="DefaultPing">
         <Receiver name="DefaultPingReceiver">
@@ -11,6 +13,18 @@
                 <Exit name="Exit" state="SUCCESS" code="200"/>
             </Exits>
             <EchoPipe name="answer" getInputFromFixedValue="default-ping"/>
+        </Pipeline>
+    </Adapter>
+
+    <Adapter name="DefaultSecret">
+        <Receiver name="DefaultSecretReceiver">
+            <ApiListener name="defaultsecret" uriPattern="{tenant}/secret" method="GET"/>
+        </Receiver>
+        <Pipeline>
+            <Exits>
+                <Exit name="Exit" state="SUCCESS" code="200"/>
+            </Exits>
+            <EchoPipe name="answer" getInputFromFixedValue="default-secret"/>
         </Pipeline>
     </Adapter>
 
