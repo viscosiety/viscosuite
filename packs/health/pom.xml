@@ -19,7 +19,7 @@
 		<frankframework.version>10.4.0-20261125.5e30e4cbe</frankframework.version>
 		<ladybug.version>4.1-20261105.111401</ladybug.version>
 		<hapi.version>8.12.1</hapi.version>
-		<junit.version>5.14.1</junit.version>
+		<junit.version>5.14.4</junit.version>
 		<maven.compiler.source>21</maven.compiler.source>
 		<maven.compiler.target>21</maven.compiler.target>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -58,13 +58,13 @@
 			<dependency>
 				<groupId>org.junit.platform</groupId>
 				<artifactId>junit-platform-engine</artifactId>
-				<version>1.14.1</version>
+				<version>1.14.4</version>
 				<scope>test</scope>
 			</dependency>
 			<dependency>
 				<groupId>org.junit.platform</groupId>
 				<artifactId>junit-platform-launcher</artifactId>
-				<version>1.14.1</version>
+				<version>1.14.4</version>
 				<scope>test</scope>
 			</dependency>
 			<!-- Pin to the specific official snapshot with #814 (offset pagination) merged,
