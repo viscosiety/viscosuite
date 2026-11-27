@@ -88,4 +88,23 @@ class ApiGroupOpenApiTest {
             assertFalse(ApiGroupOpenApi.inAnyGroup(c));
         }
     }
+
+    @Test
+    void theGroupsDocumentLeavesOutTunnelOnlyEndpoints() throws Exception {
+        register("/webhooks/github");
+        ApiListener tunnel = new com.viscosiety.tunnel.TunnelApiListener();
+        Adapter adapter = mock(Adapter.class);
+        when(adapter.getPipeLine()).thenReturn(mock(PipeLine.class));
+        tunnel.setAdapter(adapter);
+        tunnel.setUriPattern("/webhooks/feed");
+        tunnel.setMethod(HttpMethod.POST);
+        ApiServiceDispatcher.getInstance().registerServiceClient(tunnel);
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest("GET", "/runtime/api-group/webhooks/openapi.json");
+        request.setContextPath("/runtime");
+        org.springframework.mock.web.MockHttpServletResponse response = new org.springframework.mock.web.MockHttpServletResponse();
+        ApiGroupOpenApi.write(response, "webhooks", request);
+        String body = response.getContentAsString();
+        assertTrue(body.contains("/webhooks/github"), body);
+        assertFalse(body.contains("/webhooks/feed"), body);
+    }
 }

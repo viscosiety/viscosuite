@@ -192,11 +192,18 @@ public class TunnelOnlyApiFilter implements Filter {
             if (uriParameter == null) {
                 return !ApiGroups.names().isEmpty() || anyTunnelListener(dispatcher.getPatternClients().values()) ? Decision.PUBLIC_OPENAPI : Decision.PASS;
             }
+            String wanted = uriParameter.startsWith("/") ? uriParameter : "/" + uriParameter;
+            if (ApiGroups.groupOf(wanted) != null) {
+                return Decision.OPENAPI_NOT_FOUND;
+            }
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(uriParameter))
                     ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
         }
         if (uri.endsWith("openapi.json")) {
             String pattern = uri.substring(0, uri.lastIndexOf('/'));
+            if (ApiGroups.groupOf(pattern.startsWith("/") ? pattern : "/" + pattern) != null) {
+                return Decision.OPENAPI_NOT_FOUND;
+            }
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(pattern)) ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
         }
 
@@ -256,7 +263,8 @@ public class TunnelOnlyApiFilter implements Filter {
         return false;
     }
 
-    private static boolean hasTunnelListener(ApiDispatchConfig config) {
+    /** True when any method of the pattern is served by a {@link TunnelApiListener}. */
+    public static boolean hasTunnelListener(ApiDispatchConfig config) {
         if (config == null) {
             return false;
         }

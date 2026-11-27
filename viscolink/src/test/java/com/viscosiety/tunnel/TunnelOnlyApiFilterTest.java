@@ -246,4 +246,15 @@ class TunnelOnlyApiFilterTest {
         assertFalse(paths.containsKey("/webhooks/github"), paths.toString());
         assertEquals(PUBLIC_OPENAPI, decide("GET", "/openapi.json", null));
     }
+
+    @Test
+    void perPatternOpenApiOfAGroupEndpointIsNotFoundOnTheDefaultServlet() {
+        ApiGroupsTestSupport.reset();
+        System.setProperty(ApiGroups.PROPERTY, "webhooks");
+        register(new ApiListener(), "/webhooks/github", HttpMethod.POST);
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "/webhooks/github"));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "webhooks/github"));
+        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/webhooks/github/openapi.json", null));
+        assertEquals(PASS, decide("GET", "/openapi.json", "/orders"));
+    }
 }
