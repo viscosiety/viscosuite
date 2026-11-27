@@ -18,13 +18,9 @@ package com.viscosiety.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.List;
 
-import org.frankframework.core.Adapter;
-import org.frankframework.core.PipeLine;
 import org.frankframework.http.rest.ApiDispatchConfig;
 import org.frankframework.http.rest.ApiListener;
 import org.frankframework.http.rest.ApiListener.HttpMethod;
@@ -50,9 +46,6 @@ class ApiGroupOpenApiTest {
 
     private static void register(String pattern) {
         ApiListener listener = new ApiListener();
-        Adapter adapter = mock(Adapter.class);
-        when(adapter.getPipeLine()).thenReturn(mock(PipeLine.class));
-        listener.setAdapter(adapter);
         listener.setUriPattern(pattern);
         listener.setMethod(HttpMethod.POST);
         ApiServiceDispatcher.getInstance().registerServiceClient(listener);
@@ -93,9 +86,6 @@ class ApiGroupOpenApiTest {
     void theGroupsDocumentLeavesOutTunnelOnlyEndpoints() throws Exception {
         register("/webhooks/github");
         ApiListener tunnel = new com.viscosiety.tunnel.TunnelApiListener();
-        Adapter adapter = mock(Adapter.class);
-        when(adapter.getPipeLine()).thenReturn(mock(PipeLine.class));
-        tunnel.setAdapter(adapter);
         tunnel.setUriPattern("/webhooks/feed");
         tunnel.setMethod(HttpMethod.POST);
         ApiServiceDispatcher.getInstance().registerServiceClient(tunnel);

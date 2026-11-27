@@ -19,16 +19,12 @@ package com.viscosiety.api;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
 import com.viscosiety.tunnel.TunnelApiListener;
-import org.frankframework.core.Adapter;
-import org.frankframework.core.PipeLine;
 import org.frankframework.core.PipeLineSession;
 import org.frankframework.http.HttpEntityType;
 import org.frankframework.http.mime.HttpEntityFactory;
@@ -96,9 +92,6 @@ class ApiGroupServletTest {
     }
 
     private static void register(ApiListener listener, String name, String pattern, HttpMethod method) {
-        Adapter adapter = mock(Adapter.class);
-        when(adapter.getPipeLine()).thenReturn(mock(PipeLine.class));
-        listener.setAdapter(adapter);
         listener.setName(name);
         listener.setUriPattern(pattern);
         listener.setMethod(method);
