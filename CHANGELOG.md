@@ -40,6 +40,9 @@ major version).
   and can go in a later release.
 
 ### Added
+- Endpoint groups: `visco.api.groups` names extra REST endpoint groups (`/runtime/api/<name>/...`), each
+  with its own login (`servlet.api-<name>.*`); release capability `apiGroups`, pack feature `api-groups`;
+  see `docs/api-groups.md`.
 - `DraftRefSwitchIT`: the real runtime loads a configuration from git with `GitClassLoader`, switches to a
   draft branch and back through `/api-service/configurations/ref`, and reloads onto a new commit of main,
   each step checked by the configuration's own answer. It runs in the merge-request `test` job and in
