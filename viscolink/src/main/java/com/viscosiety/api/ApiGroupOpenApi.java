@@ -51,11 +51,6 @@ public final class ApiGroupOpenApi {
         return mine;
     }
 
-    public static boolean inAnyGroup(ApiDispatchConfig config) {
-        String first = firstSegment(config.getUriPattern());
-        return first != null && ApiGroups.names().contains(first);
-    }
-
     /** Server URL {@code <scheme>://<host>/runtime/api}: what callers use, never the internal /api-group path. */
     public static void write(HttpServletResponse response, String group, HttpServletRequest request) throws IOException {
         List<ApiDispatchConfig> documented = new ArrayList<>();

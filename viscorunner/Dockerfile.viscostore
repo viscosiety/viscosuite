@@ -38,7 +38,7 @@ RUN BUILD_TS="${BUILD_TIMESTAMP:-$(date -u '+%Y-%m-%d %H:%M UTC')}"; \
 # Served at /fhir-store (neutral web path, 2026-10-28); the old /viscostore keeps working through the
 # Host's RewriteValve, added to this image's stock server.xml (see the runner Dockerfile for the rules).
 COPY --chown=tomcat target/viscostore.war /usr/local/tomcat/webapps/fhir-store.war
-COPY --chown=tomcat conf/viscostore/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
+COPY --chown=tomcat conf/Catalina/localhost/rewrite.config /usr/local/tomcat/conf/Catalina/localhost/rewrite.config
 RUN set -e; f=/usr/local/tomcat/conf/server.xml; \
     sed -i 's#<Valve className="org.apache.catalina.valves.AccessLogValve"#<Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />\n        <Valve className="org.apache.catalina.valves.AccessLogValve"#' "$f"; \
     grep -q '^        <Valve className="org.apache.catalina.valves.rewrite.RewriteValve" />$' "$f" || { echo "ERROR: no RewriteValve in $f; re-check after a base-image bump"; exit 1; }

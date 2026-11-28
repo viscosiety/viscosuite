@@ -63,6 +63,15 @@ class SingleServletGroupsIT {
 
     @Test
     void publicGroupEnforcesOwnership() throws Exception {
+        runtime.assertLogLacks("registered servlet [api-webhooks]");
+        assertEquals(200, runtime.send(runtime.http, TunnelApiLauncher.get(
+                runtime.open("/viscolink/api/webhooks/ping"), null, null)).statusCode());
+        // Unmapped runtime URLs can be challenged by the container before it returns a 404.
+        int unmapped = runtime.send(runtime.http, TunnelApiLauncher.get(
+                runtime.open("/runtime/unmapped-servlet/ping"), null, null)).statusCode();
+        assertTrue(unmapped >= 400);
+        assertEquals(unmapped, runtime.send(runtime.http, TunnelApiLauncher.get(
+                runtime.open("/runtime/api-group/webhooks/ping"), null, null)).statusCode());
         assertEquals(403, get("ping", true));
         assertEquals(403, get("webhooks-extra/ping", false));
         assertEquals(404, get("webhooks/secret", false));

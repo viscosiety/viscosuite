@@ -38,6 +38,14 @@ class GroupedApiTest {
     }
 
     @Test
+    void legacyGroupListFailsEvenWithoutGroupedMode() {
+        var env = new MockEnvironment().withProperty("visco.api.groups", "webhooks");
+        var failure = assertThrows(IllegalArgumentException.class, () ->
+                GroupedApi.install(mock(ServletConfiguration.class), env, null, Map.of(), roles -> {}));
+        assertTrue(failure.getMessage().contains("servlet.ApiListenerServlet.authenticationGroups"));
+    }
+
+    @Test
     void groupedModeRequiresAnExplicitGroupList() {
         var config = mock(ServletConfiguration.class);
         when(config.getAuthenticatorName()).thenReturn("GROUPED");

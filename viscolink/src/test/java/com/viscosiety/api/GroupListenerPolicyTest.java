@@ -44,8 +44,8 @@ import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
 import org.springframework.mock.web.MockServletConfig;
 
-/** The group servlet against the real {@link ApiServiceDispatcher}, parent servlet included. */
-class ApiGroupServletTest {
+/** The group filter in front of the actual servlet and {@link ApiServiceDispatcher}. */
+class GroupListenerPolicyTest {
 
     private boolean stageSet;
 
@@ -72,8 +72,6 @@ class ApiGroupServletTest {
 
     private static void clear() {
         ApiServiceDispatcher.getInstance().clear();
-        System.clearProperty(ApiGroups.PROPERTY);
-        ApiGroupsTestSupport.reset();
         RAN.clear();
     }
 
@@ -105,35 +103,17 @@ class ApiGroupServletTest {
         ApiServiceDispatcher.getInstance().registerServiceClient(listener);
     }
 
-    private static ApiGroupServlet servlet() throws Exception {
-        ApiGroupServlet servlet = new ApiGroupServlet("webhooks");
-        servlet.init(new MockServletConfig());
-        return servlet;
-    }
-
-    /** A request as it arrives after the rewrite: /runtime/api-group/webhooks/<rest>. */
     private static MockHttpServletResponse call(String method, String rest) throws Exception {
-        MockHttpServletRequest request = new MockHttpServletRequest(method, "/runtime/api-group/webhooks" + rest);
+        String path = "/webhooks" + rest;
+        var request = new MockHttpServletRequest(method, "/runtime/api" + path);
         request.setContextPath("/runtime");
-        request.setServletPath("/api-group/webhooks");
-        request.setPathInfo(rest);
-        MockHttpServletResponse response = new MockHttpServletResponse();
-        servlet().service(request, response);
+        request.setServletPath("/api");
+        request.setPathInfo(path);
+        var response = new MockHttpServletResponse();
+        var servlet = new org.frankframework.http.rest.ApiListenerServlet();
+        servlet.init(new MockServletConfig());
+        new GroupedApi(java.util.Map.of("webhooks", List.of())).doFilter(request, response, servlet::service);
         return response;
-    }
-
-    @Test
-    void nameAndMappingFollowTheGroup() {
-        ApiGroupServlet servlet = new ApiGroupServlet("webhooks");
-        assertEquals("api-webhooks", servlet.getName());
-        assertEquals("/api-group/webhooks/*", servlet.getUrlMapping());
-    }
-
-    @Test
-    void theDispatcherSeesTheFullPath() {
-        assertEquals("/webhooks/github", ApiGroupServlet.pathFor("webhooks", "/github"));
-        assertEquals("/webhooks", ApiGroupServlet.pathFor("webhooks", null));
-        assertEquals("/webhooks", ApiGroupServlet.pathFor("webhooks", "/"));
     }
 
     @Test
@@ -242,10 +222,10 @@ class ApiGroupServletTest {
 
     @Test
     void checkPassesWhatTheParentAnswersItself() {
-        assertEquals(ApiGroupServlet.Action.PASS, ApiGroupServlet.check("webhooks", "BREW", "/webhooks/x").action());
-        assertEquals(ApiGroupServlet.Action.PASS, ApiGroupServlet.check("webhooks", "GET", "/webhooks/x").action());
+        assertEquals(GroupListenerPolicy.Action.PASS, GroupListenerPolicy.check("webhooks", "BREW", "/webhooks/x").action());
+        assertEquals(GroupListenerPolicy.Action.PASS, GroupListenerPolicy.check("webhooks", "GET", "/webhooks/x").action());
         register(new Answering(), "group-mixed-get", "webhooks/mixed", HttpMethod.GET);
         register(new TunnelApiListener(), "group-mixed-post", "webhooks/mixed", HttpMethod.POST);
-        assertEquals(Set.of("POST"), ApiGroupServlet.check("webhooks", "GET", "/webhooks/mixed").hiddenMethods());
+        assertEquals(Set.of("POST"), GroupListenerPolicy.check("webhooks", "GET", "/webhooks/mixed").hiddenMethods());
     }
 }

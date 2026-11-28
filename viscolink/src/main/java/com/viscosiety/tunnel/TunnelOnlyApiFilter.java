@@ -38,8 +38,6 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpServletResponseWrapper;
 
-import com.viscosiety.api.ApiGroupOpenApi;
-import com.viscosiety.api.ApiGroups;
 
 import org.frankframework.http.openapi.OpenApiGenerator;
 import org.frankframework.http.rest.ApiDispatchConfig;
@@ -156,7 +154,7 @@ public class TunnelOnlyApiFilter implements Filter {
 
     /**
      * Leaves the tunnel-only methods out of the {@code Allow} and {@code Access-Control-Allow-Methods} headers. Public
-     * for the endpoint-group servlets, which serve the same patterns without this filter in front.
+     * for the grouped API policy, which checks ownership and tunnel visibility together.
      */
     public static final class TunnelMethodHidingResponse extends HttpServletResponseWrapper {
         private final Set<String> hidden;
@@ -202,20 +200,13 @@ public class TunnelOnlyApiFilter implements Filter {
 
         if (OPENAPI.equalsIgnoreCase(uri)) {
             if (uriParameter == null) {
-                return !ApiGroups.names().isEmpty() || anyTunnelListener(dispatcher.getPatternClients().values()) ? Decision.PUBLIC_OPENAPI : Decision.PASS;
-            }
-            String wanted = uriParameter.startsWith("/") ? uriParameter : "/" + uriParameter;
-            if (ApiGroups.groupOf(wanted) != null) {
-                return Decision.OPENAPI_NOT_FOUND;
+                return anyTunnelListener(dispatcher.getPatternClients().values()) ? Decision.PUBLIC_OPENAPI : Decision.PASS;
             }
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(uriParameter))
                     ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
         }
         if (uri.endsWith("openapi.json")) {
             String pattern = uri.substring(0, uri.lastIndexOf('/'));
-            if (ApiGroups.groupOf(pattern.startsWith("/") ? pattern : "/" + pattern) != null) {
-                return Decision.OPENAPI_NOT_FOUND;
-            }
             return hasTunnelListener(dispatcher.findExactMatchingConfigForUri(pattern)) ? Decision.OPENAPI_NOT_FOUND : Decision.PASS;
         }
 
@@ -264,11 +255,11 @@ public class TunnelOnlyApiFilter implements Filter {
         return OPENAPI.equalsIgnoreCase(uri);
     }
 
-    /** The OpenAPI document of every pattern that has no tunnel listener and is in no endpoint group. */
+    /** The OpenAPI document of every pattern that has no tunnel listener. */
     public static JsonObject publicOpenApi(String endpoint) {
         List<ApiDispatchConfig> publicConfigs = new ArrayList<>();
         for (ApiDispatchConfig config : ApiServiceDispatcher.getInstance().getPatternClients().values()) {
-            if (!hasTunnelListener(config) && !ApiGroupOpenApi.inAnyGroup(config)) {
+            if (!hasTunnelListener(config)) {
                 publicConfigs.add(config);
             }
         }

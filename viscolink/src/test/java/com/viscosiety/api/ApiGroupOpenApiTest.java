@@ -37,14 +37,11 @@ class ApiGroupOpenApiTest {
 
     @BeforeEach
     void before() {
-        ApiGroupsTestSupport.reset();
         ApiServiceDispatcher.getInstance().clear();
     }
 
     @AfterEach
     void after() {
-        System.clearProperty(ApiGroups.PROPERTY);
-        ApiGroupsTestSupport.reset();
         ApiServiceDispatcher.getInstance().clear();
     }
 
@@ -75,21 +72,6 @@ class ApiGroupOpenApiTest {
     }
 
     @Test
-    void inAnyGroupFollowsTheProperty() {
-        register("/webhooks/github");
-        register("/orders");
-        System.setProperty(ApiGroups.PROPERTY, "webhooks");
-        for (ApiDispatchConfig c : all()) {
-            assertEquals(c.getUriPattern().startsWith("/webhooks"), ApiGroupOpenApi.inAnyGroup(c));
-        }
-        System.clearProperty(ApiGroups.PROPERTY);
-        ApiGroupsTestSupport.reset();
-        for (ApiDispatchConfig c : all()) {
-            assertFalse(ApiGroupOpenApi.inAnyGroup(c));
-        }
-    }
-
-    @Test
     void theGroupsDocumentLeavesOutTunnelOnlyEndpoints() throws Exception {
         register("/webhooks/github");
         ApiListener tunnel = new com.viscosiety.tunnel.TunnelApiListener();
@@ -99,7 +81,7 @@ class ApiGroupOpenApiTest {
         tunnel.setUriPattern("/webhooks/feed");
         tunnel.setMethod(HttpMethod.POST);
         ApiServiceDispatcher.getInstance().registerServiceClient(tunnel);
-        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest("GET", "/runtime/api-group/webhooks/openapi.json");
+        org.springframework.mock.web.MockHttpServletRequest request = new org.springframework.mock.web.MockHttpServletRequest("GET", "/runtime/api/webhooks/openapi.json");
         request.setContextPath("/runtime");
         org.springframework.mock.web.MockHttpServletResponse response = new org.springframework.mock.web.MockHttpServletResponse();
         ApiGroupOpenApi.write(response, "webhooks", request);

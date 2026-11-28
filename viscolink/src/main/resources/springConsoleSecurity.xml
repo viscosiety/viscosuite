@@ -21,7 +21,4 @@
     <!-- Endpoints of a TunnelApiListener answer on a tunnel port only: on the public /api they get
          404, and /api/openapi.json leaves them out (TunnelOnlyApiFilter). -->
     <bean id="tunnelOnlyApiFilterRegistrar" class="com.viscosiety.tunnel.TunnelOnlyApiFilterRegistrar"/>
-
-    <!-- Endpoint groups: a direct request for a group's path on /api/* gets 404 (ApiGroupPathFilter). -->
-    <bean id="apiGroupPathFilterRegistrar" class="com.viscosiety.api.ApiGroupPathFilterRegistrar"/>
 </beans>

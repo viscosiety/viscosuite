@@ -35,8 +35,6 @@ import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
-import com.viscosiety.api.ApiGroups;
-import com.viscosiety.api.ApiGroupsTestSupport;
 import org.frankframework.core.Adapter;
 import org.frankframework.core.PipeLine;
 import org.frankframework.http.rest.ApiListener;
@@ -60,8 +58,6 @@ class TunnelOnlyApiFilterTest {
     @AfterEach
     void clear() {
         ApiServiceDispatcher.getInstance().clear();
-        System.clearProperty(ApiGroups.PROPERTY);
-        ApiGroupsTestSupport.reset();
     }
 
     private static void register(ApiListener listener, String pattern, HttpMethod method) {
@@ -242,28 +238,5 @@ class TunnelOnlyApiFilterTest {
         assertEquals("OPTIONS, GET", response.getHeader("Allow"));
         assertEquals("GET", response.getHeader("Access-Control-Allow-Methods"));
         assertEquals("POST", response.getHeader("X-Other"), "other headers are untouched");
-    }
-
-    @Test
-    void groupEndpointsAreLeftOutOfThePublicDocumentAndItIsAnsweredHere() {
-        ApiGroupsTestSupport.reset();
-        System.setProperty(ApiGroups.PROPERTY, "webhooks");
-        register(new ApiListener(), "/webhooks/github", HttpMethod.POST);
-        register(new ApiListener(), "/orders", HttpMethod.GET);
-        JsonObject paths = TunnelOnlyApiFilter.publicOpenApi("http://localhost/api").getJsonObject("paths");
-        assertTrue(paths.containsKey("/orders"), paths.toString());
-        assertFalse(paths.containsKey("/webhooks/github"), paths.toString());
-        assertEquals(PUBLIC_OPENAPI, decide("GET", "/openapi.json", null));
-    }
-
-    @Test
-    void perPatternOpenApiOfAGroupEndpointIsNotFoundOnTheDefaultServlet() {
-        ApiGroupsTestSupport.reset();
-        System.setProperty(ApiGroups.PROPERTY, "webhooks");
-        register(new ApiListener(), "/webhooks/github", HttpMethod.POST);
-        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "/webhooks/github"));
-        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/openapi.json", "webhooks/github"));
-        assertEquals(OPENAPI_NOT_FOUND, decide("GET", "/webhooks/github/openapi.json", null));
-        assertEquals(PASS, decide("GET", "/openapi.json", "/orders"));
     }
 }

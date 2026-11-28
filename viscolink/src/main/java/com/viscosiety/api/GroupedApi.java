@@ -40,6 +40,10 @@ public final class GroupedApi implements Filter {
 
     public static boolean install(ServletConfiguration servlet, Environment env, ServletContext context,
             Map<String, IAuthenticator> authenticators, Consumer<List<String>> declareRoles) {
+        if (env.containsProperty("visco.api.groups") || System.getenv("visco.api.groups") != null) {
+            throw new IllegalArgumentException("visco.api.groups was removed. Set " + PREFIX
+                    + "authenticator=GROUPED and migrate the group list to " + PREFIX + "authenticationGroups");
+        }
         List<String> names = StringUtil.split(env.getProperty(PREFIX + "authenticationGroups"));
         if (!"GROUPED".equals(servlet.getAuthenticatorName()) || authenticators.containsKey("GROUPED")) {
             if (!names.isEmpty()) {
@@ -48,13 +52,13 @@ public final class GroupedApi implements Filter {
             return false;
         }
         if (!"GROUPED".equals(env.getProperty(PREFIX + "authenticator"))
-                || names.isEmpty() || !ApiGroups.names().isEmpty() || !servlet.getSecurityRoles().isEmpty()
+                || names.isEmpty() || !servlet.getSecurityRoles().isEmpty()
                 || !List.of("/api/*").equals(servlet.getUrlMapping())) {
-            throw new IllegalArgumentException("GROUPED requires authenticationGroups, /api/*, no servlet-wide roles and no visco.api.groups");
+            throw new IllegalArgumentException("GROUPED requires authenticationGroups, /api/*, no servlet-wide roles");
         }
         Map<String, List<String>> roles = new LinkedHashMap<>();
         for (String name : names) {
-            if (!ApiGroups.validName(name) || roles.containsKey(name)) {
+            if (!name.matches("[a-z][a-z0-9-]{1,29}") || "oauth2".equals(name) || "api-service".equals(name) || roles.containsKey(name)) {
                 throw new IllegalArgumentException("Invalid or duplicate API group: " + name);
             }
             String prefix = PREFIX + "group." + name + ".";
@@ -132,7 +136,7 @@ public final class GroupedApi implements Filter {
             ApiGroupOpenApi.write(response, group, request);
             return;
         }
-        var check = ApiGroupServlet.check(group, request.getMethod(), path);
+        var check = GroupListenerPolicy.check(group, request.getMethod(), path);
         switch (check.action()) {
             case NOT_FOUND -> response.setStatus(HttpServletResponse.SC_NOT_FOUND);
             case OPENAPI_NOT_FOUND -> response.sendError(HttpServletResponse.SC_NOT_FOUND, TunnelOnlyApiFilter.OPENAPI_NOT_FOUND_MESSAGE);
