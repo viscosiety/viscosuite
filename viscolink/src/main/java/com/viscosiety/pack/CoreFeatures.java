@@ -33,7 +33,7 @@ public final class CoreFeatures {
      * {@code tunnel-api}: HTTPS tunnel ports, the tunnel-side REST servlet and {@code TunnelApiListener} are present.
      * {@code api-groups}: extra REST endpoint groups ({@code visco.api.groups}), each under its own login, are supported.
      */
-    public static final List<String> ALL = List.of("lemma", "lifecycle-events", "tunnel-api", "api-groups");
+    public static final List<String> ALL = List.of("lemma", "lifecycle-events", "tunnel-api", "api-groups", "grouped-api");
 
     private CoreFeatures() {
     }

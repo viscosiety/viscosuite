@@ -506,7 +506,7 @@
 					</execution>
 				</executions>
 			</plugin>
-			<!-- Inject <script src="fhir-webservices.js"> into the extracted index.html. Phase
+			<!-- Include the core API-group and health-pack scripts in the extracted index.html. Phase
 			     process-resources (not prepare-package): the staged page must exist when the tests run
 			     and when the assembly packs it. -->
 			<plugin>
@@ -538,7 +538,7 @@
 								      overwrite="true"/>
 								<replace file="${project.build.directory}/console-patched/console/index.html">
 									<replacetoken><![CDATA[</body>]]></replacetoken>
-									<replacevalue><![CDATA[<script src="fhir-webservices.js"></script></body>]]></replacevalue>
+									<replacevalue><![CDATA[<script src="grouped-api.js"></script><script src="fhir-webservices.js"></script></body>]]></replacevalue>
 								</replace>
 							</target>
 						</configuration>

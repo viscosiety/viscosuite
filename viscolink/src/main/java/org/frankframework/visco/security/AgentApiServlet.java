@@ -110,6 +110,14 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 		return new String[0];
 	}
 
+	private static final String FORWARD_MARKER = AgentApiServlet.class.getName() + ".authorized";
+	private static final Object AUTHORIZED = new Object();
+
+	public static boolean isAuthorizedForward(HttpServletRequest request) {
+		return request.getDispatcherType() == jakarta.servlet.DispatcherType.FORWARD
+				&& request.getAttribute(FORWARD_MARKER) == AUTHORIZED;
+	}
+
 	@Override
 	protected void service(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
 		if (rejectUnauthorized(resp)) {
@@ -136,12 +144,14 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 		Object callerRepoAttribute = req.getAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME);
 		SecurityContext elevated = SecurityContextHolder.createEmptyContext();
 		elevated.setAuthentication(new PreAuthenticatedAuthenticationToken(
-				callerContext.getAuthentication().getName(), "n/a", authRoleAuthorities()));
+				callerContext.getAuthentication().getName(), "n/a", authRoleAuthorities(req)));
 		try {
 			SecurityContextHolder.setContext(elevated);
 			req.setAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME, elevated);
+			req.setAttribute(FORWARD_MARKER, AUTHORIZED);
 			dispatcher.forward(new AuthRoleGrantingRequest(req), resp);
 		} finally {
+			req.removeAttribute(FORWARD_MARKER);
 			SecurityContextHolder.setContext(callerContext);
 			req.setAttribute(RequestAttributeSecurityContextRepository.DEFAULT_REQUEST_ATTR_NAME, callerRepoAttribute);
 		}
@@ -151,12 +161,14 @@ public class AgentApiServlet extends AbstractBearerServiceServlet {
 	 * The caller's own tenant role plus every platform-defined API-user name -- the complete
 	 * set of role names a tenant AUTHROLE listener can legitimately reference.
 	 */
-	private List<SimpleGrantedAuthority> authRoleAuthorities() {
+	private List<SimpleGrantedAuthority> authRoleAuthorities(HttpServletRequest request) {
 		Stream<String> apiUserRoles = Arrays.stream(
 						AppConstants.getInstance().getProperty(API_LISTENER_ROLES_PROPERTY, "").split(","))
 				.map(String::trim)
 				.filter(role -> !role.isEmpty());
-		return Stream.concat(Stream.of(requiredRole()), apiUserRoles)
+		Stream<String> groupedRoles = request.getServletContext() == null ? Stream.empty() :
+				com.viscosiety.api.GroupedApi.forwardedRoles(request.getServletContext(), request.getPathInfo()).stream();
+		return Stream.concat(Stream.of(requiredRole()), Stream.concat(apiUserRoles, groupedRoles)).distinct()
 				.map(role -> new SimpleGrantedAuthority(ROLE_PREFIX + role))
 				.toList();
 	}

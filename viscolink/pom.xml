@@ -278,6 +278,25 @@
 				<version>3.8.0</version>
 				<executions>
 					<execution>
+						<id>unpack-console-index</id>
+						<phase>generate-resources</phase>
+						<goals><goal>unpack</goal></goals>
+						<configuration>
+							<!-- overWriteSnapshots forces re-extraction from the current SNAPSHOT JAR on every
+							     build so the patched index.html always matches the bundled JS asset hash. -->
+							<overWriteSnapshots>true</overWriteSnapshots>
+							<artifactItems>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-console-frontend</artifactId>
+									<version>${frankframework.version}</version>
+									<includes>console/index.html</includes>
+									<outputDirectory>${project.build.directory}/console-original</outputDirectory>
+								</artifactItem>
+							</artifactItems>
+						</configuration>
+					</execution>
+					<execution>
 						<id>unpack-localfilesystem-upstream</id>
 						<phase>validate</phase>
 						<goals><goal>unpack</goal></goals>
@@ -292,6 +311,13 @@
 									<classifier>sources</classifier>
 									<includes>org/frankframework/filesystem/LocalFileSystem.java</includes>
 									<outputDirectory>${project.build.directory}/ff-upstream-sources</outputDirectory>
+								</artifactItem>
+								<artifactItem>
+									<groupId>org.frankframework</groupId>
+									<artifactId>frankframework-core</artifactId>
+									<version>${frankframework.version}</version>
+									<includes>org/frankframework/lifecycle/ServletManager.class</includes>
+									<outputDirectory>${project.build.directory}/ff-upstream-classes</outputDirectory>
 								</artifactItem>
 							</artifactItems>
 						</configuration>
@@ -309,6 +335,23 @@
 					     frankframework/frankframework#12075. If upstream changes that file, the copy is
 					     stale and silently loses whatever upstream fixed, so the build stops here and the
 					     copy has to be re-derived. Delete this execution with the override. -->
+					<execution>
+						<id>patch-console-index</id>
+						<phase>process-resources</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<mkdir dir="${project.build.directory}/console-patched/console"/>
+								<copy file="${project.build.directory}/console-original/console/index.html"
+								      tofile="${project.build.directory}/console-patched/console/index.html"
+								      overwrite="true"/>
+								<replace file="${project.build.directory}/console-patched/console/index.html">
+									<replacetoken><![CDATA[</body>]]></replacetoken>
+									<replacevalue><![CDATA[<script src="grouped-api.js"></script></body>]]></replacevalue>
+								</replace>
+							</target>
+						</configuration>
+					</execution>
 					<execution>
 						<id>check-localfilesystem-upstream</id>
 						<phase>validate</phase>
@@ -354,6 +397,24 @@
 					     which the WebappClassLoader loads ahead of any WEB-INF/lib JAR. The build
 					     fails if the compiled class is absent, so a package move can't silently
 					     ship the unpatched authenticator. Delete this execution with the override. -->
+					<execution>
+						<id>stage-servlet-manager</id>
+						<phase>prepare-package</phase>
+						<goals><goal>run</goal></goals>
+						<configuration>
+							<target>
+								<checksum file="${project.build.directory}/ff-upstream-classes/org/frankframework/lifecycle/ServletManager.class" algorithm="SHA-256"
+										property="2e907f0652fef80e6cd1d970e8bed11371b34c33cb311dedd22b5e1328e1a64c" verifyproperty="servletmanager.unchanged"/>
+								<fail message="Review the ServletManager override against the updated framework"><condition><not><istrue value="${servletmanager.unchanged}"/></not></condition></fail>
+								<copy todir="${project.build.directory}/console-patched" overwrite="true">
+									<fileset dir="${project.build.directory}/classes" includes="org/frankframework/lifecycle/ServletManager*.class"/>
+								</copy>
+								<fail message="ServletManager override missing from WEB-INF/classes -- the workaround would not shadow the framework jar">
+									<condition><not><available file="${project.build.directory}/console-patched/org/frankframework/lifecycle/ServletManager.class"/></not></condition>
+								</fail>
+							</target>
+						</configuration>
+					</execution>
 					<execution>
 						<id>stage-oauth2-override</id>
 						<phase>prepare-package</phase>

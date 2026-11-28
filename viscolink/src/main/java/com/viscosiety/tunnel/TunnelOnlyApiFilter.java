@@ -81,6 +81,11 @@ public class TunnelOnlyApiFilter implements Filter {
             chain.doFilter(servletRequest, servletResponse);
             return;
         }
+        // The grouped servlet guard performs this check together with literal listener ownership.
+        if (request.getServletContext() != null && request.getServletContext().getAttribute(com.viscosiety.api.GroupedApi.class.getName()) != null) {
+            chain.doFilter(request, response);
+            return;
+        }
         // getParameter can read a form body, so it is only asked for on the OpenAPI path, as ApiListenerServlet does.
         String pathInfo = request.getPathInfo();
         String uriParameter = isOpenApiPath(pathInfo) ? request.getParameter("uri") : null;

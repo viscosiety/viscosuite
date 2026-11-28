@@ -68,3 +68,5 @@ file it pins and fails the build when it changes, so a bump cannot leave a silen
 loss is a security regression rather than a behavioural one,
 `com.viscosiety.filesystem.LocalFileSystemOverrideCheck` reads the `VISCO_OVERRIDE` marker field
 reflectively from the loaded class and **refuses to start** when it is missing.
+
+The single-servlet group registration hook in `org/frankframework/lifecycle/ServletManager.java` shadows frankframework-core (5e30e4cbe). The WAR build checks the upstream class digest before staging the override. Remove the hook once the official dependency supplies group registration.

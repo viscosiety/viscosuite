@@ -32,6 +32,12 @@
         <Receiver name="WebhooksPingReceiver">
             <ApiListener name="webhooksping" uriPattern="webhooks/ping" method="GET"/>
         </Receiver>
+        <Receiver name="hospitalPingReceiver">
+            <ApiListener name="hospitalping" uriPattern="hospital/ping" method="GET"/>
+        </Receiver>
+        <Receiver name="partnerPingReceiver">
+            <ApiListener name="partnerping" uriPattern="partner/ping" method="GET"/>
+        </Receiver>
         <Pipeline>
             <Exits>
                 <Exit name="Exit" state="SUCCESS" code="200"/>

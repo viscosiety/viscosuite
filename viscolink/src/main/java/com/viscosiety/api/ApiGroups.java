@@ -64,6 +64,10 @@ public final class ApiGroups {
         cached = null;
     }
 
+    static boolean validName(String name) {
+        return NAME.matcher(name).matches() && !RESERVED.contains(name);
+    }
+
     public static List<String> parse(String raw) {
         List<String> names = new ArrayList<>();
         if (raw == null) {
@@ -74,7 +78,7 @@ public final class ApiGroups {
             if (name.isEmpty() || names.contains(name)) {
                 continue;
             }
-            if (!NAME.matcher(name).matches() || RESERVED.contains(name)) {
+            if (!validName(name)) {
                 LOG.warn("api-groups: [{}] is not a valid group name; ignored", name);
                 continue;
             }

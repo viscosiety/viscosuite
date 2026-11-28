@@ -58,6 +58,9 @@ public class ApiSessionAuthRegistrar implements InitializingBean, ApplicationCon
             log.info("ApiSessionAuthRegistrar: disabled via {}=false", ENABLED_PROPERTY);
             return;
         }
+        if ("GROUPED".equals(parentCtx.getEnvironment().getProperty("servlet.ApiListenerServlet.authenticator"))) {
+            return; // Each group selects its own login; never import a console session into its chain.
+        }
         String type = parentCtx.getEnvironment().getProperty(CONSOLE_AUTH_TYPE);
         if (!"OAUTH2".equalsIgnoreCase(type)) {
             log.info("ApiSessionAuthRegistrar: console authentication is [{}], not OAUTH2 -- nothing to bridge onto /api",
